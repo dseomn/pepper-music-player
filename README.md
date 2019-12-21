@@ -3,6 +3,10 @@
 Open source music player written in Python; not yet ready for general
 consumption.
 
+**NOTE**: This is alpha software. Configuration and other data may not be
+preserved across code changes. Functionality may change or disappear without
+warning.
+
 ## Features
 
 None yet.
