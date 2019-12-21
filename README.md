@@ -41,6 +41,15 @@ None yet.
     [MusicBrainz Picard](https://picard.musicbrainz.org/) and
     [Ex Falso](https://quodlibet.readthedocs.io/en/latest/guide/commands/exfalso.html).
 
+## Dependencies
+
+### Debian
+
+```
+sudo apt install \
+    python3-mutagen
+```
+
 ## Disclaimer
 
 This is not an officially supported Google product.
