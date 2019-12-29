@@ -20,12 +20,35 @@ metadata across threads easier.
 """
 
 import dataclasses
-from typing import Iterable, Mapping, Tuple
+import enum
+from typing import Iterable, Mapping, Tuple, Union
 
 import frozendict
 
 
-class Tags(frozendict.frozendict, Mapping[str, Tuple[str]]):
+class TagName(enum.Enum):
+    """Name of a known tag.
+
+    Code that needs to access specific tags (e.g., getting the track number)
+    should use this enum. Code that works with arbitrary tags (e.g., running a
+    user-entered query with tags specified by the user) may use str tag names
+    instead.
+    """
+    ALBUM = 'album'
+
+
+ArbitraryTagName = Union[TagName, str]
+
+
+def _tag_name_str(tag_name: ArbitraryTagName) -> str:
+    """Returns the str form of a tag name."""
+    if isinstance(tag_name, TagName):
+        return tag_name.value
+    else:
+        return tag_name
+
+
+class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
     """Tags, typically from an audio file.
 
     Note that tags can have multiple values, potentially even multiple identical
@@ -40,6 +63,12 @@ class Tags(frozendict.frozendict, Mapping[str, Tuple[str]]):
                 values for that tag.
         """
         super().__init__({name: tuple(values) for name, values in tags.items()})
+
+    def __getitem__(self, key: ArbitraryTagName) -> Tuple[str]:
+        return super().__getitem__(_tag_name_str(key))
+
+    def __contains__(self, key: ArbitraryTagName) -> bool:
+        return super().__contains__(_tag_name_str(key))
 
 
 @dataclasses.dataclass(frozen=True)

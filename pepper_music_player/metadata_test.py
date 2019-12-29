@@ -26,6 +26,21 @@ class TagsTest(unittest.TestCase):
             metadata.Tags({'foo': ['a', 'b']})['foo'],
         )
 
+    def test_getitem_str(self):
+        self.assertEqual(('b',), metadata.Tags({'a': ('b',)})['a'])
+
+    def test_getitem_tag_name(self):
+        self.assertEqual(
+            ('a',),
+            metadata.Tags({'album': ('a',)})[metadata.TagName.ALBUM],
+        )
+
+    def test_contains_str(self):
+        self.assertIn('a', metadata.Tags({'a': ('b',)}))
+
+    def test_contains_tag_name(self):
+        self.assertIn(metadata.TagName.ALBUM, metadata.Tags({'album': ('a',)}))
+
 
 if __name__ == '__main__':
     unittest.main()
