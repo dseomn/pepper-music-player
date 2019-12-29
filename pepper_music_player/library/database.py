@@ -15,6 +15,9 @@
 
 import sqlite3
 import threading
+from typing import Iterable
+
+from pepper_music_player.library import scan
 
 _SCHEMA_DROP = (
     'DROP TABLE IF EXISTS File',
@@ -80,3 +83,34 @@ class Database:
     with self._connection:
       for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
         self._connection.execute(statement)
+
+  def insert_files(self, files: Iterable[scan.File]) -> None:
+    """Inserts information about the given files.
+
+    Args:
+      files: Files to insert into the database.
+
+    Raises:
+      sqlite3.IntegrityError: One or more files are already in the database.
+    """
+    with self._connection:
+      for file_info in files:
+        file_id = self._connection.execute(
+            """
+            INSERT INTO File (dirname, filename)
+            VALUES (:dirname, :filename)
+            """,
+            {
+                'dirname': file_info.dirname,
+                'filename': file_info.filename,
+            },
+        ).lastrowid
+        if isinstance(file_info, scan.AudioFile):
+          self._connection.executemany(
+              """
+              INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
+              VALUES (:file_id, :tag_name, :tag_value)
+              """,
+              (dict(file_id=file_id, tag_name=tag_name, tag_value=tag_value)
+               for tag_name, tag_value in file_info.tags),
+          )
