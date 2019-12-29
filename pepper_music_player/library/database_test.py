@@ -19,7 +19,7 @@ import tempfile
 import unittest
 
 from pepper_music_player.library import database
-from pepper_music_player.library import scan
+from pepper_music_player import metadata
 
 
 class DatabaseTest(unittest.TestCase):
@@ -55,8 +55,8 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_generic(self):
         self._database.insert_files((
-            scan.File(dirname='a', filename='b'),
-            scan.AudioFile(dirname='c', filename='d', tags=()),
+            metadata.File(dirname='a', filename='b'),
+            metadata.AudioFile(dirname='c', filename='d', tags=()),
         ))
         with self._connection:
             self.assertEqual(
@@ -72,16 +72,16 @@ class DatabaseTest(unittest.TestCase):
     def test_insert_files_duplicate(self):
         with self.assertRaises(sqlite3.IntegrityError):
             self._database.insert_files((
-                scan.File(dirname='a', filename='b'),
-                scan.File(dirname='a', filename='b'),
+                metadata.File(dirname='a', filename='b'),
+                metadata.File(dirname='a', filename='b'),
             ))
 
     def test_insert_files_audio(self):
         self._database.insert_files((
-            scan.AudioFile(dirname='a', filename='b', tags=(('c', 'd'),)),
-            scan.AudioFile(dirname='a',
-                           filename='c',
-                           tags=(('a', 'b'), ('a', 'b'), ('c', 'd'))),
+            metadata.AudioFile(dirname='a', filename='b', tags=(('c', 'd'),)),
+            metadata.AudioFile(dirname='a',
+                               filename='c',
+                               tags=(('a', 'b'), ('a', 'b'), ('c', 'd'))),
         ))
         with self._connection:
             self.assertEqual(

@@ -21,6 +21,7 @@ import unittest
 import mutagen.flac
 
 from pepper_music_player.library import scan
+from pepper_music_player import metadata
 
 # Empty audio file data with no tags.
 _FLAC = (
@@ -47,9 +48,9 @@ class ScanTest(unittest.TestCase):
         bar.joinpath('bar1').touch()
         self.assertEqual(
             {
-                scan.File(dirname=str(foo), filename='foo1'),
-                scan.File(dirname=str(foo), filename='foo2'),
-                scan.File(dirname=str(bar), filename='bar1'),
+                metadata.File(dirname=str(foo), filename='foo1'),
+                metadata.File(dirname=str(foo), filename='foo2'),
+                metadata.File(dirname=str(bar), filename='bar1'),
             },
             frozenset(scan.scan(str(self._root_dirpath))),
         )
@@ -58,9 +59,9 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertEqual(
             {
-                scan.AudioFile(dirname=str(self._root_dirpath),
-                               filename='foo.flac',
-                               tags=()),
+                metadata.AudioFile(dirname=str(self._root_dirpath),
+                                   filename='foo.flac',
+                                   tags=()),
             },
             frozenset(scan.scan(str(self._root_dirpath))),
         )
@@ -77,7 +78,7 @@ class ScanTest(unittest.TestCase):
             flac_data.getvalue())
         self.assertEqual(
             {
-                scan.AudioFile(
+                metadata.AudioFile(
                     dirname=str(self._root_dirpath),
                     filename='foo.flac',
                     tags=(

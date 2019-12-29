@@ -17,7 +17,7 @@ import sqlite3
 import threading
 from typing import Iterable
 
-from pepper_music_player.library import scan
+from pepper_music_player import metadata
 
 _SCHEMA_DROP = (
     'DROP TABLE IF EXISTS File',
@@ -84,7 +84,7 @@ class Database:
             for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
                 self._connection.execute(statement)
 
-    def insert_files(self, files: Iterable[scan.File]) -> None:
+    def insert_files(self, files: Iterable[metadata.File]) -> None:
         """Inserts information about the given files.
 
         Args:
@@ -106,7 +106,7 @@ class Database:
                         'filename': file_info.filename,
                     },
                 ).lastrowid
-                if isinstance(file_info, scan.AudioFile):
+                if isinstance(file_info, metadata.AudioFile):
                     self._connection.executemany(
                         """
                         INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
