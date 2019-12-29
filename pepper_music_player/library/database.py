@@ -58,59 +58,60 @@ _SCHEMA_CREATE = (
 
 
 class Database:
-  """Database for a library."""
+    """Database for a library."""
 
-  def __init__(self, sqlite3_path: str) -> None:
-    """Initializer.
+    def __init__(self, sqlite3_path: str) -> None:
+        """Initializer.
 
-    Args:
-      sqlite3_path: Path to a sqlite3 database.
-    """
-    self._sqlite3_path = sqlite3_path
-    self._local = threading.local()
+        Args:
+            sqlite3_path: Path to a sqlite3 database.
+        """
+        self._sqlite3_path = sqlite3_path
+        self._local = threading.local()
 
-  @property
-  def _connection(self) -> sqlite3.Connection:
-    # https://docs.python.org/3.8/library/sqlite3.html#multithreading says that
-    # sqlite3 connections shouldn't be shared between threads.
-    if not hasattr(self._local, 'connection'):
-      self._local.connection = sqlite3.connect(
-          self._sqlite3_path, isolation_level=None)
-    return self._local.connection
+    @property
+    def _connection(self) -> sqlite3.Connection:
+        # https://docs.python.org/3.8/library/sqlite3.html#multithreading says
+        # that sqlite3 connections shouldn't be shared between threads.
+        if not hasattr(self._local, 'connection'):
+            self._local.connection = sqlite3.connect(self._sqlite3_path,
+                                                     isolation_level=None)
+        return self._local.connection
 
-  def reset(self) -> None:
-    """(Re)sets the database to its initial, empty state."""
-    with self._connection:
-      for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
-        self._connection.execute(statement)
+    def reset(self) -> None:
+        """(Re)sets the database to its initial, empty state."""
+        with self._connection:
+            for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
+                self._connection.execute(statement)
 
-  def insert_files(self, files: Iterable[scan.File]) -> None:
-    """Inserts information about the given files.
+    def insert_files(self, files: Iterable[scan.File]) -> None:
+        """Inserts information about the given files.
 
-    Args:
-      files: Files to insert into the database.
+        Args:
+            files: Files to insert into the database.
 
-    Raises:
-      sqlite3.IntegrityError: One or more files are already in the database.
-    """
-    with self._connection:
-      for file_info in files:
-        file_id = self._connection.execute(
-            """
-            INSERT INTO File (dirname, filename)
-            VALUES (:dirname, :filename)
-            """,
-            {
-                'dirname': file_info.dirname,
-                'filename': file_info.filename,
-            },
-        ).lastrowid
-        if isinstance(file_info, scan.AudioFile):
-          self._connection.executemany(
-              """
-              INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
-              VALUES (:file_id, :tag_name, :tag_value)
-              """,
-              (dict(file_id=file_id, tag_name=tag_name, tag_value=tag_value)
-               for tag_name, tag_value in file_info.tags),
-          )
+        Raises:
+            sqlite3.IntegrityError: One or more files are already in the
+                database.
+        """
+        with self._connection:
+            for file_info in files:
+                file_id = self._connection.execute(
+                    """
+                    INSERT INTO File (dirname, filename)
+                    VALUES (:dirname, :filename)
+                    """,
+                    {
+                        'dirname': file_info.dirname,
+                        'filename': file_info.filename,
+                    },
+                ).lastrowid
+                if isinstance(file_info, scan.AudioFile):
+                    self._connection.executemany(
+                        """
+                        INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
+                        VALUES (:file_id, :tag_name, :tag_value)
+                        """,
+                        (dict(file_id=file_id, tag_name=name, tag_value=value)
+                         for name, value in file_info.tags),
+                    )

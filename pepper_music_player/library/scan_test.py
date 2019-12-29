@@ -30,65 +30,67 @@ _FLAC = (
 
 class ScanTest(unittest.TestCase):
 
-  def setUp(self):
-    super().setUp()
-    tempdir = tempfile.TemporaryDirectory()
-    self.addCleanup(tempdir.cleanup)
-    self._root_dirpath = pathlib.Path(tempdir.name)
+    def setUp(self):
+        super().setUp()
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        self._root_dirpath = pathlib.Path(tempdir.name)
 
-  def test_scans_recursively(self):
-    self._root_dirpath.joinpath('empty-dir').mkdir()
-    foo = self._root_dirpath.joinpath('foo')
-    foo.mkdir()
-    foo.joinpath('foo1').touch()
-    foo.joinpath('foo2').touch()
-    bar = foo.joinpath('bar')
-    bar.mkdir()
-    bar.joinpath('bar1').touch()
-    self.assertEqual(
-        {
-            scan.File(dirname=str(foo), filename='foo1'),
-            scan.File(dirname=str(foo), filename='foo2'),
-            scan.File(dirname=str(bar), filename='bar1'),
-        },
-        frozenset(scan.scan(str(self._root_dirpath))),
-    )
+    def test_scans_recursively(self):
+        self._root_dirpath.joinpath('empty-dir').mkdir()
+        foo = self._root_dirpath.joinpath('foo')
+        foo.mkdir()
+        foo.joinpath('foo1').touch()
+        foo.joinpath('foo2').touch()
+        bar = foo.joinpath('bar')
+        bar.mkdir()
+        bar.joinpath('bar1').touch()
+        self.assertEqual(
+            {
+                scan.File(dirname=str(foo), filename='foo1'),
+                scan.File(dirname=str(foo), filename='foo2'),
+                scan.File(dirname=str(bar), filename='bar1'),
+            },
+            frozenset(scan.scan(str(self._root_dirpath))),
+        )
 
-  def test_parses_empty_tags(self):
-    self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
-    self.assertEqual(
-        {
-            scan.AudioFile(
-                dirname=str(self._root_dirpath), filename='foo.flac', tags=()),
-        },
-        frozenset(scan.scan(str(self._root_dirpath))),
-    )
+    def test_parses_empty_tags(self):
+        self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
+        self.assertEqual(
+            {
+                scan.AudioFile(dirname=str(self._root_dirpath),
+                               filename='foo.flac',
+                               tags=()),
+            },
+            frozenset(scan.scan(str(self._root_dirpath))),
+        )
 
-  def test_parses_flac(self):
-    flac_data = io.BytesIO(_FLAC)
-    tags = mutagen.flac.FLAC(fileobj=flac_data)
-    tags['title'] = 'Foo'
-    tags['date'] = '2019-12-21'
-    tags['artists'] = ['artist1', 'artist2']
-    flac_data.seek(0)
-    tags.save(fileobj=flac_data)
-    self._root_dirpath.joinpath('foo.flac').write_bytes(flac_data.getvalue())
-    self.assertEqual(
-        {
-            scan.AudioFile(
-                dirname=str(self._root_dirpath),
-                filename='foo.flac',
-                tags=(
-                    ('artists', 'artist1'),
-                    ('artists', 'artist2'),
-                    ('date', '2019-12-21'),
-                    ('title', 'Foo'),
+    def test_parses_flac(self):
+        flac_data = io.BytesIO(_FLAC)
+        tags = mutagen.flac.FLAC(fileobj=flac_data)
+        tags['title'] = 'Foo'
+        tags['date'] = '2019-12-21'
+        tags['artists'] = ['artist1', 'artist2']
+        flac_data.seek(0)
+        tags.save(fileobj=flac_data)
+        self._root_dirpath.joinpath('foo.flac').write_bytes(
+            flac_data.getvalue())
+        self.assertEqual(
+            {
+                scan.AudioFile(
+                    dirname=str(self._root_dirpath),
+                    filename='foo.flac',
+                    tags=(
+                        ('artists', 'artist1'),
+                        ('artists', 'artist2'),
+                        ('date', '2019-12-21'),
+                        ('title', 'Foo'),
+                    ),
                 ),
-            ),
-        },
-        frozenset(scan.scan(str(self._root_dirpath))),
-    )
+            },
+            frozenset(scan.scan(str(self._root_dirpath))),
+        )
 
 
 if __name__ == '__main__':
-  unittest.main()
+    unittest.main()

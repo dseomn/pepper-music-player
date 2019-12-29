@@ -24,79 +24,82 @@ from pepper_music_player.library import scan
 
 class DatabaseTest(unittest.TestCase):
 
-  def setUp(self):
-    super().setUp()
-    tempdir = tempfile.TemporaryDirectory()
-    self.addCleanup(tempdir.cleanup)
-    sqlite3_path = os.path.join(tempdir.name, 'database.sqlite3')
-    self._database = database.Database(sqlite3_path)
-    self._database.reset()
-    self._connection = sqlite3.connect(sqlite3_path, isolation_level=None)
+    def setUp(self):
+        super().setUp()
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        sqlite3_path = os.path.join(tempdir.name, 'database.sqlite3')
+        self._database = database.Database(sqlite3_path)
+        self._database.reset()
+        self._connection = sqlite3.connect(sqlite3_path, isolation_level=None)
 
-  def test_reset_deletes_data(self):
-    with self._connection:
-      file_id = self._connection.execute(
-          'INSERT INTO File (dirname, filename) VALUES ("a", "b")').lastrowid
-      self._connection.execute(
-          """
-          INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
-          VALUES (?, "c", "d")
-          """,
-          (file_id,),
-      )
-    self._database.reset()
-    with self._connection:
-      self.assertFalse(
-          self._connection.execute('SELECT * FROM File').fetchall())
-      self.assertFalse(
-          self._connection.execute('SELECT * FROM AudioFileTag').fetchall())
+    def test_reset_deletes_data(self):
+        with self._connection:
+            file_id = self._connection.execute(
+                'INSERT INTO File (dirname, filename) VALUES ("a", "b")'
+            ).lastrowid
+            self._connection.execute(
+                """
+                INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
+                VALUES (?, "c", "d")
+                """,
+                (file_id,),
+            )
+        self._database.reset()
+        with self._connection:
+            self.assertFalse(
+                self._connection.execute('SELECT * FROM File').fetchall())
+            self.assertFalse(
+                self._connection.execute(
+                    'SELECT * FROM AudioFileTag').fetchall())
 
-  def test_insert_files_generic(self):
-    self._database.insert_files((
-        scan.File(dirname='a', filename='b'),
-        scan.AudioFile(dirname='c', filename='d', tags=()),
-    ))
-    with self._connection:
-      self.assertEqual(
-          {
-              ('a', 'b'),
-              ('c', 'd'),
-          },
-          frozenset(
-              self._connection.execute('SELECT dirname, filename FROM File')),
-      )
+    def test_insert_files_generic(self):
+        self._database.insert_files((
+            scan.File(dirname='a', filename='b'),
+            scan.AudioFile(dirname='c', filename='d', tags=()),
+        ))
+        with self._connection:
+            self.assertEqual(
+                {
+                    ('a', 'b'),
+                    ('c', 'd'),
+                },
+                frozenset(
+                    self._connection.execute(
+                        'SELECT dirname, filename FROM File')),
+            )
 
-  def test_insert_files_duplicate(self):
-    with self.assertRaises(sqlite3.IntegrityError):
-      self._database.insert_files((
-          scan.File(dirname='a', filename='b'),
-          scan.File(dirname='a', filename='b'),
-      ))
+    def test_insert_files_duplicate(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            self._database.insert_files((
+                scan.File(dirname='a', filename='b'),
+                scan.File(dirname='a', filename='b'),
+            ))
 
-  def test_insert_files_audio(self):
-    self._database.insert_files((
-        scan.AudioFile(dirname='a', filename='b', tags=(('c', 'd'),)),
-        scan.AudioFile(
-            dirname='a',
-            filename='c',
-            tags=(('a', 'b'), ('a', 'b'), ('c', 'd'))),
-    ))
-    with self._connection:
-      self.assertEqual(
-          {
-              ('a', 'b', 'c', 'd'),
-              ('a', 'c', 'a', 'b'),
-              ('a', 'c', 'a', 'b'),
-              ('a', 'c', 'c', 'd'),
-          },
-          frozenset(
-              self._connection.execute("""
-              SELECT dirname, filename, tag_name, tag_value
-              FROM File
-              JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
-              """)),
-      )
+    def test_insert_files_audio(self):
+        self._database.insert_files((
+            scan.AudioFile(dirname='a', filename='b', tags=(('c', 'd'),)),
+            scan.AudioFile(dirname='a',
+                           filename='c',
+                           tags=(('a', 'b'), ('a', 'b'), ('c', 'd'))),
+        ))
+        with self._connection:
+            self.assertEqual(
+                {
+                    ('a', 'b', 'c', 'd'),
+                    ('a', 'c', 'a', 'b'),
+                    ('a', 'c', 'a', 'b'),
+                    ('a', 'c', 'c', 'd'),
+                },
+                frozenset(
+                    self._connection.execute(
+                        """
+                        SELECT dirname, filename, tag_name, tag_value
+                        FROM File
+                        JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
+                        """,)),
+            )
 
 
 if __name__ == '__main__':
-  unittest.main()
+    unittest.main()
