@@ -16,31 +16,19 @@
 import mimetypes
 import os
 import pathlib
-from typing import Generator, Iterable, Tuple
+from typing import Generator
 
 import mutagen
 
 from pepper_music_player import metadata
 
 
-def _read_tags(filename: str) -> Iterable[Tuple[str, str]]:
-    """Reads tags from a file.
-
-    Args:
-        filename: Where to read tags from.
-
-    Returns:
-        See the tags attribute of metadata.AudioFile.
-    """
+def _read_tags(filename: str) -> metadata.Tags:
+    """Returns tags read from a file."""
     file_info = mutagen.File(filename, easy=True)
     if file_info.tags is None:
-        return ()
-    tags_list = []
-    for key, values in file_info.tags.items():
-        for value in values:
-            tags_list.append((key, value))
-    # sorted() is used to make testing easier.
-    return tuple(sorted(tags_list))
+        return metadata.Tags({})
+    return metadata.Tags(file_info.tags)
 
 
 def scan(root_dirname: str) -> Generator[metadata.File, None, None]:

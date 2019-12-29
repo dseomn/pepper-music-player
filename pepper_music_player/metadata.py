@@ -20,7 +20,26 @@ metadata across threads easier.
 """
 
 import dataclasses
-from typing import Iterable, Tuple
+from typing import Iterable, Mapping, Tuple
+
+import frozendict
+
+
+class Tags(frozendict.frozendict, Mapping[str, Tuple[str]]):
+    """Tags, typically from an audio file.
+
+    Note that tags can have multiple values, potentially even multiple identical
+    values. E.g., this is a valid set of tags: {'a': ('b', 'b')}
+    """
+
+    def __init__(self, tags: Mapping[str, Iterable[str]]) -> None:
+        """Initializer.
+
+        Args:
+            tags: Tags to represent, as a mapping from each tag name to all
+                values for that tag.
+        """
+        super().__init__({name: tuple(values) for name, values in tags.items()})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -40,8 +59,6 @@ class AudioFile(File):
     """An audio file.
 
     Attributes:
-        tags: Metadata tags as an iterable of (key, value) tuples. Note that a
-            single key can appear multiple times, potentially even with the same
-            value.
+        tags: Tags from the audio file.
     """
-    tags: Iterable[Tuple[str, str]]
+    tags: Tags

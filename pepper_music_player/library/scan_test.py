@@ -61,7 +61,7 @@ class ScanTest(unittest.TestCase):
             {
                 metadata.AudioFile(dirname=str(self._root_dirpath),
                                    filename='foo.flac',
-                                   tags=()),
+                                   tags=metadata.Tags({})),
             },
             frozenset(scan.scan(str(self._root_dirpath))),
         )
@@ -81,12 +81,11 @@ class ScanTest(unittest.TestCase):
                 metadata.AudioFile(
                     dirname=str(self._root_dirpath),
                     filename='foo.flac',
-                    tags=(
-                        ('artists', 'artist1'),
-                        ('artists', 'artist2'),
-                        ('date', '2019-12-21'),
-                        ('title', 'Foo'),
-                    ),
+                    tags=metadata.Tags({
+                        'artists': ('artist1', 'artist2'),
+                        'date': ('2019-12-21',),
+                        'title': ('Foo',),
+                    }),
                 ),
             },
             frozenset(scan.scan(str(self._root_dirpath))),

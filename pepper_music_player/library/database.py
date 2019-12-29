@@ -107,11 +107,13 @@ class Database:
                     },
                 ).lastrowid
                 if isinstance(file_info, metadata.AudioFile):
-                    self._connection.executemany(
-                        """
-                        INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
-                        VALUES (:file_id, :tag_name, :tag_value)
-                        """,
-                        (dict(file_id=file_id, tag_name=name, tag_value=value)
-                         for name, value in file_info.tags),
-                    )
+                    for tag_name, tag_values in file_info.tags.items():
+                        self._connection.executemany(
+                            """
+                            INSERT INTO AudioFileTag (
+                              file_id, tag_name, tag_value)
+                            VALUES (?, ?, ?)
+                            """,
+                            ((file_id, tag_name, tag_value)
+                             for tag_value in tag_values),
+                        )

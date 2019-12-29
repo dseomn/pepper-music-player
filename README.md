@@ -47,6 +47,7 @@ None yet.
 
 ```
 sudo apt install \
+    python3-frozendict \
     python3-mutagen
 ```
 

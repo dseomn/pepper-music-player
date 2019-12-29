@@ -56,7 +56,9 @@ class DatabaseTest(unittest.TestCase):
     def test_insert_files_generic(self):
         self._database.insert_files((
             metadata.File(dirname='a', filename='b'),
-            metadata.AudioFile(dirname='c', filename='d', tags=()),
+            metadata.AudioFile(dirname='c',
+                               filename='d',
+                               tags=metadata.Tags({})),
         ))
         with self._connection:
             self.assertEqual(
@@ -78,10 +80,15 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_audio(self):
         self._database.insert_files((
-            metadata.AudioFile(dirname='a', filename='b', tags=(('c', 'd'),)),
+            metadata.AudioFile(dirname='a',
+                               filename='b',
+                               tags=metadata.Tags({'c': ('d',)})),
             metadata.AudioFile(dirname='a',
                                filename='c',
-                               tags=(('a', 'b'), ('a', 'b'), ('c', 'd'))),
+                               tags=metadata.Tags({
+                                   'a': ('b', 'b'),
+                                   'c': ('d',),
+                               })),
         ))
         with self._connection:
             self.assertEqual(
