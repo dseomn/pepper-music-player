@@ -38,6 +38,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     # TODO: Add a linter.
+    - name: Check formatting
+      run: |
+        pip install yapf
+        yapf --parallel --diff --recursive .
     - name: Run pytype
       # TODO(https://github.com/google/pytype/issues/440): Remove this
       # condition.
