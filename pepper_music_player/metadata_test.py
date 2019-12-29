@@ -87,5 +87,44 @@ class AudioFileTest(unittest.TestCase):
         )
 
 
+class AlbumTest(unittest.TestCase):
+
+    def test_token(self):
+        tracks = (
+            metadata.AudioFile(
+                dirname='/a',
+                filename='b',
+                tags=metadata.Tags({'album': ('a',)}),
+            ),
+            metadata.AudioFile(
+                dirname='/a',
+                filename='c',
+                tags=metadata.Tags({'album': ('a',)}),
+            ),
+        )
+        self.assertEqual(
+            tracks[0].album_token,
+            metadata.Album(tags=metadata.Tags({}), tracks=tracks).token,
+        )
+
+    def test_token_mismatch(self):
+        with self.assertRaisesRegex(ValueError, 'exactly one token'):
+            metadata.Album(
+                tags=metadata.Tags({}),
+                tracks=(
+                    metadata.AudioFile(
+                        dirname='/a',
+                        filename='b',
+                        tags=metadata.Tags({'album': ('a',)}),
+                    ),
+                    metadata.AudioFile(
+                        dirname='/a',
+                        filename='c',
+                        tags=metadata.Tags({'album': ('d',)}),
+                    ),
+                ),
+            )
+
+
 if __name__ == '__main__':
     unittest.main()

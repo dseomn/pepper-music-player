@@ -132,3 +132,24 @@ class AudioFile(File):
                 self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
             )),
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class Album:
+    """An album.
+
+    Attributes:
+        token: Opaque token that identifies this album.
+        tags: Tags that are common to all tracks on the album.
+        tracks: Tracks on the album.
+    """
+    token: str = dataclasses.field(init=False, repr=False)
+    tags: Tags
+    tracks: Tuple[AudioFile]
+
+    def __post_init__(self) -> None:
+        album_tokens = {track.album_token for track in self.tracks}
+        if len(album_tokens) != 1:
+            raise ValueError(
+                f'Album must have exactly one token, not {album_tokens!r}')
+        object.__setattr__(self, 'token', next(iter(album_tokens)))
