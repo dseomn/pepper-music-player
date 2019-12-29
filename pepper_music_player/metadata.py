@@ -11,7 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Metadata about files, tracks, albums, etc."""
+"""Metadata about files, tracks, albums, etc.
+
+In general, all the metadata classes in this file should be read-only (e.g.,
+tuples instead of lists) because: 1) It can prevent bugs if some code
+accidentally tries to modify a shared piece of metadata. 2) It makes sharing
+metadata across threads easier.
+"""
 
 import dataclasses
 from typing import Iterable, Tuple
