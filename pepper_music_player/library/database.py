@@ -13,6 +13,7 @@
 # limitations under the License.
 """Database for a library."""
 
+import itertools
 import sqlite3
 import threading
 from typing import Iterable
@@ -21,7 +22,9 @@ from pepper_music_player import metadata
 
 _SCHEMA_DROP = (
     'DROP TABLE IF EXISTS File',
+    'DROP TABLE IF EXISTS AudioFile',
     'DROP TABLE IF EXISTS AudioFileTag',
+    'DROP TABLE IF EXISTS AlbumTag',
 )
 
 _SCHEMA_CREATE = (
@@ -37,6 +40,20 @@ _SCHEMA_CREATE = (
         PRIMARY KEY (dirname, filename)
     )
     """,
+
+    # Audio files in the library.
+    #
+    # Columns:
+    #   file_id: Which file it is.
+    #   album_token: Opaque token that identifies the album the file is on.
+    """
+    CREATE TABLE AudioFile (
+        file_id INTEGER NOT NULL REFERENCES File (rowid) ON DELETE CASCADE,
+        album_token TEXT NOT NULL,
+        PRIMARY KEY (file_id)
+    )
+    """,
+    'CREATE INDEX AudioFile_AlbumIndex ON AudioFile (album_token)',
 
     # Tags for audio files in the library.
     #
@@ -54,6 +71,22 @@ _SCHEMA_CREATE = (
     """,
     'CREATE INDEX AudioFileTag_FileIndex ON AudioFileTag (file_id)',
     'CREATE INDEX AudioFileTag_TagIndex ON AudioFileTag (tag_name, tag_value)',
+
+    # Tags common to all AudioFiles on an Album.
+    #
+    # Columns:
+    #   album_token: Opaque token that identifies the album.
+    #   tag_name: See AudioFileTag.
+    #   tag_value: See AudioFileTag.
+    """
+    CREATE TABLE AlbumTag (
+        album_token TEXT NOT NULL,
+        tag_name TEXT NOT NULL,
+        tag_value TEXT NOT NULL
+    )
+    """,
+    'CREATE INDEX AlbumTag_AlbumIndex ON AlbumTag (album_token)',
+    'CREATE INDEX AlbumTag_TagIndex ON AlbumTag (tag_name, tag_value)',
 )
 
 
@@ -98,6 +131,16 @@ class Database:
             file_id: Row ID of the file in the File table.
             file_info: File to insert.
         """
+        self._connection.execute(
+            """
+            INSERT INTO AudioFile (file_id, album_token)
+            VALUES (:file_id, :album_token)
+            """,
+            {
+                'file_id': file_id,
+                'album_token': file_info.album_token(),
+            },
+        )
         for tag_name, tag_values in file_info.tags.items():
             self._connection.executemany(
                 """
@@ -105,6 +148,37 @@ class Database:
                 VALUES (?, ?, ?)
                 """,
                 ((file_id, tag_name, tag_value) for tag_value in tag_values),
+            )
+
+    def _update_album_tags(self) -> None:
+        """Updates the AlbumTag table to reflect the current files.
+
+        The caller is responsible for managing the transaction around this
+        function.
+        """
+        self._connection.execute('DELETE FROM AlbumTag')
+        for album_token, audio_file_rows in itertools.groupby(
+                self._connection.execute("""
+                    SELECT album_token, file_id, tag_name, tag_value
+                    FROM AudioFile
+                    LEFT JOIN AudioFileTag USING (file_id)
+                    ORDER BY album_token, file_id
+                """),
+                lambda row: row[0],
+        ):
+            tags = []
+            for file_id, tag_rows in itertools.groupby(audio_file_rows,
+                                                       lambda row: row[1]):
+                tags.append({(tag_name, tag_value)
+                             for _, _, tag_name, tag_value in tag_rows
+                             if tag_name is not None})
+            self._connection.executemany(
+                """
+                INSERT INTO AlbumTag (album_token, tag_name, tag_value)
+                VALUES (?, ?, ?)
+                """,
+                ((album_token, tag_name, tag_value)
+                 for tag_name, tag_value in set.intersection(*tags)),
             )
 
     def insert_files(self, files: Iterable[metadata.File]) -> None:
@@ -131,3 +205,4 @@ class Database:
                 ).lastrowid
                 if isinstance(file_info, metadata.AudioFile):
                     self._insert_audio_file(file_id, file_info)
+            self._update_album_tags()

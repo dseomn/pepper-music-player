@@ -17,6 +17,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
 from pepper_music_player.library import database
 from pepper_music_player import metadata
@@ -39,19 +40,27 @@ class DatabaseTest(unittest.TestCase):
                 'INSERT INTO File (dirname, filename) VALUES ("a", "b")'
             ).lastrowid
             self._connection.execute(
+                'INSERT INTO AudioFile (file_id, album_token) VALUES (?, "a")',
+                (file_id,),
+            )
+            self._connection.execute(
                 """
                 INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
                 VALUES (?, "c", "d")
                 """,
                 (file_id,),
             )
+            self._connection.execute("""
+                INSERT INTO AlbumTag (album_token, tag_name, tag_value)
+                VALUES ("a", "c", "d")
+            """)
         self._database.reset()
         with self._connection:
-            self.assertFalse(
-                self._connection.execute('SELECT * FROM File').fetchall())
-            self.assertFalse(
-                self._connection.execute(
-                    'SELECT * FROM AudioFileTag').fetchall())
+            for table_name in ('File', 'AudioFile', 'AudioFileTag', 'AlbumTag'):
+                with self.subTest(table_name):
+                    self.assertFalse(
+                        self._connection.execute(
+                            f'SELECT * FROM {table_name}').fetchall())
 
     def test_insert_files_generic(self):
         self._database.insert_files((
@@ -92,6 +101,22 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertEqual(
+                # This uses tuples instead of sets because mock.ANY isn't
+                # hashable.
+                (
+                    ('a', 'b', mock.ANY),
+                    ('a', 'c', mock.ANY),
+                ),
+                tuple(
+                    self._connection.execute(
+                        """
+                        SELECT dirname, filename, album_token
+                        FROM File
+                        JOIN AudioFile ON File.rowid = AudioFile.file_id
+                        ORDER BY dirname ASC, filename ASC
+                        """,)),
+            )
+            self.assertEqual(
                 {
                     ('a', 'b', 'c', 'd'),
                     ('a', 'c', 'a', 'b'),
@@ -106,6 +131,83 @@ class DatabaseTest(unittest.TestCase):
                         JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
                         """,)),
             )
+
+    def test_insert_files_different_albums(self):
+        self._database.insert_files((
+            metadata.AudioFile(dirname='dir1',
+                               filename='file1',
+                               tags=metadata.Tags({'album': ('album1',)})),
+            metadata.AudioFile(dirname='dir1',
+                               filename='file2',
+                               tags=metadata.Tags({'album': ('album2',)})),
+        ))
+        with self._connection:
+            self.assertEqual(
+                {
+                    ('dir1', 'file1', 'album', 'album1'),
+                    ('dir1', 'file2', 'album', 'album2'),
+                },
+                frozenset(
+                    self._connection.execute(
+                        """
+                        SELECT dirname, filename, tag_name, tag_value
+                        FROM File
+                        JOIN AudioFile ON File.rowid = AudioFile.file_id
+                        JOIN AlbumTag USING (album_token)
+                        """,)),
+            )
+
+    def test_insert_files_same_album(self):
+        self._database.insert_files((
+            metadata.AudioFile(dirname='dir1',
+                               filename='file1',
+                               tags=metadata.Tags({
+                                   'album': ('album1',),
+                                   'common': ('foo',),
+                                   'partially_common': ('common', 'diff1'),
+                                   'different': ('diff1',),
+                               })),
+            metadata.AudioFile(dirname='dir1',
+                               filename='file2',
+                               tags=metadata.Tags({
+                                   'album': ('album1',),
+                                   'common': ('foo',),
+                                   'partially_common': ('common', 'diff2'),
+                                   'different': ('diff2',),
+                               })),
+        ))
+        with self._connection:
+            self.assertEqual(
+                {
+                    ('dir1', 'file1', 'album', 'album1'),
+                    ('dir1', 'file1', 'common', 'foo'),
+                    ('dir1', 'file1', 'partially_common', 'common'),
+                    ('dir1', 'file2', 'album', 'album1'),
+                    ('dir1', 'file2', 'common', 'foo'),
+                    ('dir1', 'file2', 'partially_common', 'common'),
+                },
+                frozenset(
+                    self._connection.execute(
+                        """
+                        SELECT dirname, filename, tag_name, tag_value
+                        FROM File
+                        JOIN AudioFile ON File.rowid = AudioFile.file_id
+                        JOIN AlbumTag USING (album_token)
+                        """,)),
+            )
+
+    def test_insert_files_album_with_no_common_tags(self):
+        self._database.insert_files((
+            metadata.AudioFile(dirname='dir1',
+                               filename='file1',
+                               tags=metadata.Tags({})),
+            metadata.AudioFile(dirname='dir1',
+                               filename='file2',
+                               tags=metadata.Tags({'foo': ('bar',)})),
+        ))
+        with self._connection:
+            self.assertFalse(
+                self._connection.execute('SELECT * FROM AlbumTag').fetchall())
 
 
 if __name__ == '__main__':
