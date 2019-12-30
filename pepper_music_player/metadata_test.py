@@ -42,5 +42,36 @@ class TagsTest(unittest.TestCase):
         self.assertIn(metadata.TagName.ALBUM, metadata.Tags({'album': ('a',)}))
 
 
+class AudioFileTest(unittest.TestCase):
+
+    def test_album_token_same(self):
+        self.assertEqual(
+            metadata.AudioFile(
+                dirname='/a',
+                filename='b',
+                tags=metadata.Tags({'album': ('a',)}),
+            ).album_token(),
+            metadata.AudioFile(
+                dirname='/a',
+                filename='c',
+                tags=metadata.Tags({'album': ('a',)}),
+            ).album_token(),
+        )
+
+    def test_album_token_different(self):
+        self.assertNotEqual(
+            metadata.AudioFile(
+                dirname='/a',
+                filename='b',
+                tags=metadata.Tags({'album': ('a',)}),
+            ).album_token(),
+            metadata.AudioFile(
+                dirname='/a',
+                filename='c',
+                tags=metadata.Tags({'album': ('d',)}),
+            ).album_token(),
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
