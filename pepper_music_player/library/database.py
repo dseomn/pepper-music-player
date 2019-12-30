@@ -32,9 +32,9 @@ _SCHEMA_CREATE = (
     #   filename: Name of the file, relative to dirname.
     """
     CREATE TABLE File (
-      dirname TEXT NOT NULL,
-      filename TEXT NOT NULL,
-      PRIMARY KEY (dirname, filename)
+        dirname TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        PRIMARY KEY (dirname, filename)
     )
     """,
 
@@ -43,13 +43,13 @@ _SCHEMA_CREATE = (
     # Columns:
     #   file_id: Which file has the tag.
     #   tag_name: Name of the tag, e.g., 'artist'. Each value may appear
-    #     multiple times for the same file_id.
+    #       multiple times for the same file_id.
     #   tag_value: A single value for the tag.
     """
     CREATE TABLE AudioFileTag (
-      file_id INTEGER NOT NULL REFERENCES File (rowid) ON DELETE CASCADE,
-      tag_name TEXT NOT NULL,
-      tag_value TEXT NOT NULL
+        file_id INTEGER NOT NULL REFERENCES File (rowid) ON DELETE CASCADE,
+        tag_name TEXT NOT NULL,
+        tag_value TEXT NOT NULL
     )
     """,
     'CREATE INDEX AudioFileTag_FileIndex ON AudioFileTag (file_id)',
@@ -111,7 +111,7 @@ class Database:
                         self._connection.executemany(
                             """
                             INSERT INTO AudioFileTag (
-                              file_id, tag_name, tag_value)
+                                file_id, tag_name, tag_value)
                             VALUES (?, ?, ?)
                             """,
                             ((file_id, tag_name, tag_value)
