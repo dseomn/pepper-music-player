@@ -84,6 +84,29 @@ class Database:
             for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
                 self._connection.execute(statement)
 
+    def _insert_audio_file(
+            self,
+            file_id: int,
+            file_info: metadata.AudioFile,
+    ) -> None:
+        """Inserts information the given audio file.
+
+        The caller is responsible for managing the transaction around this
+        function.
+
+        Args:
+            file_id: Row ID of the file in the File table.
+            file_info: File to insert.
+        """
+        for tag_name, tag_values in file_info.tags.items():
+            self._connection.executemany(
+                """
+                INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
+                VALUES (?, ?, ?)
+                """,
+                ((file_id, tag_name, tag_value) for tag_value in tag_values),
+            )
+
     def insert_files(self, files: Iterable[metadata.File]) -> None:
         """Inserts information about the given files.
 
@@ -107,13 +130,4 @@ class Database:
                     },
                 ).lastrowid
                 if isinstance(file_info, metadata.AudioFile):
-                    for tag_name, tag_values in file_info.tags.items():
-                        self._connection.executemany(
-                            """
-                            INSERT INTO AudioFileTag (
-                                file_id, tag_name, tag_value)
-                            VALUES (?, ?, ?)
-                            """,
-                            ((file_id, tag_name, tag_value)
-                             for tag_value in tag_values),
-                        )
+                    self._insert_audio_file(file_id, file_info)
