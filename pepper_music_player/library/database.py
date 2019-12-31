@@ -52,6 +52,7 @@ _SCHEMA_CREATE = (
     #
     # Columns:
     #   file_id: Which file it is.
+    #   token: Opaque token that identifies this track.
     #   album_token: Opaque token that identifies the album the file is on.
     """
     CREATE TABLE AudioFile (
