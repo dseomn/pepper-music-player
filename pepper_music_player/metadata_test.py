@@ -44,6 +44,20 @@ class TagsTest(unittest.TestCase):
 
 class AudioFileTest(unittest.TestCase):
 
+    def test_token_different(self):
+        self.assertNotEqual(
+            metadata.AudioFile(
+                dirname='/a',
+                filename='b',
+                tags=metadata.Tags({}),
+            ).token,
+            metadata.AudioFile(
+                dirname='/a',
+                filename='c',
+                tags=metadata.Tags({}),
+            ).token,
+        )
+
     def test_album_token_same(self):
         self.assertEqual(
             metadata.AudioFile(

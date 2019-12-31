@@ -53,8 +53,10 @@ _SCHEMA_CREATE = (
     """
     CREATE TABLE AudioFile (
         file_id INTEGER NOT NULL REFERENCES File (rowid) ON DELETE CASCADE,
+        token TEXT NOT NULL,
         album_token TEXT NOT NULL,
-        PRIMARY KEY (file_id)
+        PRIMARY KEY (file_id),
+        UNIQUE (token)
     )
     """,
     'CREATE INDEX AudioFile_AlbumIndex ON AudioFile (album_token)',
@@ -159,11 +161,12 @@ class Database:
         """
         self._connection.execute(
             """
-            INSERT INTO AudioFile (file_id, album_token)
-            VALUES (:file_id, :album_token)
+            INSERT INTO AudioFile (file_id, token, album_token)
+            VALUES (:file_id, :token, :album_token)
             """,
             {
                 'file_id': file_id,
+                'token': file_info.token,
                 'album_token': file_info.album_token,
             },
         )

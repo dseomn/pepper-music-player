@@ -41,7 +41,10 @@ class DatabaseTest(unittest.TestCase):
                 'INSERT INTO File (dirname, filename) VALUES ("a", "b")'
             ).lastrowid
             self._connection.execute(
-                'INSERT INTO AudioFile (file_id, album_token) VALUES (?, "a")',
+                """
+                INSERT INTO AudioFile (file_id, token, album_token)
+                VALUES (?, "b", "a")
+                """,
                 (file_id,),
             )
             self._connection.execute(
@@ -108,13 +111,13 @@ class DatabaseTest(unittest.TestCase):
                 # This uses tuples instead of Counter because mock.ANY isn't
                 # hashable.
                 (
-                    ('a', 'b', mock.ANY),
-                    ('a', 'c', mock.ANY),
+                    ('a', 'b', mock.ANY, mock.ANY),
+                    ('a', 'c', mock.ANY, mock.ANY),
                 ),
                 tuple(
                     self._connection.execute(
                         """
-                        SELECT dirname, filename, album_token
+                        SELECT dirname, filename, token, album_token
                         FROM File
                         JOIN AudioFile ON File.rowid = AudioFile.file_id
                         ORDER BY dirname ASC, filename ASC
