@@ -14,12 +14,13 @@
 """Database for a library."""
 
 import collections
+import contextlib
 import functools
 import itertools
 import operator
 import sqlite3
 import threading
-from typing import Iterable
+from typing import Generator, Iterable
 
 from pepper_music_player import metadata
 
@@ -114,9 +115,30 @@ class Database:
                                                      isolation_level=None)
         return self._local.connection
 
+    @contextlib.contextmanager
+    def _transaction(self) -> Generator[None, None, None]:
+        """Returns a context manager around a transaction.
+
+        This behaves like the connection context manager is supposed to, but
+        works with isolation_level=None. For more context, see:
+
+        https://docs.python.org/3/library/sqlite3.html#using-the-connection-as-a-context-manager
+
+        https://bugs.python.org/issue16958
+        """
+        # TODO(https://bugs.python.org/issue16958): Delete this method.
+        self._connection.execute('BEGIN TRANSACTION')
+        try:
+            yield
+        except:
+            self._connection.rollback()
+            raise
+        else:
+            self._connection.commit()
+
     def reset(self) -> None:
         """(Re)sets the database to its initial, empty state."""
-        with self._connection:
+        with self._transaction():
             for statement in _SCHEMA_DROP + _SCHEMA_CREATE:
                 self._connection.execute(statement)
 
@@ -197,7 +219,7 @@ class Database:
             sqlite3.IntegrityError: One or more files are already in the
                 database.
         """
-        with self._connection:
+        with self._transaction():
             for file_info in files:
                 file_id = self._connection.execute(
                     """

@@ -87,6 +87,9 @@ class DatabaseTest(unittest.TestCase):
                 metadata.File(dirname='a', filename='b'),
                 metadata.File(dirname='a', filename='b'),
             ))
+        with self._connection:
+            self.assertFalse(
+                self._connection.execute('SELECT * FROM File').fetchall())
 
     def test_insert_files_audio(self):
         self._database.insert_files((
