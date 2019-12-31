@@ -91,20 +91,23 @@ class AudioFile(File):
 
     Attributes:
         tags: Tags from the audio file.
+        album_token: Opaque token that identifies the album for this file. If
+            two files are on the same album, they should have the same token;
+            otherwise, they should have different tokens. Callers should not
+            rely on any other property of the token.
     """
     tags: Tags
+    album_token: str = dataclasses.field(init=False, repr=False)
 
-    def album_token(self) -> str:
-        """Returns an opaque token that identifies the album for this file.
-
-        If two files are on the same album, they should have the same token;
-        otherwise, they should have different tokens. Callers should not rely on
-        any other property of the token.
-        """
-        # TODO(dseomn): Figure out if this needs to be versioned somehow.
-        return repr((
-            self.dirname,
-            self.tags.get(TagName.ALBUM, ()),
-            self.tags.get(TagName.ALBUMARTIST, ()),
-            self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
-        ))
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            'album_token',
+            # TODO(dseomn): Figure out if this needs to be versioned somehow.
+            repr((
+                self.dirname,
+                self.tags.get(TagName.ALBUM, ()),
+                self.tags.get(TagName.ALBUMARTIST, ()),
+                self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
+            )),
+        )

@@ -164,7 +164,7 @@ class Database:
             """,
             {
                 'file_id': file_id,
-                'album_token': file_info.album_token(),
+                'album_token': file_info.album_token,
             },
         )
         for tag_name, tag_values in file_info.tags.items():

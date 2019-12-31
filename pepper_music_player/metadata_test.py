@@ -50,12 +50,12 @@ class AudioFileTest(unittest.TestCase):
                 dirname='/a',
                 filename='b',
                 tags=metadata.Tags({'album': ('a',)}),
-            ).album_token(),
+            ).album_token,
             metadata.AudioFile(
                 dirname='/a',
                 filename='c',
                 tags=metadata.Tags({'album': ('a',)}),
-            ).album_token(),
+            ).album_token,
         )
 
     def test_album_token_different(self):
@@ -64,12 +64,12 @@ class AudioFileTest(unittest.TestCase):
                 dirname='/a',
                 filename='b',
                 tags=metadata.Tags({'album': ('a',)}),
-            ).album_token(),
+            ).album_token,
             metadata.AudioFile(
                 dirname='/a',
                 filename='c',
                 tags=metadata.Tags({'album': ('d',)}),
-            ).album_token(),
+            ).album_token,
         )
 
 
