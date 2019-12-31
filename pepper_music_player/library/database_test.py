@@ -163,7 +163,7 @@ class DatabaseTest(unittest.TestCase):
                                filename='file1',
                                tags=metadata.Tags({
                                    'album': ('album1',),
-                                   'common': ('foo',),
+                                   'common': ('foo', 'foo'),
                                    'partially_common': ('common', 'diff1'),
                                    'different': ('diff1',),
                                })),
@@ -171,28 +171,32 @@ class DatabaseTest(unittest.TestCase):
                                filename='file2',
                                tags=metadata.Tags({
                                    'album': ('album1',),
-                                   'common': ('foo',),
-                                   'partially_common': ('common', 'diff2'),
+                                   'common': ('foo', 'foo'),
+                                   'partially_common':
+                                       ('common', 'common', 'diff2'),
                                    'different': ('diff2',),
                                })),
         ))
         with self._connection:
             self.assertEqual(
-                {
+                (
                     ('dir1', 'file1', 'album', 'album1'),
+                    ('dir1', 'file1', 'common', 'foo'),
                     ('dir1', 'file1', 'common', 'foo'),
                     ('dir1', 'file1', 'partially_common', 'common'),
                     ('dir1', 'file2', 'album', 'album1'),
                     ('dir1', 'file2', 'common', 'foo'),
+                    ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'partially_common', 'common'),
-                },
-                frozenset(
+                ),
+                tuple(
                     self._connection.execute(
                         """
                         SELECT dirname, filename, tag_name, tag_value
                         FROM File
                         JOIN AudioFile ON File.rowid = AudioFile.file_id
                         JOIN AlbumTag USING (album_token)
+                        ORDER BY dirname ASC, filename ASC, tag_name ASC
                         """,)),
             )
 

@@ -13,7 +13,10 @@
 # limitations under the License.
 """Database for a library."""
 
+import collections
+import functools
 import itertools
+import operator
 import sqlite3
 import threading
 from typing import Iterable
@@ -169,16 +172,19 @@ class Database:
             tags = []
             for file_id, tag_rows in itertools.groupby(audio_file_rows,
                                                        lambda row: row[1]):
-                tags.append({(tag_name, tag_value)
-                             for _, _, tag_name, tag_value in tag_rows
-                             if tag_name is not None})
+                tags.append(
+                    collections.Counter(
+                        (tag_name, tag_value)
+                        for _, _, tag_name, tag_value in tag_rows
+                        if tag_name is not None))
+            common_tags = functools.reduce(operator.and_, tags)
             self._connection.executemany(
                 """
                 INSERT INTO AlbumTag (album_token, tag_name, tag_value)
                 VALUES (?, ?, ?)
                 """,
                 ((album_token, tag_name, tag_value)
-                 for tag_name, tag_value in set.intersection(*tags)),
+                 for tag_name, tag_value in common_tags.elements()),
             )
 
     def insert_files(self, files: Iterable[metadata.File]) -> None:
