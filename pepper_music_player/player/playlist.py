@@ -69,7 +69,34 @@ _SCHEMA = sqlite3_db.Schema(
             )
         """),
 
-        # TODO(dseomn): Keep track of the position in the playlist.
+        # State of playback.
+        #
+        # If the app is running, this is the current state. If the app is not
+        # running, this is the desired state for when the app starts up again.
+        #
+        # Columns:
+        #   singleton: There must always be exactly 0 or 1 rows in this table,
+        #       and the singleton column's contraints enforce that.
+        #   entry_token: Token of the current playlist entry.
+        #   track_token: Token of the current track within the current entry. If
+        #       the current entry is a track, this should be equal to the
+        #       entry's library_token; otherwise it should be a track contained
+        #       by the library_token's entity.
+        #   position_seconds: Current position within the track identified by
+        #       track_token, in seconds.
+        #   is_playing: 0 if the player is paused; 1 if the player is playing.
+        sqlite3_db.SchemaItem("""
+            CREATE TABLE State (
+                singleton INTEGER PRIMARY KEY NOT NULL DEFAULT 0
+                    CHECK (singleton = 0),
+                entry_token TEXT NOT NULL
+                    REFERENCES Entry (token) ON DELETE RESTRICT,
+                track_token TEXT NOT NULL,
+                position_seconds REAL NOT NULL DEFAULT 0.0,
+                is_playing INTEGER NOT NULL DEFAULT 0
+                    CHECK (is_playing IN (0, 1))
+            )
+        """),
     ),
 )
 
