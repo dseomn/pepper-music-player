@@ -51,7 +51,7 @@ def _tag_name_str(tag_name: ArbitraryTagName) -> str:
 
 
 class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
-    """Tags, typically from an audio file.
+    """Tags, e.g., from a file/track or album.
 
     Note that tags can have multiple values, potentially even multiple identical
     values. E.g., this is a valid set of tags: {'a': ('b', 'b')}
@@ -89,11 +89,21 @@ class File:
 class AudioFile(File):
     """An audio file.
 
+    Currently, audio files and tracks are treated as equivalent, so this class
+    represents both concepts as a single entity. However, if we ever add support
+    for single-file albums with embedded CUE sheets
+    https://en.wikipedia.org/wiki/Cue_sheet_(computing)#Audio_file_playback, the
+    concepts will need to be split apart. To hopefully ease that transition,
+    code and docs should refer to these objects as tracks whenever they are
+    conceptually dealing with tracks instead of files. E.g., the filename and
+    dirname attributes are conceptually about the file, but the token attribute
+    is about the track.
+
     Attributes:
         tags: Tags from the audio file.
         token: Opaque token that identifies this track.
-        album_token: Opaque token that identifies the album for this file. If
-            two files are on the same album, they should have the same token;
+        album_token: Opaque token that identifies the album for this track. If
+            two tracks are on the same album, they should have the same token;
             otherwise, they should have different tokens. Callers should not
             rely on any other property of the token.
     """

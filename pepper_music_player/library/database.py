@@ -47,6 +47,9 @@ _SCHEMA_CREATE = (
 
     # Audio files in the library.
     #
+    # See note in metadata.AudioFile's docstring about the conflation of audio
+    # files and tracks.
+    #
     # Columns:
     #   file_id: Which file it is.
     #   album_token: Opaque token that identifies the album the file is on.
@@ -78,7 +81,7 @@ _SCHEMA_CREATE = (
     'CREATE INDEX AudioFileTag_FileIndex ON AudioFileTag (file_id)',
     'CREATE INDEX AudioFileTag_TagIndex ON AudioFileTag (tag_name, tag_value)',
 
-    # Tags common to all AudioFiles on an Album.
+    # Tags common to all tracks on an Album.
     #
     # Columns:
     #   album_token: Opaque token that identifies the album.
