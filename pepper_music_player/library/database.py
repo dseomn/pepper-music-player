@@ -113,6 +113,7 @@ class Database:
         if not hasattr(self._local, 'connection'):
             self._local.connection = sqlite3.connect(self._sqlite3_path,
                                                      isolation_level=None)
+            self._local.connection.execute('PRAGMA journal_mode=WAL')
         return self._local.connection
 
     @contextlib.contextmanager
