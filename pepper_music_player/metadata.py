@@ -103,8 +103,8 @@ class AudioFile(File):
         object.__setattr__(
             self,
             'album_token',
-            # TODO(dseomn): Figure out if this needs to be versioned somehow.
             repr((
+                'album/v1alpha',  # TODO(#20): Change to v1.
                 self.dirname,
                 self.tags.get(TagName.ALBUM, ()),
                 self.tags.get(TagName.ALBUMARTIST, ()),
