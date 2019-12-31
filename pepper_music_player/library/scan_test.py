@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.library.scan."""
 
+import collections
 import io
 import pathlib
 import tempfile
@@ -47,23 +48,22 @@ class ScanTest(unittest.TestCase):
         bar.mkdir()
         bar.joinpath('bar1').touch()
         self.assertEqual(
-            {
+            collections.Counter((
                 metadata.File(dirname=str(foo), filename='foo1'),
                 metadata.File(dirname=str(foo), filename='foo2'),
                 metadata.File(dirname=str(bar), filename='bar1'),
-            },
-            frozenset(scan.scan(str(self._root_dirpath))),
+            )),
+            collections.Counter(scan.scan(str(self._root_dirpath))),
         )
 
     def test_parses_empty_tags(self):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertEqual(
-            {
-                metadata.AudioFile(dirname=str(self._root_dirpath),
-                                   filename='foo.flac',
-                                   tags=metadata.Tags({})),
-            },
-            frozenset(scan.scan(str(self._root_dirpath))),
+            collections.Counter(
+                (metadata.AudioFile(dirname=str(self._root_dirpath),
+                                    filename='foo.flac',
+                                    tags=metadata.Tags({})),)),
+            collections.Counter(scan.scan(str(self._root_dirpath))),
         )
 
     def test_parses_flac(self):
@@ -77,18 +77,16 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(
             flac_data.getvalue())
         self.assertEqual(
-            {
-                metadata.AudioFile(
-                    dirname=str(self._root_dirpath),
-                    filename='foo.flac',
-                    tags=metadata.Tags({
-                        'artists': ('artist1', 'artist2'),
-                        'date': ('2019-12-21',),
-                        'title': ('Foo',),
-                    }),
-                ),
-            },
-            frozenset(scan.scan(str(self._root_dirpath))),
+            collections.Counter((metadata.AudioFile(
+                dirname=str(self._root_dirpath),
+                filename='foo.flac',
+                tags=metadata.Tags({
+                    'artists': ('artist1', 'artist2'),
+                    'date': ('2019-12-21',),
+                    'title': ('Foo',),
+                }),
+            ),)),
+            collections.Counter(scan.scan(str(self._root_dirpath))),
         )
 
 

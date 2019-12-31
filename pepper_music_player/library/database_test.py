@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.library.database."""
 
+import collections
 import os
 import sqlite3
 import tempfile
@@ -71,11 +72,11 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertEqual(
-                {
+                collections.Counter((
                     ('a', 'b'),
                     ('c', 'd'),
-                },
-                frozenset(
+                )),
+                collections.Counter(
                     self._connection.execute(
                         'SELECT dirname, filename FROM File')),
             )
@@ -101,7 +102,7 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertEqual(
-                # This uses tuples instead of sets because mock.ANY isn't
+                # This uses tuples instead of Counter because mock.ANY isn't
                 # hashable.
                 (
                     ('a', 'b', mock.ANY),
@@ -117,13 +118,13 @@ class DatabaseTest(unittest.TestCase):
                         """,)),
             )
             self.assertEqual(
-                {
+                collections.Counter((
                     ('a', 'b', 'c', 'd'),
                     ('a', 'c', 'a', 'b'),
                     ('a', 'c', 'a', 'b'),
                     ('a', 'c', 'c', 'd'),
-                },
-                frozenset(
+                )),
+                collections.Counter(
                     self._connection.execute(
                         """
                         SELECT dirname, filename, tag_name, tag_value
@@ -143,11 +144,11 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertEqual(
-                {
+                collections.Counter((
                     ('dir1', 'file1', 'album', 'album1'),
                     ('dir1', 'file2', 'album', 'album2'),
-                },
-                frozenset(
+                )),
+                collections.Counter(
                     self._connection.execute(
                         """
                         SELECT dirname, filename, tag_name, tag_value
@@ -179,7 +180,7 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertEqual(
-                (
+                collections.Counter((
                     ('dir1', 'file1', 'album', 'album1'),
                     ('dir1', 'file1', 'common', 'foo'),
                     ('dir1', 'file1', 'common', 'foo'),
@@ -188,15 +189,14 @@ class DatabaseTest(unittest.TestCase):
                     ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'partially_common', 'common'),
-                ),
-                tuple(
+                )),
+                collections.Counter(
                     self._connection.execute(
                         """
                         SELECT dirname, filename, tag_name, tag_value
                         FROM File
                         JOIN AudioFile ON File.rowid = AudioFile.file_id
                         JOIN AlbumTag USING (album_token)
-                        ORDER BY dirname ASC, filename ASC, tag_name ASC
                         """,)),
             )
 
