@@ -74,6 +74,30 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
 
 
 @dataclasses.dataclass(frozen=True)
+class Token:
+    """Base class for opaque tokens.
+
+    These are meant to uniquely identify things; do not rely on any other
+    property of them.
+    """
+    _token: str
+
+    def __str__(self) -> str:
+        """See base class."""
+        return self._token
+
+
+@dataclasses.dataclass(frozen=True)
+class TrackToken(Token):
+    """Opaque token for a track."""
+
+
+@dataclasses.dataclass(frozen=True)
+class AlbumToken(Token):
+    """Opaque token for an album."""
+
+
+@dataclasses.dataclass(frozen=True)
 class File:
     """A file in the music library.
 
@@ -102,35 +126,34 @@ class AudioFile(File):
     Attributes:
         tags: Tags from the audio file.
         token: Opaque token that identifies this track.
-        album_token: Opaque token that identifies the album for this track. If
-            two tracks are on the same album, they should have the same token;
-            otherwise, they should have different tokens. Callers should not
-            rely on any other property of the token.
+        album_token: Opaque token that identifies the album for this track.
     """
     tags: Tags
-    token: str = dataclasses.field(init=False, repr=False)
-    album_token: str = dataclasses.field(init=False, repr=False)
+    token: TrackToken = dataclasses.field(init=False, repr=False)
+    album_token: AlbumToken = dataclasses.field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
             'token',
-            repr((
-                'track/v1alpha',  # TODO(#20): Change to v1.
-                self.dirname,
-                self.filename,
-            )),
+            TrackToken(
+                repr((
+                    'track/v1alpha',  # TODO(#20): Change to v1.
+                    self.dirname,
+                    self.filename,
+                ))),
         )
         object.__setattr__(
             self,
             'album_token',
-            repr((
-                'album/v1alpha',  # TODO(#20): Change to v1.
-                self.dirname,
-                self.tags.get(TagName.ALBUM, ()),
-                self.tags.get(TagName.ALBUMARTIST, ()),
-                self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
-            )),
+            AlbumToken(
+                repr((
+                    'album/v1alpha',  # TODO(#20): Change to v1.
+                    self.dirname,
+                    self.tags.get(TagName.ALBUM, ()),
+                    self.tags.get(TagName.ALBUMARTIST, ()),
+                    self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
+                ))),
         )
 
 
@@ -143,7 +166,7 @@ class Album:
         tags: Tags that are common to all tracks on the album.
         tracks: Tracks on the album.
     """
-    token: str = dataclasses.field(init=False, repr=False)
+    token: AlbumToken = dataclasses.field(init=False, repr=False)
     tags: Tags
     tracks: Tuple[AudioFile]
 

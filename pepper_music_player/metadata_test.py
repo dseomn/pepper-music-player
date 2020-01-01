@@ -42,6 +42,12 @@ class TagsTest(unittest.TestCase):
         self.assertIn(metadata.TagName.ALBUM, metadata.Tags({'album': ('a',)}))
 
 
+class TokenTest(unittest.TestCase):
+
+    def test_token_str(self):
+        self.assertEqual('foo', str(metadata.Token('foo')))
+
+
 class AudioFileTest(unittest.TestCase):
 
     def test_token_different(self):
