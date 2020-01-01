@@ -18,7 +18,6 @@ import os
 import sqlite3
 import tempfile
 import unittest
-from unittest import mock
 
 from pepper_music_player.library import database
 from pepper_music_player import metadata
@@ -95,32 +94,28 @@ class DatabaseTest(unittest.TestCase):
                 self._connection.execute('SELECT * FROM File').fetchall())
 
     def test_insert_files_audio(self):
-        self._database.insert_files((
-            metadata.AudioFile(dirname='a',
-                               filename='b',
-                               tags=metadata.Tags({'c': ('d',)})),
-            metadata.AudioFile(dirname='a',
-                               filename='c',
-                               tags=metadata.Tags({
-                                   'a': ('b', 'b'),
-                                   'c': ('d',),
-                               })),
-        ))
+        file1 = metadata.AudioFile(dirname='a',
+                                   filename='b',
+                                   tags=metadata.Tags({'c': ('d',)}))
+        file2 = metadata.AudioFile(dirname='a',
+                                   filename='c',
+                                   tags=metadata.Tags({
+                                       'a': ('b', 'b'),
+                                       'c': ('d',),
+                                   }))
+        self._database.insert_files((file1, file2))
         with self._connection:
             self.assertEqual(
-                # This uses tuples instead of Counter because mock.ANY isn't
-                # hashable.
-                (
-                    ('a', 'b', mock.ANY, mock.ANY),
-                    ('a', 'c', mock.ANY, mock.ANY),
-                ),
-                tuple(
+                collections.Counter((
+                    ('a', 'b', str(file1.token), str(file1.album_token)),
+                    ('a', 'c', str(file2.token), str(file2.album_token)),
+                )),
+                collections.Counter(
                     self._connection.execute(
                         """
                         SELECT dirname, filename, token, album_token
                         FROM File
                         JOIN AudioFile ON File.rowid = AudioFile.file_id
-                        ORDER BY dirname ASC, filename ASC
                         """,)),
             )
             self.assertEqual(
