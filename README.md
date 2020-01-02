@@ -47,7 +47,10 @@ None yet.
 
 ```
 sudo apt install \
+    gir1.2-gtk-3.0 \
+    libgirepository1.0-dev \
     python3-frozendict \
+    python3-gi \
     python3-mutagen
 ```
 

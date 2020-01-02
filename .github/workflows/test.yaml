@@ -30,10 +30,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v1
+    - name: Install system dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install \
+          gtk+3 \
+          pygobject3
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install \
+          gir1.2-gtk-3.0 \
+          libgirepository1.0-dev
     - uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Install Python dependencies
+      env:
+        # Brew on macOS outputs a message to set these environment variables.
+        LDFLAGS: '-L/usr/local/opt/libffi/lib'
+        PKG_CONFIG_PATH: '/usr/local/opt/libffi/lib/pkgconfig'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
@@ -56,7 +72,14 @@ jobs:
       run: |
         pip install pytype
         pytype
-    - name: Test
+    - name: Test (xvfb graphics)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install xvfb
+        pip install pytest pytest-cov
+        xvfb-run pytest --cov=. --cov-branch --cov-report=term-missing
+    - name: Test (native graphics)
+      if: runner.os != 'Linux'
       run: |
         pip install pytest pytest-cov
         pytest --cov=. --cov-branch --cov-report=term-missing
