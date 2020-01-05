@@ -21,7 +21,7 @@ metadata across threads easier.
 
 import dataclasses
 import enum
-from typing import Iterable, Mapping, Tuple, Union
+from typing import Iterable, Mapping, Optional, Tuple, Union
 
 import frozendict
 
@@ -71,6 +71,31 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
 
     def __contains__(self, key: ArbitraryTagName) -> bool:
         return super().__contains__(_tag_name_str(key))
+
+    def one_or_none(self, key: ArbitraryTagName) -> Optional[str]:
+        """Returns a single value, or None if there isn't exactly one value."""
+        values = self.get(key, ())
+        if len(values) == 1:
+            return values[0]
+        else:
+            return None
+
+    def singular(
+            self,
+            key: ArbitraryTagName,
+            *,
+            default: str = '[unknown]',
+            separator: str = '; ',
+    ) -> str:
+        """Returns a single value that represents all of the tag's values.
+
+        Args:
+            key: Which tag to look up.
+            default: What to return if there are no values.
+            separator: What to put between values if there is more than one
+                value.
+        """
+        return separator.join(self.get(key, (default,)))
 
 
 @dataclasses.dataclass(frozen=True)

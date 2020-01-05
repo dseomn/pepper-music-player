@@ -41,6 +41,35 @@ class TagsTest(unittest.TestCase):
     def test_contains_tag_name(self):
         self.assertIn(metadata.TagName.ALBUM, metadata.Tags({'album': ('a',)}))
 
+    def test_one_or_none_with_zero(self):
+        self.assertIs(None, metadata.Tags({}).one_or_none('a'))
+
+    def test_one_or_none_with_one(self):
+        self.assertEqual('foo', metadata.Tags({'a': ('foo',)}).one_or_none('a'))
+
+    def test_one_or_none_with_multiple(self):
+        self.assertIs(
+            None,
+            metadata.Tags({
+                'a': ('foo', 'bar'),
+            }).one_or_none('a'),
+        )
+
+    def test_singular_with_zero(self):
+        self.assertEqual('[unknown]',
+                         metadata.Tags({}).singular('a', default='[unknown]'))
+
+    def test_singular_with_one(self):
+        self.assertEqual('foo', metadata.Tags({'a': ('foo',)}).singular('a'))
+
+    def test_singular_with_multiple(self):
+        self.assertEqual(
+            'foo; bar',
+            metadata.Tags({
+                'a': ('foo', 'bar'),
+            }).singular('a', separator='; '),
+        )
+
 
 class TokenTest(unittest.TestCase):
 
