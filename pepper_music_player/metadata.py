@@ -21,6 +21,7 @@ metadata across threads easier.
 
 import dataclasses
 import enum
+import re
 from typing import Iterable, Mapping, Optional, Tuple, Union
 
 import frozendict
@@ -37,6 +38,7 @@ class TagName(enum.Enum):
     ALBUM = 'album'
     ALBUMARTIST = 'albumartist'
     MUSICBRAINZ_ALBUMID = 'musicbrainz_albumid'
+    TRACKNUMBER = 'tracknumber'
 
 
 ArbitraryTagName = Union[TagName, str]
@@ -56,6 +58,12 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
     Note that tags can have multiple values, potentially even multiple identical
     values. E.g., this is a valid set of tags: {'a': ('b', 'b')}
     """
+
+    # Track number tags are typically either simple non-negative integers, or
+    # they include the total number of tracks like '3/12'. This matches both
+    # types.
+    _TRACKNUMBER_REGEX = re.compile(
+        r'(?P<tracknumber>\d+)(?:/(?P<totaltracks>\d+))?')
 
     def __init__(self, tags: Mapping[str, Iterable[str]]) -> None:
         """Initializer.
@@ -96,6 +104,18 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
                 value.
         """
         return separator.join(self.get(key, (default,)))
+
+    @property
+    def tracknumber(self) -> Optional[str]:
+        """The human-readable track number, if there is one."""
+        tracknumber = self.one_or_none(TagName.TRACKNUMBER)
+        if tracknumber is None:
+            return None
+        match = self._TRACKNUMBER_REGEX.fullmatch(tracknumber)
+        if match is None:
+            return tracknumber
+        else:
+            return match.group('tracknumber')
 
 
 @dataclasses.dataclass(frozen=True)

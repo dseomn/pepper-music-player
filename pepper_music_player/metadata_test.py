@@ -70,6 +70,21 @@ class TagsTest(unittest.TestCase):
             }).singular('a', separator='; '),
         )
 
+    def test_tracknumber_none(self):
+        self.assertIs(None, metadata.Tags({}).tracknumber)
+
+    def test_tracknumber_unknown_format(self):
+        self.assertEqual('foo',
+                         metadata.Tags(dict(tracknumber=('foo',))).tracknumber)
+
+    def test_tracknumber_simple(self):
+        self.assertEqual('1',
+                         metadata.Tags(dict(tracknumber=('1',))).tracknumber)
+
+    def test_tracknumber_with_totaltracks(self):
+        self.assertEqual('1',
+                         metadata.Tags(dict(tracknumber=('1/21',))).tracknumber)
+
 
 class TokenTest(unittest.TestCase):
 
