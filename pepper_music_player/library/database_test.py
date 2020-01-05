@@ -214,6 +214,17 @@ class DatabaseTest(unittest.TestCase):
             self.assertFalse(
                 self._connection.execute('SELECT * FROM AlbumTag').fetchall())
 
+    def test_track_tokens(self):
+        file1 = metadata.AudioFile(dirname='a',
+                                   filename='b',
+                                   tags=metadata.Tags({}))
+        file2 = metadata.AudioFile(dirname='a',
+                                   filename='c',
+                                   tags=metadata.Tags({}))
+        self._database.insert_files((file1, file2))
+        self.assertEqual(collections.Counter((file1.token, file2.token)),
+                         collections.Counter(self._database.track_tokens()))
+
 
 if __name__ == '__main__':
     unittest.main()

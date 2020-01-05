@@ -242,3 +242,10 @@ class Database:
                 if isinstance(file_info, metadata.AudioFile):
                     self._insert_audio_file(file_id, file_info)
             self._update_album_tags()
+
+    def track_tokens(self) -> Generator[metadata.TrackToken, None, None]:
+        """Yields all track tokens."""
+        with self._transaction():
+            for (token_str,) in (
+                    self._connection.execute('SELECT token FROM AudioFile')):
+                yield metadata.TrackToken(token_str)
