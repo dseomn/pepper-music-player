@@ -113,12 +113,17 @@ class Token:
 
 
 @dataclasses.dataclass(frozen=True)
-class TrackToken(Token):
+class LibraryToken(Token):
+    """Base class for tokens of things in the library."""
+
+
+@dataclasses.dataclass(frozen=True)
+class TrackToken(LibraryToken):
     """Opaque token for a track."""
 
 
 @dataclasses.dataclass(frozen=True)
-class AlbumToken(Token):
+class AlbumToken(LibraryToken):
     """Opaque token for an album."""
 
 
