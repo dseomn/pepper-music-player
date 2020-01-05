@@ -28,8 +28,11 @@ jobs:
         - '3.7'
         - '3.8'
     runs-on: ${{ matrix.os }}
+    env:
+      TEST_ARTIFACT_DIR: ${{ github.workspace }}/test-artifacts
     steps:
     - uses: actions/checkout@v1
+    - run: mkdir "$TEST_ARTIFACT_DIR"
     - name: Install system dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
@@ -83,3 +86,8 @@ jobs:
       run: |
         pip install pytest pytest-cov
         pytest --cov=. --cov-branch --cov-report=term-missing
+    - uses: actions/upload-artifact@v1
+      if: always()
+      with:
+        name: test-artifacts
+        path: ${{ env.TEST_ARTIFACT_DIR }}
