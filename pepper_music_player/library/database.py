@@ -20,7 +20,7 @@ import itertools
 import operator
 import sqlite3
 import threading
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Tuple
 
 from pepper_music_player import metadata
 
@@ -98,6 +98,14 @@ _SCHEMA_CREATE = (
     'CREATE INDEX AlbumTag_AlbumIndex ON AlbumTag (album_token)',
     'CREATE INDEX AlbumTag_TagIndex ON AlbumTag (tag_name, tag_value)',
 )
+
+
+def _tags_from_pairs(pairs: Iterable[Tuple[str, str]]) -> metadata.Tags:
+    """Returns Tags, given an iterable of (name, value) pairs."""
+    tags = collections.defaultdict(list)
+    for name, value in pairs:
+        tags[name].append(value)
+    return metadata.Tags(tags)
 
 
 class Database:
@@ -249,3 +257,39 @@ class Database:
             for (token_str,) in (
                     self._connection.execute('SELECT token FROM AudioFile')):
                 yield metadata.TrackToken(token_str)
+
+    def track(self, token: metadata.TrackToken) -> metadata.AudioFile:
+        """Returns the specified track.
+
+        Args:
+            token: Which track to return.
+
+        Raises:
+            KeyError: There's no track with the given token.
+        """
+        with self._transaction():
+            track_row = self._connection.execute(
+                """
+                SELECT dirname, filename, file_id
+                FROM AudioFile
+                JOIN File ON File.rowid = AudioFile.file_id
+                WHERE token = ?
+                """,
+                (str(token),),
+            ).fetchone()
+            if track_row is None:
+                raise KeyError(token)
+            dirname, filename, file_id = track_row
+            return metadata.AudioFile(
+                dirname=dirname,
+                filename=filename,
+                tags=_tags_from_pairs(
+                    self._connection.execute(
+                        """
+                        SELECT tag_name, tag_value
+                        FROM AudioFileTag
+                        WHERE file_id = ?
+                        """,
+                        (file_id,),
+                    )),
+            )

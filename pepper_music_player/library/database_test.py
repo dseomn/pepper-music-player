@@ -225,6 +225,20 @@ class DatabaseTest(unittest.TestCase):
         self.assertEqual(collections.Counter((file1.token, file2.token)),
                          collections.Counter(self._database.track_tokens()))
 
+    def test_track_not_found(self):
+        with self.assertRaises(KeyError):
+            self._database.track(metadata.TrackToken('foo'))
+
+    def test_track(self):
+        track = metadata.AudioFile(dirname='a',
+                                   filename='b',
+                                   tags=metadata.Tags({
+                                       'c': ('foo', 'bar'),
+                                       'd': ('quux',),
+                                   }))
+        self._database.insert_files((track,))
+        self.assertEqual(track, self._database.track(track.token))
+
 
 if __name__ == '__main__':
     unittest.main()
