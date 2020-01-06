@@ -147,9 +147,11 @@ class IndexOrTotalTag(DerivedTag):
 
 ALBUM = Tag('album')
 ALBUMARTIST = Tag('albumartist')
+ARTIST = Tag('artist')
 DISCNUMBER = Tag('discnumber')  # Prefer PARSED_DISCNUMBER below.
 DISCTOTAL = Tag('disctotal')  # Prefer PARSED_TOTALDISCS below.
 MUSICBRAINZ_ALBUMID = Tag('musicbrainz_albumid')
+TITLE = Tag('title')
 TOTALDISCS = Tag('totaldiscs')  # Prefer PARSED_TOTALDISCS below.
 TOTALTRACKS = Tag('totaltracks')  # Prefer PARSED_TOTALTRACKS below.
 TRACKNUMBER = Tag('tracknumber')  # Prefer PARSED_TRACKNUMBER below.
