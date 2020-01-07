@@ -13,7 +13,6 @@
 # limitations under the License.
 """Tests for pepper_music_player.library.scan."""
 
-import collections
 import io
 import pathlib
 import tempfile

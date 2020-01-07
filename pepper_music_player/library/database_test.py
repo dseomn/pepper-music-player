@@ -13,7 +13,6 @@
 # limitations under the License.
 """Tests for pepper_music_player.library.database."""
 
-import collections
 import os
 import sqlite3
 import tempfile
