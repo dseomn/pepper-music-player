@@ -73,14 +73,12 @@ class DatabaseTest(unittest.TestCase):
                                tags=metadata.Tags({})),
         ))
         with self._connection:
-            self.assertEqual(
-                collections.Counter((
+            self.assertCountEqual(
+                (
                     ('a', 'b'),
                     ('c', 'd'),
-                )),
-                collections.Counter(
-                    self._connection.execute(
-                        'SELECT dirname, filename FROM File')),
+                ),
+                self._connection.execute('SELECT dirname, filename FROM File'),
             )
 
     def test_insert_files_duplicate(self):
@@ -105,33 +103,29 @@ class DatabaseTest(unittest.TestCase):
                                    }))
         self._database.insert_files((file1, file2))
         with self._connection:
-            self.assertEqual(
-                collections.Counter((
+            self.assertCountEqual(
+                (
                     ('a', 'b', str(file1.token), str(file1.album_token)),
                     ('a', 'c', str(file2.token), str(file2.album_token)),
-                )),
-                collections.Counter(
-                    self._connection.execute(
-                        """
-                        SELECT dirname, filename, token, album_token
-                        FROM File
-                        JOIN AudioFile ON File.rowid = AudioFile.file_id
-                        """,)),
+                ),
+                self._connection.execute("""
+                    SELECT dirname, filename, token, album_token
+                    FROM File
+                    JOIN AudioFile ON File.rowid = AudioFile.file_id
+                """),
             )
-            self.assertEqual(
-                collections.Counter((
+            self.assertCountEqual(
+                (
                     ('a', 'b', 'c', 'd'),
                     ('a', 'c', 'a', 'b'),
                     ('a', 'c', 'a', 'b'),
                     ('a', 'c', 'c', 'd'),
-                )),
-                collections.Counter(
-                    self._connection.execute(
-                        """
-                        SELECT dirname, filename, tag_name, tag_value
-                        FROM File
-                        JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
-                        """,)),
+                ),
+                self._connection.execute("""
+                    SELECT dirname, filename, tag_name, tag_value
+                    FROM File
+                    JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
+                """),
             )
 
     def test_insert_files_different_albums(self):
@@ -144,19 +138,17 @@ class DatabaseTest(unittest.TestCase):
                                tags=metadata.Tags({'album': ('album2',)})),
         ))
         with self._connection:
-            self.assertEqual(
-                collections.Counter((
+            self.assertCountEqual(
+                (
                     ('dir1', 'file1', 'album', 'album1'),
                     ('dir1', 'file2', 'album', 'album2'),
-                )),
-                collections.Counter(
-                    self._connection.execute(
-                        """
-                        SELECT dirname, filename, tag_name, tag_value
-                        FROM File
-                        JOIN AudioFile ON File.rowid = AudioFile.file_id
-                        JOIN AlbumTag USING (album_token)
-                        """,)),
+                ),
+                self._connection.execute("""
+                    SELECT dirname, filename, tag_name, tag_value
+                    FROM File
+                    JOIN AudioFile ON File.rowid = AudioFile.file_id
+                    JOIN AlbumTag USING (album_token)
+                """),
             )
 
     def test_insert_files_same_album(self):
@@ -180,8 +172,8 @@ class DatabaseTest(unittest.TestCase):
                                })),
         ))
         with self._connection:
-            self.assertEqual(
-                collections.Counter((
+            self.assertCountEqual(
+                (
                     ('dir1', 'file1', 'album', 'album1'),
                     ('dir1', 'file1', 'common', 'foo'),
                     ('dir1', 'file1', 'common', 'foo'),
@@ -190,15 +182,13 @@ class DatabaseTest(unittest.TestCase):
                     ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'partially_common', 'common'),
-                )),
-                collections.Counter(
-                    self._connection.execute(
-                        """
-                        SELECT dirname, filename, tag_name, tag_value
-                        FROM File
-                        JOIN AudioFile ON File.rowid = AudioFile.file_id
-                        JOIN AlbumTag USING (album_token)
-                        """,)),
+                ),
+                self._connection.execute("""
+                    SELECT dirname, filename, tag_name, tag_value
+                    FROM File
+                    JOIN AudioFile ON File.rowid = AudioFile.file_id
+                    JOIN AlbumTag USING (album_token)
+                """),
             )
 
     def test_insert_files_album_with_no_common_tags(self):
@@ -222,8 +212,8 @@ class DatabaseTest(unittest.TestCase):
                                    filename='c',
                                    tags=metadata.Tags({}))
         self._database.insert_files((file1, file2))
-        self.assertEqual(collections.Counter((file1.token, file2.token)),
-                         collections.Counter(self._database.track_tokens()))
+        self.assertCountEqual((file1.token, file2.token),
+                              self._database.track_tokens())
 
     def test_track_not_found(self):
         with self.assertRaises(KeyError):

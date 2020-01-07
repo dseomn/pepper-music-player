@@ -47,23 +47,22 @@ class ScanTest(unittest.TestCase):
         bar = foo.joinpath('bar')
         bar.mkdir()
         bar.joinpath('bar1').touch()
-        self.assertEqual(
-            collections.Counter((
+        self.assertCountEqual(
+            (
                 metadata.File(dirname=str(foo), filename='foo1'),
                 metadata.File(dirname=str(foo), filename='foo2'),
                 metadata.File(dirname=str(bar), filename='bar1'),
-            )),
-            collections.Counter(scan.scan(str(self._root_dirpath))),
+            ),
+            scan.scan(str(self._root_dirpath)),
         )
 
     def test_parses_empty_tags(self):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
-        self.assertEqual(
-            collections.Counter(
-                (metadata.AudioFile(dirname=str(self._root_dirpath),
-                                    filename='foo.flac',
-                                    tags=metadata.Tags({})),)),
-            collections.Counter(scan.scan(str(self._root_dirpath))),
+        self.assertCountEqual(
+            (metadata.AudioFile(dirname=str(self._root_dirpath),
+                                filename='foo.flac',
+                                tags=metadata.Tags({})),),
+            scan.scan(str(self._root_dirpath)),
         )
 
     def test_parses_flac(self):
@@ -76,8 +75,8 @@ class ScanTest(unittest.TestCase):
         tags.save(fileobj=flac_data)
         self._root_dirpath.joinpath('foo.flac').write_bytes(
             flac_data.getvalue())
-        self.assertEqual(
-            collections.Counter((metadata.AudioFile(
+        self.assertCountEqual(
+            (metadata.AudioFile(
                 dirname=str(self._root_dirpath),
                 filename='foo.flac',
                 tags=metadata.Tags({
@@ -85,8 +84,8 @@ class ScanTest(unittest.TestCase):
                     'date': ('2019-12-21',),
                     'title': ('Foo',),
                 }),
-            ),)),
-            collections.Counter(scan.scan(str(self._root_dirpath))),
+            ),),
+            scan.scan(str(self._root_dirpath)),
         )
 
 
