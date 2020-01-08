@@ -88,5 +88,5 @@ jobs:
     - uses: actions/upload-artifact@v1
       if: always()
       with:
-        name: test-artifacts
+        name: test-artifacts-${{ matrix.os }}-python${{ matrix.python-version }}
         path: ${{ env.TEST_ARTIFACT_DIR }}
