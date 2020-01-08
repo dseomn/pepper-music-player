@@ -1,4 +1,3 @@
-Pillow
 PyGObject
 frozendict
 mutagen

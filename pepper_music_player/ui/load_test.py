@@ -15,8 +15,6 @@
 
 import unittest
 
-from PIL import Image
-
 from pepper_music_player.ui import load
 
 
@@ -26,14 +24,6 @@ class BuilderFromResourceTest(unittest.TestCase):
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'load_test.glade')
         self.assertTrue(builder.get_object('test_object'))
-
-
-class ImageFromResourceTest(unittest.TestCase):
-
-    def test_returns_image(self):
-        image = load.image_from_resource('pepper_music_player.ui',
-                                         'load_test.png')
-        self.assertIsInstance(image, Image.Image)
 
 
 if __name__ == '__main__':

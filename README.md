@@ -51,8 +51,7 @@ sudo apt install \
     libgirepository1.0-dev \
     python3-frozendict \
     python3-gi \
-    python3-mutagen \
-    python3-pil
+    python3-mutagen
 ```
 
 ## Disclaimer

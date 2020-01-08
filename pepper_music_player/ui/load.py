@@ -13,20 +13,11 @@
 # limitations under the License.
 """Helpers to load data from python resources."""
 
-import io
 import pkgutil
 
-from PIL import Image
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
-
-
-def _load(package: str, resource: str) -> bytes:
-    resource_bytes = pkgutil.get_data(package, resource)
-    if resource_bytes is None:
-        raise RuntimeError("The package loader doesn't support get_data().")
-    return resource_bytes
 
 
 def builder_from_resource(package: str, resource: str) -> Gtk.Builder:
@@ -36,16 +27,9 @@ def builder_from_resource(package: str, resource: str) -> Gtk.Builder:
         package: Package to load from, e.g., 'pepper_music_player.ui'.
         resource: Filename within the package.
     """
+    resource_bytes = pkgutil.get_data(package, resource)
+    if resource_bytes is None:
+        raise RuntimeError("The package loader doesn't support get_data().")
     builder = Gtk.Builder()
-    builder.add_from_string(_load(package, resource).decode())
+    builder.add_from_string(resource_bytes.decode())
     return builder
-
-
-def image_from_resource(package: str, resource: str) -> Image.Image:
-    """Returns an image from a python resource.
-
-    Args:
-        package: Package to load from, e.g., 'pepper_music_player.ui'.
-        resource: Filename within the package.
-    """
-    return Image.open(io.BytesIO(_load(package, resource)))
