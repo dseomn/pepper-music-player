@@ -162,7 +162,7 @@ class Database:
             file_id: int,
             file_info: metadata.AudioFile,
     ) -> None:
-        """Inserts information the given audio file.
+        """Inserts information about the given audio file.
 
         The caller is responsible for managing the transaction around this
         function.
