@@ -19,7 +19,7 @@ import itertools
 import os
 import sqlite3
 import threading
-from typing import ContextManager, Generator, Optional, Tuple
+from typing import ContextManager, Generator, NewType, Optional, Tuple, Type, TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,6 +49,16 @@ class Schema:
     name: str
     version: str
     items: Tuple[SchemaItem]
+
+
+# Transaction for reading only.
+Snapshot = NewType('Snapshot', sqlite3.Connection)
+
+# Read-write transaction.
+Transaction = NewType('Transaction', sqlite3.Connection)
+
+# Any type of transaction.
+AnyTransaction = TypeVar('AnyTransaction', Snapshot, Transaction)
 
 
 class Database:
@@ -91,7 +101,8 @@ class Database:
     def _transaction(
             self,
             mode: str,
-    ) -> Generator[sqlite3.Connection, None, None]:
+            transaction_type: Type[AnyTransaction],
+    ) -> Generator[AnyTransaction, None, None]:
         """Returns a context manager around a transaction.
 
         This behaves like the connection context manager is supposed to, but
@@ -104,17 +115,19 @@ class Database:
         Args:
             mode: Which type of transaction to use, see
                 https://www.sqlite.org/lang_transaction.html
+            transaction_type: Which type of transaction to return. (This should
+                match mode.)
         """
         self._connection.execute(f'BEGIN {mode} TRANSACTION')
         try:
-            yield self._connection
+            yield transaction_type(self._connection)
         except:
             self._connection.rollback()
             raise
         else:
             self._connection.commit()
 
-    def snapshot(self) -> ContextManager[sqlite3.Connection]:
+    def snapshot(self) -> ContextManager[Snapshot]:
         """Returns a context manager around a snapshot (read-only transaction).
 
         Unfortunately, sqlite3 does not seem to provide true read-only
@@ -123,11 +136,11 @@ class Database:
         function will make it clear when snapshots are being accidentally used
         for writing.
         """
-        return self._transaction('DEFERRED')
+        return self._transaction('DEFERRED', Snapshot)
 
-    def transaction(self) -> ContextManager[sqlite3.Connection]:
+    def transaction(self) -> ContextManager[Transaction]:
         """Returns a context manager around a read-write transaction."""
-        return self._transaction('EXCLUSIVE')
+        return self._transaction('EXCLUSIVE', Transaction)
 
     def reset(self) -> None:
         """(Re)sets the database to its initial, empty state."""
