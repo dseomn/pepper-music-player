@@ -102,7 +102,7 @@ class Database:
             self,
             mode: str,
             transaction_type: Type[AnyTransaction],
-    ) -> Generator[AnyTransaction, None, None]:
+    ) -> Generator[AnyTransaction, None, None]:  # yapf: disable
         """Returns a context manager around a transaction.
 
         This behaves like the connection context manager is supposed to, but
@@ -118,6 +118,8 @@ class Database:
             transaction_type: Which type of transaction to return. (This should
                 match mode.)
         """
+        # TODO(https://github.com/google/yapf/issues/793): Remove the yapf
+        # disable comment above.
         self._connection.execute(f'BEGIN {mode} TRANSACTION')
         try:
             yield transaction_type(self._connection)
