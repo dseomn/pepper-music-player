@@ -28,10 +28,15 @@ class DatabaseTest(unittest.TestCase):
         super().setUp()
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
-        sqlite3_path = os.path.join(tempdir.name, 'database.sqlite3')
-        self._database = database.Database(sqlite3_path)
+        self._database = database.Database(database_dir=tempdir.name)
         self._database.reset()
-        self._connection = sqlite3.connect(sqlite3_path, isolation_level=None)
+        # TODO(dseomn): Change tests to use only public methods of
+        # self._database instead of inspecting the underlying database, then
+        # delete this connection.
+        self._connection = sqlite3.connect(
+            os.path.join(tempdir.name, 'library.v1alpha.sqlite3'),
+            isolation_level=None,
+        )
 
     def test_reset_deletes_data(self):
         with self._connection:
