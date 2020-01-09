@@ -48,7 +48,7 @@ class Schema:
     """
     name: str
     version: str
-    items: Tuple[SchemaItem]
+    items: Tuple[SchemaItem, ...]
 
 
 # Transaction for reading only.
