@@ -19,7 +19,7 @@ import itertools
 import os
 import sqlite3
 import threading
-from typing import Generator, Optional, Tuple
+from typing import ContextManager, Generator, Optional, Tuple
 
 
 @dataclasses.dataclass(frozen=True)
@@ -88,7 +88,10 @@ class Database:
         return self._local.connection
 
     @contextlib.contextmanager
-    def transaction(self) -> Generator[sqlite3.Connection, None, None]:
+    def _transaction(
+            self,
+            mode: str,
+    ) -> Generator[sqlite3.Connection, None, None]:
         """Returns a context manager around a transaction.
 
         This behaves like the connection context manager is supposed to, but
@@ -97,8 +100,12 @@ class Database:
         and https://bugs.python.org/issue16958 for more details. Additionally,
         this context manager returns the connection itself, so that the only way
         to use the connection is while it's in an explicit transaction.
+
+        Args:
+            mode: Which type of transaction to use, see
+                https://www.sqlite.org/lang_transaction.html
         """
-        self._connection.execute('BEGIN TRANSACTION')
+        self._connection.execute(f'BEGIN {mode} TRANSACTION')
         try:
             yield self._connection
         except:
@@ -106,6 +113,21 @@ class Database:
             raise
         else:
             self._connection.commit()
+
+    def snapshot(self) -> ContextManager[sqlite3.Connection]:
+        """Returns a context manager around a snapshot (read-only transaction).
+
+        Unfortunately, sqlite3 does not seem to provide true read-only
+        transactions, so this uses DEFERRED instead. Still, prefer transaction()
+        below if you want a read-write transaction. Hopefully the name of this
+        function will make it clear when snapshots are being accidentally used
+        for writing.
+        """
+        return self._transaction('DEFERRED')
+
+    def transaction(self) -> ContextManager[sqlite3.Connection]:
+        """Returns a context manager around a read-write transaction."""
+        return self._transaction('EXCLUSIVE')
 
     def reset(self) -> None:
         """(Re)sets the database to its initial, empty state."""

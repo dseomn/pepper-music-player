@@ -60,11 +60,10 @@ class DatabaseTest(unittest.TestCase):
             transaction.execute(
                 'INSERT INTO DependsOnTest (foo) VALUES ("foo1")')
         self._db.reset()
-        with self._db.transaction() as transaction:
+        with self._db.snapshot() as snapshot:
+            self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
             self.assertFalse(
-                transaction.execute('SELECT * FROM Test').fetchall())
-            self.assertFalse(
-                transaction.execute('SELECT * FROM DependsOnTest').fetchall())
+                snapshot.execute('SELECT * FROM DependsOnTest').fetchall())
 
     def test_exception_rolls_back_transaction_and_propagates(self):
         with self.assertRaisesRegex(ValueError, 'this should propagate'):
@@ -72,9 +71,8 @@ class DatabaseTest(unittest.TestCase):
                 transaction.execute(
                     'INSERT INTO Test (foo, bar) VALUES ("foo1", "bar1")')
                 raise ValueError('this should propagate')
-        with self._db.transaction() as transaction:
-            self.assertFalse(
-                transaction.execute('SELECT * FROM Test').fetchall())
+        with self._db.snapshot() as snapshot:
+            self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
 
 
 if __name__ == '__main__':
