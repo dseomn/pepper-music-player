@@ -26,6 +26,27 @@ _SCHEMA = sqlite3_db.Schema(
     name='library',
     version='v1alpha',  # TODO(#20): Change to v1.
     items=(
+        # Tags for anything in the library.
+        #
+        # Columns:
+        #   token: Token of the thing (track, album, etc.) with tags.
+        #   tag_name: Name of the tag, e.g., 'artist'. Each value may appear
+        #       multiple times for the same token.
+        #   tag_value: A single value for the tag.
+        sqlite3_db.SchemaItem(
+            """
+            CREATE TABLE Tag (
+                token TEXT NOT NULL,
+                tag_name TEXT NOT NULL,
+                tag_value TEXT NOT NULL
+            )
+            """,
+            drop='DROP TABLE IF EXISTS Tag',
+        ),
+        sqlite3_db.SchemaItem('CREATE INDEX Tag_TokenIndex ON Tag (token)'),
+        sqlite3_db.SchemaItem(
+            'CREATE INDEX Tag_TagIndex ON Tag (tag_name, tag_value)'),
+
         # Files in the library.
         #
         # Columns:
@@ -66,62 +87,8 @@ _SCHEMA = sqlite3_db.Schema(
         ),
         sqlite3_db.SchemaItem(
             'CREATE INDEX AudioFile_AlbumIndex ON AudioFile (album_token)'),
-
-        # Tags for audio files in the library.
-        #
-        # Columns:
-        #   file_id: Which file has the tag.
-        #   tag_name: Name of the tag, e.g., 'artist'. Each value may appear
-        #       multiple times for the same file_id.
-        #   tag_value: A single value for the tag.
-        sqlite3_db.SchemaItem(
-            """
-            CREATE TABLE AudioFileTag (
-                file_id INTEGER NOT NULL
-                    REFERENCES File (rowid) ON DELETE CASCADE,
-                tag_name TEXT NOT NULL,
-                tag_value TEXT NOT NULL
-            )
-            """,
-            drop='DROP TABLE IF EXISTS AudioFileTag',
-        ),
-        sqlite3_db.SchemaItem(
-            'CREATE INDEX AudioFileTag_FileIndex ON AudioFileTag (file_id)'),
-        sqlite3_db.SchemaItem("""
-            CREATE INDEX AudioFileTag_TagIndex
-            ON AudioFileTag (tag_name, tag_value)
-        """),
-
-        # Tags common to all tracks on an Album.
-        #
-        # Columns:
-        #   album_token: Opaque token that identifies the album.
-        #   tag_name: See AudioFileTag.
-        #   tag_value: See AudioFileTag.
-        sqlite3_db.SchemaItem(
-            """
-            CREATE TABLE AlbumTag (
-                album_token TEXT NOT NULL,
-                tag_name TEXT NOT NULL,
-                tag_value TEXT NOT NULL
-            )
-            """,
-            drop='DROP TABLE IF EXISTS AlbumTag',
-        ),
-        sqlite3_db.SchemaItem(
-            'CREATE INDEX AlbumTag_AlbumIndex ON AlbumTag (album_token)'),
-        sqlite3_db.SchemaItem(
-            'CREATE INDEX AlbumTag_TagIndex ON AlbumTag (tag_name, tag_value)'),
     ),
 )
-
-
-def _tags_from_pairs(pairs: Iterable[Tuple[str, str]]) -> metadata.Tags:
-    """Returns Tags, given an iterable of (name, value) pairs."""
-    tags = collections.defaultdict(list)
-    for name, value in pairs:
-        tags[name].append(value)
-    return metadata.Tags(tags)
 
 
 class Database:
@@ -143,6 +110,34 @@ class Database:
         """(Re)sets the library to its initial, empty state."""
         self._db.reset()
 
+    def _get_tags(
+            self,
+            snapshot: sqlite3_db.AbstractSnapshot,
+            token: str,
+    ) -> metadata.Tags:
+        """Returns Tags for the given token."""
+        tags = collections.defaultdict(list)
+        # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
+        for name, value in snapshot.execute(
+                'SELECT tag_name, tag_value FROM Tag WHERE token = ?',
+                (token,)):  # yapf: disable
+            tags[name].append(value)
+        return metadata.Tags(tags)
+
+    def _set_tags(
+            self,
+            transaction: sqlite3_db.Transaction,
+            token: str,
+            tags: metadata.Tags,
+    ) -> None:
+        """Sets Tags for the given token."""
+        transaction.execute('DELETE FROM Tag WHERE token = ?', (token,))
+        for name, values in tags.items():
+            transaction.executemany(
+                'INSERT INTO Tag (token, tag_name, tag_value) VALUES (?, ?, ?)',
+                ((token, name, value) for value in values),
+            )
+
     def _insert_audio_file(
             self,
             transaction: sqlite3_db.Transaction,
@@ -156,6 +151,7 @@ class Database:
             file_id: Row ID of the file in the File table.
             file_info: File to insert.
         """
+        token = str(file_info.token)
         transaction.execute(
             """
             INSERT INTO AudioFile (file_id, token, album_token)
@@ -163,34 +159,28 @@ class Database:
             """,
             {
                 'file_id': file_id,
-                'token': str(file_info.token),
+                'token': token,
                 'album_token': str(file_info.album_token),
             },
         )
-        for tag_name, tag_values in file_info.tags.items():
-            transaction.executemany(
-                """
-                INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
-                VALUES (?, ?, ?)
-                """,
-                ((file_id, tag_name, tag_value) for tag_value in tag_values),
-            )
+        self._set_tags(transaction, token, file_info.tags)
 
     def _update_album_tags(self, transaction: sqlite3_db.Transaction) -> None:
-        """Updates the AlbumTag table to reflect the current files."""
-        transaction.execute('DELETE FROM AlbumTag')
+        """Updates album tags to reflect the current files."""
         for album_token, audio_file_rows in itertools.groupby(
                 transaction.execute("""
-                    SELECT album_token, file_id, tag_name, tag_value
+                    SELECT album_token, token, tag_name, tag_value
                     FROM AudioFile
-                    LEFT JOIN AudioFileTag USING (file_id)
-                    ORDER BY album_token, file_id
+                    LEFT JOIN Tag USING (token)
+                    ORDER BY album_token, token
                 """),
                 lambda row: row[0],
         ):
+            transaction.execute('DELETE FROM Tag WHERE token = ?',
+                                (album_token,))
             tags = []
-            for file_id, tag_rows in itertools.groupby(audio_file_rows,
-                                                       lambda row: row[1]):
+            for _, tag_rows in itertools.groupby(audio_file_rows,
+                                                 lambda row: row[1]):
                 tags.append(
                     collections.Counter(
                         (tag_name, tag_value)
@@ -198,10 +188,7 @@ class Database:
                         if tag_name is not None))
             common_tags = functools.reduce(operator.and_, tags)
             transaction.executemany(
-                """
-                INSERT INTO AlbumTag (album_token, tag_name, tag_value)
-                VALUES (?, ?, ?)
-                """,
+                'INSERT INTO Tag (token, tag_name, tag_value) VALUES (?, ?, ?)',
                 ((album_token, tag_name, tag_value)
                  for tag_name, tag_value in common_tags.elements()),
             )
@@ -261,16 +248,6 @@ class Database:
             if track_row is None:
                 raise KeyError(token)
             dirname, filename, file_id = track_row
-            return metadata.AudioFile(
-                dirname=dirname,
-                filename=filename,
-                tags=_tags_from_pairs(
-                    snapshot.execute(
-                        """
-                        SELECT tag_name, tag_value
-                        FROM AudioFileTag
-                        WHERE file_id = ?
-                        """,
-                        (file_id,),
-                    )),
-            )
+            return metadata.AudioFile(dirname=dirname,
+                                      filename=filename,
+                                      tags=self._get_tags(snapshot, str(token)))

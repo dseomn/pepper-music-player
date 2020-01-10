@@ -40,6 +40,10 @@ class DatabaseTest(unittest.TestCase):
 
     def test_reset_deletes_data(self):
         with self._connection:
+            self._connection.execute("""
+                INSERT INTO Tag (token, tag_name, tag_value)
+                VALUES ("b", "c", "d")
+            """)
             file_id = self._connection.execute(
                 'INSERT INTO File (dirname, filename) VALUES ("a", "b")'
             ).lastrowid
@@ -50,20 +54,9 @@ class DatabaseTest(unittest.TestCase):
                 """,
                 (file_id,),
             )
-            self._connection.execute(
-                """
-                INSERT INTO AudioFileTag (file_id, tag_name, tag_value)
-                VALUES (?, "c", "d")
-                """,
-                (file_id,),
-            )
-            self._connection.execute("""
-                INSERT INTO AlbumTag (album_token, tag_name, tag_value)
-                VALUES ("a", "c", "d")
-            """)
         self._database.reset()
         with self._connection:
-            for table_name in ('File', 'AudioFile', 'AudioFileTag', 'AlbumTag'):
+            for table_name in ('Tag', 'File', 'AudioFile'):
                 with self.subTest(table_name):
                     self.assertFalse(
                         self._connection.execute(
@@ -128,7 +121,8 @@ class DatabaseTest(unittest.TestCase):
                 self._connection.execute("""
                     SELECT dirname, filename, tag_name, tag_value
                     FROM File
-                    JOIN AudioFileTag ON File.rowid = AudioFileTag.file_id
+                    JOIN AudioFile ON AudioFile.file_id = File.rowid
+                    JOIN Tag USING (token)
                 """),
             )
 
@@ -151,7 +145,7 @@ class DatabaseTest(unittest.TestCase):
                     SELECT dirname, filename, tag_name, tag_value
                     FROM File
                     JOIN AudioFile ON File.rowid = AudioFile.file_id
-                    JOIN AlbumTag USING (album_token)
+                    JOIN Tag ON Tag.token = AudioFile.album_token
                 """),
             )
 
@@ -191,7 +185,7 @@ class DatabaseTest(unittest.TestCase):
                     SELECT dirname, filename, tag_name, tag_value
                     FROM File
                     JOIN AudioFile ON File.rowid = AudioFile.file_id
-                    JOIN AlbumTag USING (album_token)
+                    JOIN Tag ON Tag.token = AudioFile.album_token
                 """),
             )
 
@@ -206,7 +200,11 @@ class DatabaseTest(unittest.TestCase):
         ))
         with self._connection:
             self.assertFalse(
-                self._connection.execute('SELECT * FROM AlbumTag').fetchall())
+                self._connection.execute("""
+                    SELECT *
+                    FROM Tag
+                    JOIN AudioFile ON AudioFile.album_token = Tag.token
+                """).fetchall())
 
     def test_track_tokens(self):
         file1 = metadata.AudioFile(dirname='a',
