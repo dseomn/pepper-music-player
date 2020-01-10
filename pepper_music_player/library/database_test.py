@@ -155,30 +155,22 @@ class DatabaseTest(unittest.TestCase):
                                filename='file1',
                                tags=metadata.Tags({
                                    'album': ('album1',),
-                                   'common': ('foo', 'foo'),
                                    'partially_common': ('common', 'diff1'),
-                                   'different': ('diff1',),
                                })),
             metadata.AudioFile(dirname='dir1',
                                filename='file2',
                                tags=metadata.Tags({
                                    'album': ('album1',),
-                                   'common': ('foo', 'foo'),
                                    'partially_common':
                                        ('common', 'common', 'diff2'),
-                                   'different': ('diff2',),
                                })),
         ))
         with self._connection:
             self.assertCountEqual(
                 (
                     ('dir1', 'file1', 'album', 'album1'),
-                    ('dir1', 'file1', 'common', 'foo'),
-                    ('dir1', 'file1', 'common', 'foo'),
                     ('dir1', 'file1', 'partially_common', 'common'),
                     ('dir1', 'file2', 'album', 'album1'),
-                    ('dir1', 'file2', 'common', 'foo'),
-                    ('dir1', 'file2', 'common', 'foo'),
                     ('dir1', 'file2', 'partially_common', 'common'),
                 ),
                 self._connection.execute("""
@@ -188,23 +180,6 @@ class DatabaseTest(unittest.TestCase):
                     JOIN Tag ON Tag.token = AudioFile.album_token
                 """),
             )
-
-    def test_insert_files_album_with_no_common_tags(self):
-        self._database.insert_files((
-            metadata.AudioFile(dirname='dir1',
-                               filename='file1',
-                               tags=metadata.Tags({})),
-            metadata.AudioFile(dirname='dir1',
-                               filename='file2',
-                               tags=metadata.Tags({'foo': ('bar',)})),
-        ))
-        with self._connection:
-            self.assertFalse(
-                self._connection.execute("""
-                    SELECT *
-                    FROM Tag
-                    JOIN AudioFile ON AudioFile.album_token = Tag.token
-                """).fetchall())
 
     def test_track_tokens(self):
         file1 = metadata.AudioFile(dirname='a',

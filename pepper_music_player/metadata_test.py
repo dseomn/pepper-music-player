@@ -85,6 +85,36 @@ class TagsTest(unittest.TestCase):
         self.assertEqual('1',
                          metadata.Tags(dict(tracknumber=('1/21',))).tracknumber)
 
+    def test_compose_empty(self):
+        self.assertEqual(metadata.Tags({}), metadata.compose_tags(()))
+
+    def test_compose_identity(self):
+        tags = metadata.Tags({
+            'foo': ('foo1', 'foo2'),
+            'bar': ('bar',),
+        })
+        self.assertEqual(tags, metadata.compose_tags((tags,)))
+
+    def test_compose_intersection(self):
+        self.assertEqual(
+            metadata.Tags({
+                'common': ('foo', 'foo'),
+                'partially_common': ('common',),
+            }),
+            metadata.compose_tags((
+                metadata.Tags({
+                    'common': ('foo', 'foo'),
+                    'partially_common': ('common', 'diff1'),
+                    'different': ('diff1',),
+                }),
+                metadata.Tags({
+                    'common': ('foo', 'foo'),
+                    'partially_common': ('common', 'common', 'diff2'),
+                    'different': ('diff2',),
+                }),
+            )),
+        )
+
 
 class TokenTest(unittest.TestCase):
 

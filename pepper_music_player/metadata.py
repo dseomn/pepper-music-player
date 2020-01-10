@@ -19,8 +19,11 @@ accidentally tries to modify a shared piece of metadata. 2) It makes sharing
 metadata across threads easier.
 """
 
+import collections
 import dataclasses
 import enum
+import functools
+import operator
 import re
 from typing import Iterable, Mapping, Optional, Tuple, Union
 
@@ -116,6 +119,32 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
             return tracknumber
         else:
             return match.group('tracknumber')
+
+
+def compose_tags(components_tags: Iterable[Tags]) -> Tags:
+    """Returns the tags for an entity composed of tagged sub-entities.
+
+    E.g., this can get the tags for an album composed of tracks. In general, the
+    composite entity's tags are the intersection of its element's tags.
+
+    Args:
+        components_tags: Tags for all the components.
+    """
+    if not components_tags:
+        return Tags({})
+
+    tag_pair_counters = []
+    for component_tags in components_tags:
+        tag_pairs = []
+        for name, values in component_tags.items():
+            tag_pairs.extend((name, value) for value in values)
+        tag_pair_counters.append(collections.Counter(tag_pairs))
+    common_tag_pair_counter = functools.reduce(operator.and_, tag_pair_counters)
+
+    tags = collections.defaultdict(list)
+    for name, value in common_tag_pair_counter.elements():
+        tags[name].append(value)
+    return Tags(tags)
 
 
 @dataclasses.dataclass(frozen=True)

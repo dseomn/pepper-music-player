@@ -14,10 +14,8 @@
 """Database for a library."""
 
 import collections
-import functools
 import itertools
-import operator
-from typing import Generator, Iterable, Tuple
+from typing import Generator, Iterable
 
 from pepper_music_player import metadata
 from pepper_music_player import sqlite3_db
@@ -167,30 +165,20 @@ class Database:
 
     def _update_album_tags(self, transaction: sqlite3_db.Transaction) -> None:
         """Updates album tags to reflect the current files."""
-        for album_token, audio_file_rows in itertools.groupby(
+        for album_token, rows in itertools.groupby(
                 transaction.execute("""
-                    SELECT album_token, token, tag_name, tag_value
+                    SELECT album_token, token
                     FROM AudioFile
-                    LEFT JOIN Tag USING (token)
-                    ORDER BY album_token, token
+                    ORDER BY album_token
                 """),
                 lambda row: row[0],
         ):
-            transaction.execute('DELETE FROM Tag WHERE token = ?',
-                                (album_token,))
-            tags = []
-            for _, tag_rows in itertools.groupby(audio_file_rows,
-                                                 lambda row: row[1]):
-                tags.append(
-                    collections.Counter(
-                        (tag_name, tag_value)
-                        for _, _, tag_name, tag_value in tag_rows
-                        if tag_name is not None))
-            common_tags = functools.reduce(operator.and_, tags)
-            transaction.executemany(
-                'INSERT INTO Tag (token, tag_name, tag_value) VALUES (?, ?, ?)',
-                ((album_token, tag_name, tag_value)
-                 for tag_name, tag_value in common_tags.elements()),
+            self._set_tags(
+                transaction,
+                album_token,
+                metadata.compose_tags(
+                    self._get_tags(transaction, track_token)
+                    for _, track_token in rows),
             )
 
     def insert_files(self, files: Iterable[metadata.File]) -> None:
