@@ -51,11 +51,14 @@ class Schema:
     items: Tuple[SchemaItem, ...]
 
 
+# Any type of transaction that supports reading.
+AbstractSnapshot = NewType('AbstractSnapshot', sqlite3.Connection)
+
 # Transaction for reading only.
-Snapshot = NewType('Snapshot', sqlite3.Connection)
+Snapshot = NewType('Snapshot', AbstractSnapshot)
 
 # Read-write transaction.
-Transaction = NewType('Transaction', sqlite3.Connection)
+Transaction = NewType('Transaction', AbstractSnapshot)
 
 # Any type of transaction.
 AnyTransaction = TypeVar('AnyTransaction', Snapshot, Transaction)
