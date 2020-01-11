@@ -71,7 +71,7 @@ class ScanTest(unittest.TestCase):
         tags['date'] = '2019-12-21'
         tags['artists'] = ['artist1', 'artist2']
         flac_data.seek(0)
-        tags.save(fileobj=flac_data)
+        tags.save(flac_data)
         self._root_dirpath.joinpath('foo.flac').write_bytes(
             flac_data.getvalue())
         self.assertCountEqual(

@@ -226,7 +226,7 @@ class Database:
         with self._db.snapshot() as snapshot:
             track_row = snapshot.execute(
                 """
-                SELECT dirname, filename, file_id
+                SELECT dirname, filename
                 FROM AudioFile
                 JOIN File ON File.rowid = AudioFile.file_id
                 WHERE token = ?
@@ -235,7 +235,7 @@ class Database:
             ).fetchone()
             if track_row is None:
                 raise KeyError(token)
-            dirname, filename, file_id = track_row
+            dirname, filename = track_row
             return metadata.AudioFile(dirname=dirname,
                                       filename=filename,
                                       tags=self._get_tags(snapshot, str(token)))
