@@ -26,5 +26,9 @@ disable =
   no-self-use,  # Complains on test methods.
   wrong-import-position  # Gets confused by gi.require_version().
 
+[FORMAT]
+max-line-length=80
+ignore-long-lines=import|http|pylint|pytype
+
 [BASIC]
 no-docstring-rgx=^(_.*|main|test_.*|.*Test)$
