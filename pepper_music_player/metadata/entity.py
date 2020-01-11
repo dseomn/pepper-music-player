@@ -69,7 +69,7 @@ class Album:
     """
     token: metadata_token.Album = dataclasses.field(init=False, repr=False)
     tags: tag.Tags
-    tracks: Tuple[Track]
+    tracks: Tuple[Track, ...]
 
     def __post_init__(self) -> None:
         album_tokens = {track.album_token for track in self.tracks}

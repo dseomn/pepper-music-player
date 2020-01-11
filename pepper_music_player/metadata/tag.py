@@ -79,7 +79,7 @@ def _tag_name_str(tag: ArbitraryTag) -> str:
         return tag
 
 
-class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str]]):
+class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
     """Tags, e.g., from a file/track or album.
 
     Note that tags can have multiple values, potentially even multiple identical
@@ -103,7 +103,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str]]):
             _tag_name_str(name): tuple(values) for name, values in tags.items()
         })
 
-    def __getitem__(self, key: ArbitraryTag) -> Tuple[str]:
+    def __getitem__(self, key: ArbitraryTag) -> Tuple[str, ...]:
         return super().__getitem__(_tag_name_str(key))
 
     def __contains__(self, key: ArbitraryTag) -> bool:
