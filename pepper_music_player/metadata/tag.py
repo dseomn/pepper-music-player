@@ -66,6 +66,10 @@ ALBUMARTIST = Tag('albumartist')
 MUSICBRAINZ_ALBUMID = Tag('musicbrainz_albumid')
 TRACKNUMBER = Tag('tracknumber')
 
+BASENAME = PseudoTag('~basename')
+DIRNAME = PseudoTag('~dirname')
+FILENAME = PseudoTag('~filename')
+
 
 def _tag_name_str(tag: ArbitraryTag) -> str:
     """Returns the str form of a tag name."""
