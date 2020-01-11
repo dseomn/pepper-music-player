@@ -25,12 +25,12 @@ class AudioFileTest(unittest.TestCase):
         self.assertNotEqual(
             entity.AudioFile(
                 dirname='/a',
-                filename='b',
+                basename='b',
                 tags=tag.Tags({}),
             ).token,
             entity.AudioFile(
                 dirname='/a',
-                filename='c',
+                basename='c',
                 tags=tag.Tags({}),
             ).token,
         )
@@ -39,12 +39,12 @@ class AudioFileTest(unittest.TestCase):
         self.assertEqual(
             entity.AudioFile(
                 dirname='/a',
-                filename='b',
+                basename='b',
                 tags=tag.Tags({'album': ('a',)}),
             ).album_token,
             entity.AudioFile(
                 dirname='/a',
-                filename='c',
+                basename='c',
                 tags=tag.Tags({'album': ('a',)}),
             ).album_token,
         )
@@ -53,12 +53,12 @@ class AudioFileTest(unittest.TestCase):
         self.assertNotEqual(
             entity.AudioFile(
                 dirname='/a',
-                filename='b',
+                basename='b',
                 tags=tag.Tags({'album': ('a',)}),
             ).album_token,
             entity.AudioFile(
                 dirname='/a',
-                filename='c',
+                basename='c',
                 tags=tag.Tags({'album': ('d',)}),
             ).album_token,
         )
@@ -70,12 +70,12 @@ class AlbumTest(unittest.TestCase):
         tracks = (
             entity.AudioFile(
                 dirname='/a',
-                filename='b',
+                basename='b',
                 tags=tag.Tags({'album': ('a',)}),
             ),
             entity.AudioFile(
                 dirname='/a',
-                filename='c',
+                basename='c',
                 tags=tag.Tags({'album': ('a',)}),
             ),
         )
@@ -91,12 +91,12 @@ class AlbumTest(unittest.TestCase):
                 tracks=(
                     entity.AudioFile(
                         dirname='/a',
-                        filename='b',
+                        basename='b',
                         tags=tag.Tags({'album': ('a',)}),
                     ),
                     entity.AudioFile(
                         dirname='/a',
-                        filename='c',
+                        basename='c',
                         tags=tag.Tags({'album': ('d',)}),
                     ),
                 ),

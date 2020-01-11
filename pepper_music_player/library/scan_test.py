@@ -49,9 +49,9 @@ class ScanTest(unittest.TestCase):
         bar.joinpath('bar1').touch()
         self.assertCountEqual(
             (
-                entity.File(dirname=str(foo), filename='foo1'),
-                entity.File(dirname=str(foo), filename='foo2'),
-                entity.File(dirname=str(bar), filename='bar1'),
+                entity.File(dirname=str(foo), basename='foo1'),
+                entity.File(dirname=str(foo), basename='foo2'),
+                entity.File(dirname=str(bar), basename='bar1'),
             ),
             scan.scan(str(self._root_dirpath)),
         )
@@ -60,7 +60,7 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertCountEqual(
             (entity.AudioFile(dirname=str(self._root_dirpath),
-                              filename='foo.flac',
+                              basename='foo.flac',
                               tags=tag.Tags({})),),
             scan.scan(str(self._root_dirpath)),
         )
@@ -78,7 +78,7 @@ class ScanTest(unittest.TestCase):
         self.assertCountEqual(
             (entity.AudioFile(
                 dirname=str(self._root_dirpath),
-                filename='foo.flac',
+                basename='foo.flac',
                 tags=tag.Tags({
                     'artists': ('artist1', 'artist2'),
                     'date': ('2019-12-21',),

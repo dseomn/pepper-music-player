@@ -36,15 +36,15 @@ def scan(root_dirname: str) -> Generator[entity.File, None, None]:
     """Scans a directory."""
     # TODO: Keep track of errors with os.walk(onerror=...)
     # TODO: Catch and handle per-file errors.
-    for dirname, _, filenames in os.walk(os.path.abspath(root_dirname)):
+    for dirname, _, basenames in os.walk(os.path.abspath(root_dirname)):
         dirpath = pathlib.Path(dirname)
-        for filename in filenames:
-            filepath = dirpath.joinpath(filename)
+        for basename in basenames:
+            filepath = dirpath.joinpath(basename)
             mime, _ = mimetypes.guess_type(filepath.as_uri())
             mime_major, _, _ = (mime or '').partition('/')
             if mime_major == 'audio':
                 yield entity.AudioFile(dirname=dirname,
-                                       filename=filename,
+                                       basename=basename,
                                        tags=_read_tags(str(filepath)))
             else:
-                yield entity.File(dirname=dirname, filename=filename)
+                yield entity.File(dirname=dirname, basename=basename)

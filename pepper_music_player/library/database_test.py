@@ -47,7 +47,7 @@ class DatabaseTest(unittest.TestCase):
                 VALUES ("b", "c", "d")
             """)
             file_id = self._connection.execute(
-                'INSERT INTO File (dirname, filename) VALUES ("a", "b")'
+                'INSERT INTO File (dirname, basename) VALUES ("a", "b")'
             ).lastrowid
             self._connection.execute(
                 """
@@ -66,8 +66,8 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_generic(self):
         self._database.insert_files((
-            entity.File(dirname='a', filename='b'),
-            entity.AudioFile(dirname='c', filename='d', tags=tag.Tags({})),
+            entity.File(dirname='a', basename='b'),
+            entity.AudioFile(dirname='c', basename='d', tags=tag.Tags({})),
         ))
         with self._connection:
             self.assertCountEqual(
@@ -75,14 +75,14 @@ class DatabaseTest(unittest.TestCase):
                     ('a', 'b'),
                     ('c', 'd'),
                 ),
-                self._connection.execute('SELECT dirname, filename FROM File'),
+                self._connection.execute('SELECT dirname, basename FROM File'),
             )
 
     def test_insert_files_duplicate(self):
         with self.assertRaises(sqlite3.IntegrityError):
             self._database.insert_files((
-                entity.File(dirname='a', filename='b'),
-                entity.File(dirname='a', filename='b'),
+                entity.File(dirname='a', basename='b'),
+                entity.File(dirname='a', basename='b'),
             ))
         with self._connection:
             self.assertFalse(
@@ -90,10 +90,10 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_audio(self):
         file1 = entity.AudioFile(dirname='a',
-                                 filename='b',
+                                 basename='b',
                                  tags=tag.Tags({'c': ('d',)}))
         file2 = entity.AudioFile(dirname='a',
-                                 filename='c',
+                                 basename='c',
                                  tags=tag.Tags({
                                      'a': ('b', 'b'),
                                      'c': ('d',),
@@ -106,7 +106,7 @@ class DatabaseTest(unittest.TestCase):
                     ('a', 'c', str(file2.token), str(file2.album_token)),
                 ),
                 self._connection.execute("""
-                    SELECT dirname, filename, token, album_token
+                    SELECT dirname, basename, token, album_token
                     FROM File
                     JOIN AudioFile ON File.rowid = AudioFile.file_id
                 """),
@@ -119,7 +119,7 @@ class DatabaseTest(unittest.TestCase):
                     ('a', 'c', 'c', 'd'),
                 ),
                 self._connection.execute("""
-                    SELECT dirname, filename, tag_name, tag_value
+                    SELECT dirname, basename, tag_name, tag_value
                     FROM File
                     JOIN AudioFile ON AudioFile.file_id = File.rowid
                     JOIN Tag USING (token)
@@ -129,10 +129,10 @@ class DatabaseTest(unittest.TestCase):
     def test_insert_files_different_albums(self):
         self._database.insert_files((
             entity.AudioFile(dirname='dir1',
-                             filename='file1',
+                             basename='file1',
                              tags=tag.Tags({'album': ('album1',)})),
             entity.AudioFile(dirname='dir1',
-                             filename='file2',
+                             basename='file2',
                              tags=tag.Tags({'album': ('album2',)})),
         ))
         with self._connection:
@@ -142,7 +142,7 @@ class DatabaseTest(unittest.TestCase):
                     ('dir1', 'file2', 'album', 'album2'),
                 ),
                 self._connection.execute("""
-                    SELECT dirname, filename, tag_name, tag_value
+                    SELECT dirname, basename, tag_name, tag_value
                     FROM File
                     JOIN AudioFile ON File.rowid = AudioFile.file_id
                     JOIN Tag ON Tag.token = AudioFile.album_token
@@ -152,13 +152,13 @@ class DatabaseTest(unittest.TestCase):
     def test_insert_files_same_album(self):
         self._database.insert_files((
             entity.AudioFile(dirname='dir1',
-                             filename='file1',
+                             basename='file1',
                              tags=tag.Tags({
                                  'album': ('album1',),
                                  'partially_common': ('common', 'diff1'),
                              })),
             entity.AudioFile(dirname='dir1',
-                             filename='file2',
+                             basename='file2',
                              tags=tag.Tags({
                                  'album': ('album1',),
                                  'partially_common':
@@ -174,7 +174,7 @@ class DatabaseTest(unittest.TestCase):
                     ('dir1', 'file2', 'partially_common', 'common'),
                 ),
                 self._connection.execute("""
-                    SELECT dirname, filename, tag_name, tag_value
+                    SELECT dirname, basename, tag_name, tag_value
                     FROM File
                     JOIN AudioFile ON File.rowid = AudioFile.file_id
                     JOIN Tag ON Tag.token = AudioFile.album_token
@@ -182,8 +182,8 @@ class DatabaseTest(unittest.TestCase):
             )
 
     def test_track_tokens(self):
-        file1 = entity.AudioFile(dirname='a', filename='b', tags=tag.Tags({}))
-        file2 = entity.AudioFile(dirname='a', filename='c', tags=tag.Tags({}))
+        file1 = entity.AudioFile(dirname='a', basename='b', tags=tag.Tags({}))
+        file2 = entity.AudioFile(dirname='a', basename='c', tags=tag.Tags({}))
         self._database.insert_files((file1, file2))
         self.assertCountEqual((file1.token, file2.token),
                               self._database.track_tokens())
@@ -194,7 +194,7 @@ class DatabaseTest(unittest.TestCase):
 
     def test_track(self):
         track = entity.AudioFile(dirname='a',
-                                 filename='b',
+                                 basename='b',
                                  tags=tag.Tags({
                                      'c': ('foo', 'bar'),
                                      'd': ('quux',),

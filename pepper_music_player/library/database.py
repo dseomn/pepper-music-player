@@ -51,13 +51,13 @@ _SCHEMA = sqlite3_db.Schema(
         #
         # Columns:
         #   dirname: Absolute name of the directory containing the file.
-        #   filename: Name of the file, relative to dirname.
+        #   basename: Name of the file, relative to dirname.
         sqlite3_db.SchemaItem(
             """
             CREATE TABLE File (
                 dirname TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                PRIMARY KEY (dirname, filename)
+                basename TEXT NOT NULL,
+                PRIMARY KEY (dirname, basename)
             )
             """,
             drop='DROP TABLE IF EXISTS File',
@@ -197,12 +197,12 @@ class Database:
             for file_info in files:
                 file_id = transaction.execute(
                     """
-                    INSERT INTO File (dirname, filename)
-                    VALUES (:dirname, :filename)
+                    INSERT INTO File (dirname, basename)
+                    VALUES (:dirname, :basename)
                     """,
                     {
                         'dirname': file_info.dirname,
-                        'filename': file_info.filename,
+                        'basename': file_info.basename,
                     },
                 ).lastrowid
                 if isinstance(file_info, entity.AudioFile):
@@ -228,7 +228,7 @@ class Database:
         with self._db.snapshot() as snapshot:
             track_row = snapshot.execute(
                 """
-                SELECT dirname, filename
+                SELECT dirname, basename
                 FROM AudioFile
                 JOIN File ON File.rowid = AudioFile.file_id
                 WHERE token = ?
@@ -237,7 +237,7 @@ class Database:
             ).fetchone()
             if track_row is None:
                 raise KeyError(token_)
-            dirname, filename = track_row
+            dirname, basename = track_row
             return entity.AudioFile(dirname=dirname,
-                                    filename=filename,
+                                    basename=basename,
                                     tags=self._get_tags(snapshot, str(token_)))

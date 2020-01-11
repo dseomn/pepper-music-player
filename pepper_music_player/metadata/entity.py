@@ -26,10 +26,10 @@ class File:
 
     Attributes:
         dirname: Absolute name of the directory containing the file.
-        filename: Name of the file, relative to dirname.
+        basename: Name of the file, relative to dirname.
     """
     dirname: str
-    filename: str
+    basename: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,7 +42,7 @@ class AudioFile(File):
     https://en.wikipedia.org/wiki/Cue_sheet_(computing)#Audio_file_playback, the
     concepts will need to be split apart. To hopefully ease that transition,
     code and docs should refer to these objects as tracks whenever they are
-    conceptually dealing with tracks instead of files. E.g., the filename and
+    conceptually dealing with tracks instead of files. E.g., the basename and
     dirname attributes are conceptually about the file, but the token attribute
     is about the track.
 
@@ -64,7 +64,7 @@ class AudioFile(File):
                 repr((
                     'track/v1alpha',  # TODO(#20): Change to v1.
                     self.dirname,
-                    self.filename,
+                    self.basename,
                 ))),
         )
         object.__setattr__(
