@@ -24,12 +24,15 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 
 
-def _read_tags(filename: str) -> tag.Tags:
+def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
     """Returns tags read from a file."""
     file_info = mutagen.File(filename, easy=True)
-    if file_info.tags is None:
-        return tag.Tags({})
-    return tag.Tags(file_info.tags)
+    return tag.Tags({
+        **(file_info.tags or {}),
+        tag.BASENAME: (basename,),
+        tag.DIRNAME: (dirname,),
+        tag.FILENAME: (filename,),
+    })
 
 
 def scan(root_dirname: str) -> Generator[entity.File, None, None]:
@@ -45,6 +48,8 @@ def scan(root_dirname: str) -> Generator[entity.File, None, None]:
             if mime_major == 'audio':
                 yield entity.AudioFile(dirname=dirname,
                                        basename=basename,
-                                       tags=_read_tags(str(filepath)))
+                                       tags=_read_tags(dirname=dirname,
+                                                       basename=basename,
+                                                       filename=str(filepath)))
             else:
                 yield entity.File(dirname=dirname, basename=basename)

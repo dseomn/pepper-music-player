@@ -59,9 +59,15 @@ class ScanTest(unittest.TestCase):
     def test_parses_empty_tags(self):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertCountEqual(
-            (entity.AudioFile(dirname=str(self._root_dirpath),
-                              basename='foo.flac',
-                              tags=tag.Tags({})),),
+            (entity.AudioFile(
+                dirname=str(self._root_dirpath),
+                basename='foo.flac',
+                tags=tag.Tags({
+                    tag.BASENAME: ('foo.flac',),
+                    tag.DIRNAME: (str(self._root_dirpath),),
+                    tag.FILENAME:
+                        (str(self._root_dirpath.joinpath('foo.flac')),),
+                })),),
             scan.scan(str(self._root_dirpath)),
         )
 
@@ -83,6 +89,10 @@ class ScanTest(unittest.TestCase):
                     'artists': ('artist1', 'artist2'),
                     'date': ('2019-12-21',),
                     'title': ('Foo',),
+                    tag.BASENAME: ('foo.flac',),
+                    tag.DIRNAME: (str(self._root_dirpath),),
+                    tag.FILENAME:
+                        (str(self._root_dirpath.joinpath('foo.flac')),),
                 }),
             ),),
             scan.scan(str(self._root_dirpath)),
