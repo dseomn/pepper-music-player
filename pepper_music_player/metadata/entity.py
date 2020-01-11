@@ -21,33 +21,11 @@ from pepper_music_player.metadata import token as metadata_token
 
 
 @dataclasses.dataclass(frozen=True)
-class File:
-    """A file in the music library.
+class Track:
+    """A track.
 
     Attributes:
-        dirname: Absolute name of the directory containing the file.
-        basename: Name of the file, relative to dirname.
-    """
-    dirname: str
-    basename: str
-
-
-@dataclasses.dataclass(frozen=True)
-class AudioFile(File):
-    """An audio file.
-
-    Currently, audio files and tracks are treated as equivalent, so this class
-    represents both concepts as a single entity. However, if we ever add support
-    for single-file albums with embedded CUE sheets
-    https://en.wikipedia.org/wiki/Cue_sheet_(computing)#Audio_file_playback, the
-    concepts will need to be split apart. To hopefully ease that transition,
-    code and docs should refer to these objects as tracks whenever they are
-    conceptually dealing with tracks instead of files. E.g., the basename and
-    dirname attributes are conceptually about the file, but the token attribute
-    is about the track.
-
-    Attributes:
-        tags: Tags from the audio file.
+        tags: Tags from the track.
         token: Opaque token that identifies this track.
         album_token: Opaque token that identifies the album for this track.
     """
@@ -63,8 +41,7 @@ class AudioFile(File):
             metadata_token.Track(
                 repr((
                     'track/v1alpha',  # TODO(#20): Change to v1.
-                    self.dirname,
-                    self.basename,
+                    self.tags.get(tag.FILENAME, ()),
                 ))),
         )
         object.__setattr__(
@@ -73,7 +50,7 @@ class AudioFile(File):
             metadata_token.Album(
                 repr((
                     'album/v1alpha',  # TODO(#20): Change to v1.
-                    self.dirname,
+                    self.tags.get(tag.DIRNAME, ()),
                     self.tags.get(tag.ALBUM, ()),
                     self.tags.get(tag.ALBUMARTIST, ()),
                     self.tags.get(tag.MUSICBRAINZ_ALBUMID, ()),
@@ -92,7 +69,7 @@ class Album:
     """
     token: metadata_token.Album = dataclasses.field(init=False, repr=False)
     tags: tag.Tags
-    tracks: Tuple[AudioFile]
+    tracks: Tuple[Track]
 
     def __post_init__(self) -> None:
         album_tokens = {track.album_token for track in self.tracks}

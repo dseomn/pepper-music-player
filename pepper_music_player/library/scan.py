@@ -13,6 +13,7 @@
 # limitations under the License.
 """Scanning code to find music in a library."""
 
+import dataclasses
 import mimetypes
 import os
 import pathlib
@@ -22,6 +23,28 @@ import mutagen
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+
+
+@dataclasses.dataclass(frozen=True)
+class File:
+    """A file in the music library.
+
+    Attributes:
+        dirname: Absolute name of the directory containing the file.
+        basename: Name of the file, relative to dirname.
+    """
+    dirname: str
+    basename: str
+
+
+@dataclasses.dataclass(frozen=True)
+class AudioFile(File):
+    """An audio file.
+
+    Attributes:
+        track: The track in the file.
+    """
+    track: entity.Track
 
 
 def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
@@ -35,7 +58,7 @@ def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
     })
 
 
-def scan(root_dirname: str) -> Generator[entity.File, None, None]:
+def scan(root_dirname: str) -> Generator[File, None, None]:
     """Scans a directory."""
     # TODO: Keep track of errors with os.walk(onerror=...)
     # TODO: Catch and handle per-file errors.
@@ -46,10 +69,12 @@ def scan(root_dirname: str) -> Generator[entity.File, None, None]:
             mime, _ = mimetypes.guess_type(filepath.as_uri())
             mime_major, _, _ = (mime or '').partition('/')
             if mime_major == 'audio':
-                yield entity.AudioFile(dirname=dirname,
-                                       basename=basename,
-                                       tags=_read_tags(dirname=dirname,
+                yield AudioFile(
+                    dirname=dirname,
+                    basename=basename,
+                    track=entity.Track(tags=_read_tags(dirname=dirname,
                                                        basename=basename,
-                                                       filename=str(filepath)))
+                                                       filename=str(filepath))),
+                )
             else:
-                yield entity.File(dirname=dirname, basename=basename)
+                yield File(dirname=dirname, basename=basename)

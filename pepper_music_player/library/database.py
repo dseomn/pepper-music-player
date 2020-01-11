@@ -17,11 +17,14 @@ import collections
 import itertools
 from typing import Generator, Iterable
 
+from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player import sqlite3_db
 
+# TODO(dseomn): Split the AudioFile concept from the Track concept, to reflect
+# the split between scan.AudioFile and entity.Track.
 _SCHEMA = sqlite3_db.Schema(
     name='library',
     version='v1alpha',  # TODO(#20): Change to v1.
@@ -142,7 +145,7 @@ class Database:
             self,
             transaction: sqlite3_db.Transaction,
             file_id: int,
-            file_info: entity.AudioFile,
+            file_info: scan.AudioFile,
     ) -> None:
         """Inserts information about the given audio file.
 
@@ -151,7 +154,7 @@ class Database:
             file_id: Row ID of the file in the File table.
             file_info: File to insert.
         """
-        token_ = str(file_info.token)
+        track_token = str(file_info.track.token)
         transaction.execute(
             """
             INSERT INTO AudioFile (file_id, token, album_token)
@@ -159,11 +162,11 @@ class Database:
             """,
             {
                 'file_id': file_id,
-                'token': token_,
-                'album_token': str(file_info.album_token),
+                'token': track_token,
+                'album_token': str(file_info.track.album_token),
             },
         )
-        self._set_tags(transaction, token_, file_info.tags)
+        self._set_tags(transaction, track_token, file_info.track.tags)
 
     def _update_album_tags(self, transaction: sqlite3_db.Transaction) -> None:
         """Updates album tags to reflect the current files."""
@@ -183,7 +186,7 @@ class Database:
                     for _, track_token in rows),
             )
 
-    def insert_files(self, files: Iterable[entity.File]) -> None:
+    def insert_files(self, files: Iterable[scan.File]) -> None:
         """Inserts information about the given files.
 
         Args:
@@ -205,7 +208,7 @@ class Database:
                         'basename': file_info.basename,
                     },
                 ).lastrowid
-                if isinstance(file_info, entity.AudioFile):
+                if isinstance(file_info, scan.AudioFile):
                     self._insert_audio_file(transaction, file_id, file_info)
             self._update_album_tags(transaction)
 
@@ -216,7 +219,7 @@ class Database:
                     snapshot.execute('SELECT token FROM AudioFile')):
                 yield token.Track(token_str)
 
-    def track(self, token_: token.Track) -> entity.AudioFile:
+    def track(self, token_: token.Track) -> entity.Track:
         """Returns the specified track.
 
         Args:
@@ -226,18 +229,7 @@ class Database:
             KeyError: There's no track with the given token.
         """
         with self._db.snapshot() as snapshot:
-            track_row = snapshot.execute(
-                """
-                SELECT dirname, basename
-                FROM AudioFile
-                JOIN File ON File.rowid = AudioFile.file_id
-                WHERE token = ?
-                """,
-                (str(token_),),
-            ).fetchone()
-            if track_row is None:
+            if snapshot.execute('SELECT 1 FROM AudioFile WHERE token = ?',
+                                (str(token_),)).fetchone() is None:
                 raise KeyError(token_)
-            dirname, basename = track_row
-            return entity.AudioFile(dirname=dirname,
-                                    basename=basename,
-                                    tags=self._get_tags(snapshot, str(token_)))
+            return entity.Track(tags=self._get_tags(snapshot, str(token_)))

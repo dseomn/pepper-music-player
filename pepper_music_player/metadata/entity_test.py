@@ -19,48 +19,44 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 
 
-class AudioFileTest(unittest.TestCase):
+class TrackTest(unittest.TestCase):
 
     def test_token_different(self):
         self.assertNotEqual(
-            entity.AudioFile(
-                dirname='/a',
-                basename='b',
-                tags=tag.Tags({}),
-            ).token,
-            entity.AudioFile(
-                dirname='/a',
-                basename='c',
-                tags=tag.Tags({}),
-            ).token,
+            entity.Track(tags=tag.Tags({tag.FILENAME: '/a/b'})).token,
+            entity.Track(tags=tag.Tags({tag.FILENAME: '/a/c'})).token,
         )
 
     def test_album_token_same(self):
         self.assertEqual(
-            entity.AudioFile(
-                dirname='/a',
-                basename='b',
-                tags=tag.Tags({'album': ('a',)}),
-            ).album_token,
-            entity.AudioFile(
-                dirname='/a',
-                basename='c',
-                tags=tag.Tags({'album': ('a',)}),
-            ).album_token,
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                'album': ('a',),
+            })).album_token,
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('c',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/c',),
+                'album': ('a',),
+            })).album_token,
         )
 
     def test_album_token_different(self):
         self.assertNotEqual(
-            entity.AudioFile(
-                dirname='/a',
-                basename='b',
-                tags=tag.Tags({'album': ('a',)}),
-            ).album_token,
-            entity.AudioFile(
-                dirname='/a',
-                basename='c',
-                tags=tag.Tags({'album': ('d',)}),
-            ).album_token,
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                'album': ('a',),
+            })).album_token,
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('c',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/c',),
+                'album': ('d',),
+            })).album_token,
         )
 
 
@@ -68,16 +64,18 @@ class AlbumTest(unittest.TestCase):
 
     def test_token(self):
         tracks = (
-            entity.AudioFile(
-                dirname='/a',
-                basename='b',
-                tags=tag.Tags({'album': ('a',)}),
-            ),
-            entity.AudioFile(
-                dirname='/a',
-                basename='c',
-                tags=tag.Tags({'album': ('a',)}),
-            ),
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                'album': ('a',),
+            })),
+            entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('c',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/c',),
+                'album': ('a',),
+            })),
         )
         self.assertEqual(
             tracks[0].album_token,
@@ -89,16 +87,18 @@ class AlbumTest(unittest.TestCase):
             entity.Album(
                 tags=tag.Tags({}),
                 tracks=(
-                    entity.AudioFile(
-                        dirname='/a',
-                        basename='b',
-                        tags=tag.Tags({'album': ('a',)}),
-                    ),
-                    entity.AudioFile(
-                        dirname='/a',
-                        basename='c',
-                        tags=tag.Tags({'album': ('d',)}),
-                    ),
+                    entity.Track(tags=tag.Tags({
+                        tag.BASENAME: ('b',),
+                        tag.DIRNAME: ('/a',),
+                        tag.FILENAME: ('/a/b',),
+                        'album': ('a',),
+                    })),
+                    entity.Track(tags=tag.Tags({
+                        tag.BASENAME: ('c',),
+                        tag.DIRNAME: ('/a',),
+                        tag.FILENAME: ('/a/c',),
+                        'album': ('d',),
+                    })),
                 ),
             )
 

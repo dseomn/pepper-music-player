@@ -49,9 +49,9 @@ class ScanTest(unittest.TestCase):
         bar.joinpath('bar1').touch()
         self.assertCountEqual(
             (
-                entity.File(dirname=str(foo), basename='foo1'),
-                entity.File(dirname=str(foo), basename='foo2'),
-                entity.File(dirname=str(bar), basename='bar1'),
+                scan.File(dirname=str(foo), basename='foo1'),
+                scan.File(dirname=str(foo), basename='foo2'),
+                scan.File(dirname=str(bar), basename='bar1'),
             ),
             scan.scan(str(self._root_dirpath)),
         )
@@ -59,15 +59,16 @@ class ScanTest(unittest.TestCase):
     def test_parses_empty_tags(self):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertCountEqual(
-            (entity.AudioFile(
+            (scan.AudioFile(
                 dirname=str(self._root_dirpath),
                 basename='foo.flac',
-                tags=tag.Tags({
+                track=entity.Track(tags=tag.Tags({
                     tag.BASENAME: ('foo.flac',),
                     tag.DIRNAME: (str(self._root_dirpath),),
                     tag.FILENAME:
                         (str(self._root_dirpath.joinpath('foo.flac')),),
-                })),),
+                })),
+            ),),
             scan.scan(str(self._root_dirpath)),
         )
 
@@ -82,10 +83,10 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(
             flac_data.getvalue())
         self.assertCountEqual(
-            (entity.AudioFile(
+            (scan.AudioFile(
                 dirname=str(self._root_dirpath),
                 basename='foo.flac',
-                tags=tag.Tags({
+                track=entity.Track(tags=tag.Tags({
                     'artists': ('artist1', 'artist2'),
                     'date': ('2019-12-21',),
                     'title': ('Foo',),
@@ -93,7 +94,7 @@ class ScanTest(unittest.TestCase):
                     tag.DIRNAME: (str(self._root_dirpath),),
                     tag.FILENAME:
                         (str(self._root_dirpath.joinpath('foo.flac')),),
-                }),
+                })),
             ),),
             scan.scan(str(self._root_dirpath)),
         )
