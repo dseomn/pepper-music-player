@@ -32,6 +32,9 @@ class Tag:
     running a user-entered query with tags specified by the user) may use str
     tag names instead.
 
+    See https://picard.musicbrainz.org/docs/tags/ for a good list of available
+    tags and documentation about each one.
+
     Attributes:
         name: Name of the tag.
     """
