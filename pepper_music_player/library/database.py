@@ -17,7 +17,9 @@ import collections
 import itertools
 from typing import Generator, Iterable
 
-from pepper_music_player import metadata
+from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import tag
+from pepper_music_player.metadata import token
 from pepper_music_player import sqlite3_db
 
 _SCHEMA = sqlite3_db.Schema(
@@ -63,7 +65,7 @@ _SCHEMA = sqlite3_db.Schema(
 
         # Audio files in the library.
         #
-        # See note in metadata.AudioFile's docstring about the conflation of audio
+        # See note in entity.AudioFile's docstring about the conflation of audio
         # files and tracks.
         #
         # Columns:
@@ -111,36 +113,36 @@ class Database:
     def _get_tags(
             self,
             snapshot: sqlite3_db.AbstractSnapshot,
-            token: str,
-    ) -> metadata.Tags:
+            token_: str,
+    ) -> tag.Tags:
         """Returns Tags for the given token."""
         tags = collections.defaultdict(list)
         # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
         for name, value in snapshot.execute(
                 'SELECT tag_name, tag_value FROM Tag WHERE token = ?',
-                (token,)):  # yapf: disable
+                (token_,)):  # yapf: disable
             tags[name].append(value)
-        return metadata.Tags(tags)
+        return tag.Tags(tags)
 
     def _set_tags(
             self,
             transaction: sqlite3_db.Transaction,
-            token: str,
-            tags: metadata.Tags,
+            token_: str,
+            tags: tag.Tags,
     ) -> None:
         """Sets Tags for the given token."""
-        transaction.execute('DELETE FROM Tag WHERE token = ?', (token,))
+        transaction.execute('DELETE FROM Tag WHERE token = ?', (token_,))
         for name, values in tags.items():
             transaction.executemany(
                 'INSERT INTO Tag (token, tag_name, tag_value) VALUES (?, ?, ?)',
-                ((token, name, value) for value in values),
+                ((token_, name, value) for value in values),
             )
 
     def _insert_audio_file(
             self,
             transaction: sqlite3_db.Transaction,
             file_id: int,
-            file_info: metadata.AudioFile,
+            file_info: entity.AudioFile,
     ) -> None:
         """Inserts information about the given audio file.
 
@@ -149,7 +151,7 @@ class Database:
             file_id: Row ID of the file in the File table.
             file_info: File to insert.
         """
-        token = str(file_info.token)
+        token_ = str(file_info.token)
         transaction.execute(
             """
             INSERT INTO AudioFile (file_id, token, album_token)
@@ -157,11 +159,11 @@ class Database:
             """,
             {
                 'file_id': file_id,
-                'token': token,
+                'token': token_,
                 'album_token': str(file_info.album_token),
             },
         )
-        self._set_tags(transaction, token, file_info.tags)
+        self._set_tags(transaction, token_, file_info.tags)
 
     def _update_album_tags(self, transaction: sqlite3_db.Transaction) -> None:
         """Updates album tags to reflect the current files."""
@@ -176,12 +178,12 @@ class Database:
             self._set_tags(
                 transaction,
                 album_token,
-                metadata.compose_tags(
+                tag.compose(
                     self._get_tags(transaction, track_token)
                     for _, track_token in rows),
             )
 
-    def insert_files(self, files: Iterable[metadata.File]) -> None:
+    def insert_files(self, files: Iterable[entity.File]) -> None:
         """Inserts information about the given files.
 
         Args:
@@ -203,22 +205,22 @@ class Database:
                         'filename': file_info.filename,
                     },
                 ).lastrowid
-                if isinstance(file_info, metadata.AudioFile):
+                if isinstance(file_info, entity.AudioFile):
                     self._insert_audio_file(transaction, file_id, file_info)
             self._update_album_tags(transaction)
 
-    def track_tokens(self) -> Generator[metadata.TrackToken, None, None]:
+    def track_tokens(self) -> Generator[token.Track, None, None]:
         """Yields all track tokens."""
         with self._db.snapshot() as snapshot:
             for (token_str,) in (
                     snapshot.execute('SELECT token FROM AudioFile')):
-                yield metadata.TrackToken(token_str)
+                yield token.Track(token_str)
 
-    def track(self, token: metadata.TrackToken) -> metadata.AudioFile:
+    def track(self, token_: token.Track) -> entity.AudioFile:
         """Returns the specified track.
 
         Args:
-            token: Which track to return.
+            token_: Which track to return.
 
         Raises:
             KeyError: There's no track with the given token.
@@ -231,11 +233,11 @@ class Database:
                 JOIN File ON File.rowid = AudioFile.file_id
                 WHERE token = ?
                 """,
-                (str(token),),
+                (str(token_),),
             ).fetchone()
             if track_row is None:
-                raise KeyError(token)
+                raise KeyError(token_)
             dirname, filename = track_row
-            return metadata.AudioFile(dirname=dirname,
-                                      filename=filename,
-                                      tags=self._get_tags(snapshot, str(token)))
+            return entity.AudioFile(dirname=dirname,
+                                    filename=filename,
+                                    tags=self._get_tags(snapshot, str(token_)))

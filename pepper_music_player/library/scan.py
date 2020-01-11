@@ -20,18 +20,19 @@ from typing import Generator
 
 import mutagen
 
-from pepper_music_player import metadata
+from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import tag
 
 
-def _read_tags(filename: str) -> metadata.Tags:
+def _read_tags(filename: str) -> tag.Tags:
     """Returns tags read from a file."""
     file_info = mutagen.File(filename, easy=True)
     if file_info.tags is None:
-        return metadata.Tags({})
-    return metadata.Tags(file_info.tags)
+        return tag.Tags({})
+    return tag.Tags(file_info.tags)
 
 
-def scan(root_dirname: str) -> Generator[metadata.File, None, None]:
+def scan(root_dirname: str) -> Generator[entity.File, None, None]:
     """Scans a directory."""
     # TODO: Keep track of errors with os.walk(onerror=...)
     # TODO: Catch and handle per-file errors.
@@ -42,8 +43,8 @@ def scan(root_dirname: str) -> Generator[metadata.File, None, None]:
             mime, _ = mimetypes.guess_type(filepath.as_uri())
             mime_major, _, _ = (mime or '').partition('/')
             if mime_major == 'audio':
-                yield metadata.AudioFile(dirname=dirname,
-                                         filename=filename,
-                                         tags=_read_tags(str(filepath)))
+                yield entity.AudioFile(dirname=dirname,
+                                       filename=filename,
+                                       tags=_read_tags(str(filepath)))
             else:
-                yield metadata.File(dirname=dirname, filename=filename)
+                yield entity.File(dirname=dirname, filename=filename)

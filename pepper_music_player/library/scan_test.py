@@ -21,7 +21,8 @@ import unittest
 import mutagen.flac
 
 from pepper_music_player.library import scan
-from pepper_music_player import metadata
+from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import tag
 
 # Empty audio file data with no tags.
 _FLAC = (
@@ -48,9 +49,9 @@ class ScanTest(unittest.TestCase):
         bar.joinpath('bar1').touch()
         self.assertCountEqual(
             (
-                metadata.File(dirname=str(foo), filename='foo1'),
-                metadata.File(dirname=str(foo), filename='foo2'),
-                metadata.File(dirname=str(bar), filename='bar1'),
+                entity.File(dirname=str(foo), filename='foo1'),
+                entity.File(dirname=str(foo), filename='foo2'),
+                entity.File(dirname=str(bar), filename='bar1'),
             ),
             scan.scan(str(self._root_dirpath)),
         )
@@ -58,9 +59,9 @@ class ScanTest(unittest.TestCase):
     def test_parses_empty_tags(self):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertCountEqual(
-            (metadata.AudioFile(dirname=str(self._root_dirpath),
-                                filename='foo.flac',
-                                tags=metadata.Tags({})),),
+            (entity.AudioFile(dirname=str(self._root_dirpath),
+                              filename='foo.flac',
+                              tags=tag.Tags({})),),
             scan.scan(str(self._root_dirpath)),
         )
 
@@ -75,10 +76,10 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(
             flac_data.getvalue())
         self.assertCountEqual(
-            (metadata.AudioFile(
+            (entity.AudioFile(
                 dirname=str(self._root_dirpath),
                 filename='foo.flac',
-                tags=metadata.Tags({
+                tags=tag.Tags({
                     'artists': ('artist1', 'artist2'),
                     'date': ('2019-12-21',),
                     'title': ('Foo',),

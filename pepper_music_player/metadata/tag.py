@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Metadata about files, tracks, albums, etc.
-
-In general, all the metadata classes in this file should be read-only (e.g.,
-tuples instead of lists) because: 1) It can prevent bugs if some code
-accidentally tries to modify a shared piece of metadata. 2) It makes sharing
-metadata across threads easier.
-"""
+"""Music tags."""
 
 import collections
-import dataclasses
 import enum
 import functools
 import operator
@@ -121,7 +114,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
             return match.group('tracknumber')
 
 
-def compose_tags(components_tags: Iterable[Tags]) -> Tags:
+def compose(components_tags: Iterable[Tags]) -> Tags:
     """Returns the tags for an entity composed of tagged sub-entities.
 
     E.g., this can get the tags for an album composed of tracks. In general, the
@@ -145,113 +138,3 @@ def compose_tags(components_tags: Iterable[Tags]) -> Tags:
     for name, value in common_tag_pair_counter.elements():
         tags[name].append(value)
     return Tags(tags)
-
-
-@dataclasses.dataclass(frozen=True)
-class Token:
-    """Base class for opaque tokens.
-
-    These are meant to uniquely identify things; do not rely on any other
-    property of them.
-    """
-    _token: str
-
-    def __str__(self) -> str:
-        """See base class."""
-        return self._token
-
-
-@dataclasses.dataclass(frozen=True)
-class LibraryToken(Token):
-    """Base class for tokens of things in the library."""
-
-
-@dataclasses.dataclass(frozen=True)
-class TrackToken(LibraryToken):
-    """Opaque token for a track."""
-
-
-@dataclasses.dataclass(frozen=True)
-class AlbumToken(LibraryToken):
-    """Opaque token for an album."""
-
-
-@dataclasses.dataclass(frozen=True)
-class File:
-    """A file in the music library.
-
-    Attributes:
-        dirname: Absolute name of the directory containing the file.
-        filename: Name of the file, relative to dirname.
-    """
-    dirname: str
-    filename: str
-
-
-@dataclasses.dataclass(frozen=True)
-class AudioFile(File):
-    """An audio file.
-
-    Currently, audio files and tracks are treated as equivalent, so this class
-    represents both concepts as a single entity. However, if we ever add support
-    for single-file albums with embedded CUE sheets
-    https://en.wikipedia.org/wiki/Cue_sheet_(computing)#Audio_file_playback, the
-    concepts will need to be split apart. To hopefully ease that transition,
-    code and docs should refer to these objects as tracks whenever they are
-    conceptually dealing with tracks instead of files. E.g., the filename and
-    dirname attributes are conceptually about the file, but the token attribute
-    is about the track.
-
-    Attributes:
-        tags: Tags from the audio file.
-        token: Opaque token that identifies this track.
-        album_token: Opaque token that identifies the album for this track.
-    """
-    tags: Tags
-    token: TrackToken = dataclasses.field(init=False, repr=False)
-    album_token: AlbumToken = dataclasses.field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            'token',
-            TrackToken(
-                repr((
-                    'track/v1alpha',  # TODO(#20): Change to v1.
-                    self.dirname,
-                    self.filename,
-                ))),
-        )
-        object.__setattr__(
-            self,
-            'album_token',
-            AlbumToken(
-                repr((
-                    'album/v1alpha',  # TODO(#20): Change to v1.
-                    self.dirname,
-                    self.tags.get(TagName.ALBUM, ()),
-                    self.tags.get(TagName.ALBUMARTIST, ()),
-                    self.tags.get(TagName.MUSICBRAINZ_ALBUMID, ()),
-                ))),
-        )
-
-
-@dataclasses.dataclass(frozen=True)
-class Album:
-    """An album.
-
-    Attributes:
-        token: Opaque token that identifies this album.
-        tags: Tags that are common to all tracks on the album.
-        tracks: Tracks on the album.
-    """
-    token: AlbumToken = dataclasses.field(init=False, repr=False)
-    tags: Tags
-    tracks: Tuple[AudioFile]
-
-    def __post_init__(self) -> None:
-        album_tokens = {track.album_token for track in self.tracks}
-        if len(album_tokens) != 1:
-            raise ValueError(
-                f'Album must have exactly one token, not {album_tokens!r}')
-        object.__setattr__(self, 'token', next(iter(album_tokens)))
