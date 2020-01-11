@@ -152,17 +152,6 @@ class TagsTest(unittest.TestCase):
     def test_contains_tag_name(self):
         self.assertIn(tag.ALBUM, tag.Tags({'album': ('a',)}))
 
-    def test_without_derived(self):
-        self.assertEqual(
-            tag.Tags({
-                '~basename': ('foo',),
-            }),
-            tag.Tags({
-                '~basename': ('foo',),
-                '~parsed_discnumber': ('1',),
-            }).without_derived(),
-        )
-
     def test_derive_removes_old_derived_values(self):
         self.assertEqual(
             tag.Tags({

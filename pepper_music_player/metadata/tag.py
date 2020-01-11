@@ -219,17 +219,13 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
     def __contains__(self, key: ArbitraryTag) -> bool:
         return super().__contains__(_tag_name_str(key))
 
-    def without_derived(self) -> 'Tags':
-        """Returns a copy of self, without any derived tags."""
-        return Tags({
+    def derive(self) -> 'Tags':
+        """Returns a copy of self, with all derived tags set."""
+        tags = {
             name: values
             for name, values in self.items()
             if name not in _DERIVED_TAG_NAMES
-        })
-
-    def derive(self) -> 'Tags':
-        """Returns a copy of self, with all derived tags set."""
-        tags = dict(self.without_derived())
+        }
         for tag in _DERIVED_TAGS:
             values = tag.derive(self)
             if values:
