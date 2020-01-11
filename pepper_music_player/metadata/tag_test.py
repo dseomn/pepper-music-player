@@ -25,6 +25,52 @@ class PseudoTagTest(unittest.TestCase):
             tag.PseudoTag('foo')
 
 
+class DurationHumanTagTest(unittest.TestCase):
+
+    def test_none(self):
+        self.assertIs(None, tag.DURATION_HUMAN.derive(tag.Tags({})))
+
+    def test_invalid(self):
+        self.assertIs(
+            None,
+            tag.DURATION_HUMAN.derive(tag.Tags({
+                '~duration_seconds': ('foo',),
+            })),
+        )
+
+    def test_negative(self):
+        self.assertIs(
+            None,
+            tag.DURATION_HUMAN.derive(tag.Tags({
+                '~duration_seconds': ('-1',),
+            })),
+        )
+
+    def test_hours_minutes_seconds(self):
+        self.assertEqual(
+            ('1∶02∶03',),
+            tag.DURATION_HUMAN.derive(
+                tag.Tags({'~duration_seconds': ('3723.4',)})),
+        )
+
+    def test_minutes_seconds(self):
+        self.assertEqual(
+            ('1∶02',),
+            tag.DURATION_HUMAN.derive(
+                tag.Tags({
+                    '~duration_seconds': ('62.3',),
+                })),
+        )
+
+    def test_seconds(self):
+        self.assertEqual(
+            ('0∶01',),
+            tag.DURATION_HUMAN.derive(tag.Tags({
+                '~duration_seconds': ('1.2',),
+            })),
+        )
+
+
 class IndexOrTotalTagTest(unittest.TestCase):
 
     def test_none(self):
@@ -126,10 +172,13 @@ class TagsTest(unittest.TestCase):
                 '~parsed_totaltracks': ('10',),
                 '~parsed_discnumber': ('2',),
                 '~parsed_totaldiscs': ('20',),
+                '~duration_seconds': ('1',),
+                '~duration_human': ('0∶01',),
             }),
             tag.Tags({
                 'tracknumber': ('1/10',),
                 'discnumber': ('2/20',),
+                '~duration_seconds': ('1',),
             }).derive(),
         )
 

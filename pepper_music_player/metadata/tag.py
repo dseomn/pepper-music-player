@@ -80,6 +80,34 @@ class DerivedTag(PseudoTag, abc.ABC):
 
 
 @dataclasses.dataclass(frozen=True)
+class DurationHumanTag(DerivedTag):
+    """Tag deriving a human-readable duration.
+
+    Attributes:
+        seconds_tag: Tag containing a number of seconds as a float.
+    """
+    seconds_tag: Tag
+
+    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+        """See base class."""
+        seconds_str = tags.one_or_none(self.seconds_tag)
+        if seconds_str is None:
+            return None
+        try:
+            total_seconds = round(float(seconds_str))
+        except ValueError:
+            return None
+        if total_seconds < 0:
+            return None
+        hours, hours_remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(hours_remainder, 60)
+        if hours:
+            return (f'{hours}∶{minutes:02}∶{seconds:02}',)
+        else:
+            return (f'{minutes}∶{seconds:02}',)
+
+
+@dataclasses.dataclass(frozen=True)
 class IndexOrTotalTag(DerivedTag):
     """Tag deriving its value from index- and total-style tags.
 
@@ -128,8 +156,11 @@ TRACKTOTAL = Tag('tracktotal')  # Prefer PARSED_TOTALTRACKS below.
 
 BASENAME = PseudoTag('~basename')
 DIRNAME = PseudoTag('~dirname')
+DURATION_SECONDS = PseudoTag('~duration_seconds')
 FILENAME = PseudoTag('~filename')
 
+DURATION_HUMAN = DurationHumanTag('~duration_human',
+                                  seconds_tag=DURATION_SECONDS)
 PARSED_DISCNUMBER = IndexOrTotalTag('~parsed_discnumber',
                                     is_index=True,
                                     composite_tag=DISCNUMBER)
@@ -146,6 +177,7 @@ PARSED_TRACKNUMBER = IndexOrTotalTag('~parsed_tracknumber',
                                      composite_tag=TRACKNUMBER)
 
 _DERIVED_TAGS = (
+    DURATION_HUMAN,
     PARSED_DISCNUMBER,
     PARSED_TOTALDISCS,
     PARSED_TOTALTRACKS,
