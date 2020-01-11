@@ -32,14 +32,14 @@ class TagsTest(unittest.TestCase):
     def test_getitem_tag_name(self):
         self.assertEqual(
             ('a',),
-            tag.Tags({'album': ('a',)})[tag.TagName.ALBUM],
+            tag.Tags({'album': ('a',)})[tag.ALBUM],
         )
 
     def test_contains_str(self):
         self.assertIn('a', tag.Tags({'a': ('b',)}))
 
     def test_contains_tag_name(self):
-        self.assertIn(tag.TagName.ALBUM, tag.Tags({'album': ('a',)}))
+        self.assertIn(tag.ALBUM, tag.Tags({'album': ('a',)}))
 
     def test_one_or_none_with_zero(self):
         self.assertIs(None, tag.Tags({}).one_or_none('a'))

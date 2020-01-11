@@ -14,7 +14,7 @@
 """Music tags."""
 
 import collections
-import enum
+import dataclasses
 import functools
 import operator
 import re
@@ -23,32 +23,38 @@ from typing import Iterable, Mapping, Optional, Tuple, Union
 import frozendict
 
 
-class TagName(enum.Enum):
-    """Name of a known tag.
+@dataclasses.dataclass(frozen=True)
+class Tag:
+    """Information about a known tag.
 
     Code that needs to access specific tags (e.g., getting the track number)
-    should use this enum. Code that works with arbitrary tags (e.g., running a
-    user-entered query with tags specified by the user) may use str tag names
-    instead.
+    should use objects of this type. Code that works with arbitrary tags (e.g.,
+    running a user-entered query with tags specified by the user) may use str
+    tag names instead.
+
+    Attributes:
+        name: Name of the tag.
     """
-    ALBUM = 'album'
-    ALBUMARTIST = 'albumartist'
-    MUSICBRAINZ_ALBUMID = 'musicbrainz_albumid'
-    TRACKNUMBER = 'tracknumber'
+    name: str
 
 
-ArbitraryTagName = Union[TagName, str]
+ArbitraryTag = Union[Tag, str]
+
+ALBUM = Tag('album')
+ALBUMARTIST = Tag('albumartist')
+MUSICBRAINZ_ALBUMID = Tag('musicbrainz_albumid')
+TRACKNUMBER = Tag('tracknumber')
 
 
-def _tag_name_str(tag_name: ArbitraryTagName) -> str:
+def _tag_name_str(tag: ArbitraryTag) -> str:
     """Returns the str form of a tag name."""
-    if isinstance(tag_name, TagName):
-        return tag_name.value
+    if isinstance(tag, Tag):
+        return tag.name
     else:
-        return tag_name
+        return tag
 
 
-class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
+class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str]]):
     """Tags, e.g., from a file/track or album.
 
     Note that tags can have multiple values, potentially even multiple identical
@@ -70,13 +76,13 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
         """
         super().__init__({name: tuple(values) for name, values in tags.items()})
 
-    def __getitem__(self, key: ArbitraryTagName) -> Tuple[str]:
+    def __getitem__(self, key: ArbitraryTag) -> Tuple[str]:
         return super().__getitem__(_tag_name_str(key))
 
-    def __contains__(self, key: ArbitraryTagName) -> bool:
+    def __contains__(self, key: ArbitraryTag) -> bool:
         return super().__contains__(_tag_name_str(key))
 
-    def one_or_none(self, key: ArbitraryTagName) -> Optional[str]:
+    def one_or_none(self, key: ArbitraryTag) -> Optional[str]:
         """Returns a single value, or None if there isn't exactly one value."""
         values = self.get(key, ())
         if len(values) == 1:
@@ -86,7 +92,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
 
     def singular(
             self,
-            key: ArbitraryTagName,
+            key: ArbitraryTag,
             *,
             default: str = '[unknown]',
             separator: str = '; ',
@@ -104,7 +110,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTagName, Tuple[str]]):
     @property
     def tracknumber(self) -> Optional[str]:
         """The human-readable track number, if there is one."""
-        tracknumber = self.one_or_none(TagName.TRACKNUMBER)
+        tracknumber = self.one_or_none(TRACKNUMBER)
         if tracknumber is None:
             return None
         match = self._TRACKNUMBER_REGEX.fullmatch(tracknumber)

@@ -74,9 +74,9 @@ class AudioFile(File):
                 repr((
                     'album/v1alpha',  # TODO(#20): Change to v1.
                     self.dirname,
-                    self.tags.get(tag.TagName.ALBUM, ()),
-                    self.tags.get(tag.TagName.ALBUMARTIST, ()),
-                    self.tags.get(tag.TagName.MUSICBRAINZ_ALBUMID, ()),
+                    self.tags.get(tag.ALBUM, ()),
+                    self.tags.get(tag.ALBUMARTIST, ()),
+                    self.tags.get(tag.MUSICBRAINZ_ALBUMID, ()),
                 ))),
         )
 
