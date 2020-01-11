@@ -13,12 +13,13 @@
 # limitations under the License.
 """Music tags."""
 
+import abc
 import collections
 import dataclasses
 import functools
 import operator
 import re
-from typing import ClassVar, Iterable, Mapping, Optional, Tuple, Union
+from typing import ClassVar, Iterable, Mapping, Optional, Pattern, Tuple, Union
 
 import frozendict
 
@@ -61,14 +62,97 @@ class PseudoTag(Tag):
             raise ValueError(f'Tag name must start with {self.PREFIX!r}.')
 
 
+@dataclasses.dataclass(frozen=True)
+class DerivedTag(PseudoTag, abc.ABC):
+    """Pseudo-tag that is derived from other tags."""
+
+    @abc.abstractmethod
+    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+        """Derives the values for this tag.
+
+        Args:
+            tags: Tags to derive the values for this tag from.
+
+        Returns:
+            The values for this tag, or None if the tag shouldn't be included.
+        """
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass(frozen=True)
+class IndexOrTotalTag(DerivedTag):
+    """Tag deriving its value from index- and total-style tags.
+
+    E.g., there are a couple ways to represent the track number and the total
+    number of tracks on a disc. This class is for derived tags that parse those
+    real tags.
+
+    Attributes:
+        is_index: True for deriving the index, False for the total.
+        composite_tag: Tag of the form 'index' or 'index/total' to parse.
+        plain_tags: Tags that contain only the intended values.
+    """
+    _COMPOSITE_REGEX: ClassVar[Pattern[str]] = re.compile(
+        r'(?P<index>\d+)(?:/(?P<total>\d+))?')
+    is_index: bool
+    composite_tag: Tag
+    plain_tags: Tuple[Tag, ...] = ()
+
+    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+        """See base class."""
+        for tag in self.plain_tags:
+            if tag in tags:
+                return tags[tag]
+        composite_value = tags.one_or_none(self.composite_tag)
+        if composite_value is None:
+            return None
+        # TODO(https://github.com/google/pytype/issues/492): Remove pytype
+        # disable.
+        composite_match = self._COMPOSITE_REGEX.fullmatch(composite_value)  # pytype: disable=attribute-error
+        if composite_match is None:
+            return (composite_value,) if self.is_index else None
+        matched_value = composite_match.group(
+            'index' if self.is_index else 'total')
+        return None if matched_value is None else (matched_value,)
+
+
 ALBUM = Tag('album')
 ALBUMARTIST = Tag('albumartist')
+DISCNUMBER = Tag('discnumber')  # Prefer PARSED_DISCNUMBER below.
+DISCTOTAL = Tag('disctotal')  # Prefer PARSED_TOTALDISCS below.
 MUSICBRAINZ_ALBUMID = Tag('musicbrainz_albumid')
-TRACKNUMBER = Tag('tracknumber')
+TOTALDISCS = Tag('totaldiscs')  # Prefer PARSED_TOTALDISCS below.
+TOTALTRACKS = Tag('totaltracks')  # Prefer PARSED_TOTALTRACKS below.
+TRACKNUMBER = Tag('tracknumber')  # Prefer PARSED_TRACKNUMBER below.
+TRACKTOTAL = Tag('tracktotal')  # Prefer PARSED_TOTALTRACKS below.
 
 BASENAME = PseudoTag('~basename')
 DIRNAME = PseudoTag('~dirname')
 FILENAME = PseudoTag('~filename')
+
+PARSED_DISCNUMBER = IndexOrTotalTag('~parsed_discnumber',
+                                    is_index=True,
+                                    composite_tag=DISCNUMBER)
+PARSED_TOTALDISCS = IndexOrTotalTag('~parsed_totaldiscs',
+                                    is_index=False,
+                                    composite_tag=DISCNUMBER,
+                                    plain_tags=(TOTALDISCS, DISCTOTAL))
+PARSED_TOTALTRACKS = IndexOrTotalTag('~parsed_totaltracks',
+                                     is_index=False,
+                                     composite_tag=TRACKNUMBER,
+                                     plain_tags=(TOTALTRACKS, TRACKTOTAL))
+PARSED_TRACKNUMBER = IndexOrTotalTag('~parsed_tracknumber',
+                                     is_index=True,
+                                     composite_tag=TRACKNUMBER)
+
+_DERIVED_TAGS = (
+    PARSED_DISCNUMBER,
+    PARSED_TOTALDISCS,
+    PARSED_TOTALTRACKS,
+    PARSED_TRACKNUMBER,
+)
+
+_DERIVED_TAG_NAMES = frozenset(tag.name for tag in _DERIVED_TAGS)
 
 
 def _tag_name_str(tag: ArbitraryTag) -> str:
@@ -86,12 +170,6 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
     values. E.g., this is a valid set of tags: {'a': ('b', 'b')}
     """
 
-    # Track number tags are typically either simple non-negative integers, or
-    # they include the total number of tracks like '3/12'. This matches both
-    # types.
-    _TRACKNUMBER_REGEX = re.compile(
-        r'(?P<tracknumber>\d+)(?:/(?P<totaltracks>\d+))?')
-
     def __init__(self, tags: Mapping[ArbitraryTag, Iterable[str]]) -> None:
         """Initializer.
 
@@ -108,6 +186,19 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
 
     def __contains__(self, key: ArbitraryTag) -> bool:
         return super().__contains__(_tag_name_str(key))
+
+    def derive(self) -> 'Tags':
+        """Returns a copy of self, with all derived tags set."""
+        tags = {
+            name: values
+            for name, values in self.items()
+            if name not in _DERIVED_TAG_NAMES
+        }
+        for tag in _DERIVED_TAGS:
+            values = tag.derive(self)
+            if values:
+                tags[tag] = values
+        return Tags(tags)
 
     def one_or_none(self, key: ArbitraryTag) -> Optional[str]:
         """Returns a single value, or None if there isn't exactly one value."""
@@ -133,18 +224,6 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
                 value.
         """
         return separator.join(self.get(key, (default,)))
-
-    @property
-    def tracknumber(self) -> Optional[str]:
-        """The human-readable track number, if there is one."""
-        tracknumber = self.one_or_none(TRACKNUMBER)
-        if tracknumber is None:
-            return None
-        match = self._TRACKNUMBER_REGEX.fullmatch(tracknumber)
-        if match is None:
-            return tracknumber
-        else:
-            return match.group('tracknumber')
 
 
 def compose(components_tags: Iterable[Tags]) -> Tags:
