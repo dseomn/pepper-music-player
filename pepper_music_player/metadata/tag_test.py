@@ -27,6 +27,12 @@ class PseudoTagTest(unittest.TestCase):
 
 class TagsTest(unittest.TestCase):
 
+    def test_init_converts_names_to_str(self):
+        self.assertEqual(
+            ('foo',),
+            tag.Tags({tag.BASENAME: ('foo',)})['~basename'],
+        )
+
     def test_init_converts_values_to_tuple(self):
         self.assertEqual(
             ('a', 'b'),

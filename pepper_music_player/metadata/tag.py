@@ -92,14 +92,16 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str]]):
     _TRACKNUMBER_REGEX = re.compile(
         r'(?P<tracknumber>\d+)(?:/(?P<totaltracks>\d+))?')
 
-    def __init__(self, tags: Mapping[str, Iterable[str]]) -> None:
+    def __init__(self, tags: Mapping[ArbitraryTag, Iterable[str]]) -> None:
         """Initializer.
 
         Args:
             tags: Tags to represent, as a mapping from each tag name to all
                 values for that tag.
         """
-        super().__init__({name: tuple(values) for name, values in tags.items()})
+        super().__init__({
+            _tag_name_str(name): tuple(values) for name, values in tags.items()
+        })
 
     def __getitem__(self, key: ArbitraryTag) -> Tuple[str]:
         return super().__getitem__(_tag_name_str(key))
