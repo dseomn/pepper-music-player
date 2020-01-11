@@ -18,7 +18,7 @@ import dataclasses
 import functools
 import operator
 import re
-from typing import Iterable, Mapping, Optional, Tuple, Union
+from typing import ClassVar, Iterable, Mapping, Optional, Tuple, Union
 
 import frozendict
 
@@ -42,6 +42,24 @@ class Tag:
 
 
 ArbitraryTag = Union[Tag, str]
+
+
+@dataclasses.dataclass(frozen=True)
+class PseudoTag(Tag):
+    """Pseudo-tag that doesn't exist in a file's real tags.
+
+    Attributes:
+        PREFIX: Prefix that all pseudo-tags must start with.
+    """
+    PREFIX: ClassVar[str] = '~'
+
+    def __post_init__(self) -> None:
+        """See base class."""
+        # TODO(https://github.com/google/pytype/issues/492): Remove pytype
+        # disable.
+        if not self.name.startswith(self.PREFIX):  # pytype: disable=wrong-arg-types
+            raise ValueError(f'Tag name must start with {self.PREFIX!r}.')
+
 
 ALBUM = Tag('album')
 ALBUMARTIST = Tag('albumartist')

@@ -18,6 +18,13 @@ import unittest
 from pepper_music_player.metadata import tag
 
 
+class PseudoTagTest(unittest.TestCase):
+
+    def test_requires_prefix(self):
+        with self.assertRaisesRegex(ValueError, "must start with '~'"):
+            tag.PseudoTag('foo')
+
+
 class TagsTest(unittest.TestCase):
 
     def test_init_converts_values_to_tuple(self):
