@@ -226,17 +226,24 @@ class TagsTest(unittest.TestCase):
             tag.Tags({
                 'common': ('foo', 'foo'),
                 'partially_common': ('common',),
+                '~parsed_totaltracks': ('2',),
             }),
             tag.compose((
                 tag.Tags({
                     'common': ('foo', 'foo'),
                     'partially_common': ('common', 'diff1'),
                     'different': ('diff1',),
+                    'tracknumber': ('1/2',),
+                    '~parsed_tracknumber': ('1',),
+                    '~parsed_totaltracks': ('2',),
                 }),
                 tag.Tags({
                     'common': ('foo', 'foo'),
                     'partially_common': ('common', 'common', 'diff2'),
                     'different': ('diff2',),
+                    'tracknumber': ('2/2',),
+                    '~parsed_tracknumber': ('2',),
+                    '~parsed_totaltracks': ('2',),
                 }),
             )),
         )
