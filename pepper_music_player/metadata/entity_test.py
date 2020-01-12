@@ -19,88 +19,100 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 
 
-class TrackTest(unittest.TestCase):
+class EntityTest(unittest.TestCase):
 
-    def test_token_different(self):
+    def test_track_token_different(self):
         self.assertNotEqual(
             entity.Track(tags=tag.Tags({tag.FILENAME: '/a/b'})).token,
             entity.Track(tags=tag.Tags({tag.FILENAME: '/a/c'})).token,
         )
 
-    def test_album_token_same(self):
+    def test_album_and_medium_token_same(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+            tag.ALBUM: ('a',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        track2 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('c',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/c',),
+            tag.ALBUM: ('a',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        medium = entity.Medium(tags=tag.Tags({}), tracks=(track1, track2))
+        album = entity.Album(tags=tag.Tags({}), mediums=(medium,))
         self.assertEqual(
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('b',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/b',),
-                'album': ('a',),
-            })).album_token,
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('c',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/c',),
-                'album': ('a',),
-            })).album_token,
-        )
-
-    def test_album_token_different(self):
-        self.assertNotEqual(
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('b',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/b',),
-                'album': ('a',),
-            })).album_token,
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('c',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/c',),
-                'album': ('d',),
-            })).album_token,
-        )
-
-
-class AlbumTest(unittest.TestCase):
-
-    def test_token(self):
-        tracks = (
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('b',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/b',),
-                'album': ('a',),
-            })),
-            entity.Track(tags=tag.Tags({
-                tag.BASENAME: ('c',),
-                tag.DIRNAME: ('/a',),
-                tag.FILENAME: ('/a/c',),
-                'album': ('a',),
-            })),
+            1,
+            len({track1.medium_token, track2.medium_token, medium.token}),
         )
         self.assertEqual(
-            tracks[0].album_token,
-            entity.Album(tags=tag.Tags({}), tracks=tracks).token,
+            1,
+            len({
+                track1.album_token,
+                track2.album_token,
+                medium.album_token,
+                album.token,
+            }),
         )
 
-    def test_token_mismatch(self):
+    def test_album_but_not_medium_token_same(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+            tag.ALBUM: ('a',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        medium1 = entity.Medium(tags=tag.Tags({}), tracks=(track1,))
+        track2 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('c',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/c',),
+            tag.ALBUM: ('a',),
+            tag.DISCNUMBER: ('2',),
+        }).derive())
+        medium2 = entity.Medium(tags=tag.Tags({}), tracks=(track2,))
+        album = entity.Album(tags=tag.Tags({}), mediums=(medium1, medium2))
+        self.assertNotEqual(track1.medium_token, track2.medium_token)
+        self.assertEqual(track1.medium_token, medium1.token)
+        self.assertEqual(track2.medium_token, medium2.token)
+        self.assertEqual(
+            1,
+            len({
+                track1.album_token,
+                track2.album_token,
+                medium1.album_token,
+                medium2.album_token,
+                album.token,
+            }),
+        )
+
+    def test_album_and_medium_token_different(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+            tag.ALBUM: ('a',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        medium1 = entity.Medium(tags=tag.Tags({}), tracks=(track1,))
+        track2 = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('c',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/c',),
+            tag.ALBUM: ('d',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        medium2 = entity.Medium(tags=tag.Tags({}), tracks=(track2,))
+        self.assertNotEqual(track1.medium_token, track2.medium_token)
+        self.assertNotEqual(track1.album_token, track2.album_token)
         with self.assertRaisesRegex(ValueError, 'exactly one token'):
-            entity.Album(
-                tags=tag.Tags({}),
-                tracks=(
-                    entity.Track(tags=tag.Tags({
-                        tag.BASENAME: ('b',),
-                        tag.DIRNAME: ('/a',),
-                        tag.FILENAME: ('/a/b',),
-                        'album': ('a',),
-                    })),
-                    entity.Track(tags=tag.Tags({
-                        tag.BASENAME: ('c',),
-                        tag.DIRNAME: ('/a',),
-                        tag.FILENAME: ('/a/c',),
-                        'album': ('d',),
-                    })),
-                ),
-            )
+            entity.Medium(tags=tag.Tags({}), tracks=(track1, track2))
+        with self.assertRaisesRegex(ValueError, 'exactly one token'):
+            entity.Album(tags=tag.Tags({}), mediums=(medium1, medium2))
 
 
 if __name__ == '__main__':

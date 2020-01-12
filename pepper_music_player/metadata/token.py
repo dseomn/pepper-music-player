@@ -14,6 +14,7 @@
 """Opaque tokens to uniquely identify things."""
 
 import dataclasses
+from typing import TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,9 +32,17 @@ class LibraryToken(Token):
     """Base class for tokens of things in the library."""
 
 
+AnyLibraryToken = TypeVar('AnyLibraryToken', bound=LibraryToken)
+
+
 @dataclasses.dataclass(frozen=True)
 class Track(LibraryToken):
     """Opaque token for a track."""
+
+
+@dataclasses.dataclass(frozen=True)
+class Medium(LibraryToken):
+    """Opaque token for a medium, e.g., a disc or tape."""
 
 
 @dataclasses.dataclass(frozen=True)
