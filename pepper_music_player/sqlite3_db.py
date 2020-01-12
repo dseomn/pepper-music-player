@@ -98,6 +98,7 @@ class Database:
             self._local.connection = sqlite3.connect(self._filename,
                                                      isolation_level=None)
             self._local.connection.execute('PRAGMA journal_mode=WAL')
+            self._local.connection.execute('PRAGMA foreign_keys=ON')
         return self._local.connection
 
     @contextlib.contextmanager

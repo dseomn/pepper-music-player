@@ -78,8 +78,7 @@ _SCHEMA = sqlite3_db.Schema(
         sqlite3_db.SchemaItem(
             """
             CREATE TABLE AudioFile (
-                file_id INTEGER NOT NULL
-                    REFERENCES File (rowid) ON DELETE CASCADE,
+                file_id INTEGER NOT NULL,
                 token TEXT NOT NULL,
                 album_token TEXT NOT NULL,
                 PRIMARY KEY (file_id),

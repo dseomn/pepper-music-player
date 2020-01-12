@@ -26,16 +26,17 @@ _SCHEMA = sqlite3_db.Schema(
             """
             CREATE TABLE Test (
                 foo TEXT,
-                bar TEXT
+                bar TEXT,
+                PRIMARY KEY (foo)
             )
             """,
             drop='DROP TABLE IF EXISTS Test',
         ),
-        sqlite3_db.SchemaItem('CREATE INDEX Test_FooIndex ON Test (foo)'),
+        sqlite3_db.SchemaItem('CREATE INDEX Test_BarIndex ON Test (bar)'),
         sqlite3_db.SchemaItem(
             """
             CREATE TABLE DependsOnTest (
-                foo TEXT REFERENCES Test (foo)
+                foo TEXT REFERENCES Test (foo) ON DELETE CASCADE
             )
             """,
             drop='DROP TABLE IF EXISTS DependsOnTest',
@@ -62,6 +63,17 @@ class DatabaseTest(unittest.TestCase):
         self._db.reset()
         with self._db.snapshot() as snapshot:
             self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
+            self.assertFalse(
+                snapshot.execute('SELECT * FROM DependsOnTest').fetchall())
+
+    def test_foreign_keys_are_enforced(self):
+        with self._db.transaction() as transaction:
+            transaction.execute(
+                'INSERT INTO Test (foo, bar) VALUES ("foo1", "bar1")')
+            transaction.execute(
+                'INSERT INTO DependsOnTest (foo) VALUES ("foo1")')
+            transaction.execute('DELETE FROM Test')
+        with self._db.snapshot() as snapshot:
             self.assertFalse(
                 snapshot.execute('SELECT * FROM DependsOnTest').fetchall())
 
