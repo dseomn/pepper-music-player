@@ -29,7 +29,7 @@ disable =
 
 [FORMAT]
 max-line-length=80
-ignore-long-lines=import|http|pylint|pytype
+ignore-long-lines=import|http|pylint|pytype|yapf
 
 [BASIC]
 no-docstring-rgx=^(_.*|main|test_.*|.*Test)$
