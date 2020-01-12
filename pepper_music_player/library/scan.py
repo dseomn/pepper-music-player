@@ -30,9 +30,11 @@ class File:
     """A file in the music library.
 
     Attributes:
+        filename: Absolute filename.
         dirname: Absolute name of the directory containing the file.
         basename: Name of the file, relative to dirname.
     """
+    filename: str
     dirname: str
     basename: str
 
@@ -71,6 +73,7 @@ def scan(root_dirname: str) -> Generator[File, None, None]:
             mime_major, _, _ = (mime or '').partition('/')
             if mime_major == 'audio':
                 yield AudioFile(
+                    filename=str(filepath),
                     dirname=dirname,
                     basename=basename,
                     track=entity.Track(tags=_read_tags(dirname=dirname,
@@ -78,4 +81,6 @@ def scan(root_dirname: str) -> Generator[File, None, None]:
                                                        filename=str(filepath))),
                 )
             else:
-                yield File(dirname=dirname, basename=basename)
+                yield File(filename=str(filepath),
+                           dirname=dirname,
+                           basename=basename)

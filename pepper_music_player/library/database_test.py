@@ -67,8 +67,9 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_generic(self):
         self._database.insert_files((
-            scan.File(dirname='a', basename='b'),
+            scan.File(filename='a/b', dirname='a', basename='b'),
             scan.AudioFile(
+                filename='c/d',
                 dirname='c',
                 basename='d',
                 track=entity.Track(tags=tag.Tags({tag.FILENAME: ('c/d',)}))),
@@ -85,8 +86,8 @@ class DatabaseTest(unittest.TestCase):
     def test_insert_files_duplicate(self):
         with self.assertRaises(sqlite3.IntegrityError):
             self._database.insert_files((
-                scan.File(dirname='a', basename='b'),
-                scan.File(dirname='a', basename='b'),
+                scan.File(filename='a/b', dirname='a', basename='b'),
+                scan.File(filename='a/b', dirname='a', basename='b'),
             ))
         with self._connection:
             self.assertFalse(
@@ -103,8 +104,14 @@ class DatabaseTest(unittest.TestCase):
             'c': ('d',),
         }))
         self._database.insert_files((
-            scan.AudioFile(dirname='a', basename='b', track=track1),
-            scan.AudioFile(dirname='a', basename='c', track=track2),
+            scan.AudioFile(filename='a/b',
+                           dirname='a',
+                           basename='b',
+                           track=track1),
+            scan.AudioFile(filename='a/c',
+                           dirname='a',
+                           basename='c',
+                           track=track2),
         ))
         with self._connection:
             self.assertCountEqual(
@@ -137,13 +144,15 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_different_albums(self):
         self._database.insert_files((
-            scan.AudioFile(dirname='dir1',
+            scan.AudioFile(filename='dir1/file1',
+                           dirname='dir1',
                            basename='file1',
                            track=entity.Track(tags=tag.Tags({
                                tag.FILENAME: ('dir1/file1',),
                                'album': ('album1',),
                            }))),
-            scan.AudioFile(dirname='dir1',
+            scan.AudioFile(filename='dir1/file2',
+                           dirname='dir1',
                            basename='file2',
                            track=entity.Track(tags=tag.Tags({
                                tag.FILENAME: ('dir1/file2',),
@@ -168,14 +177,16 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_same_album(self):
         self._database.insert_files((
-            scan.AudioFile(dirname='dir1',
+            scan.AudioFile(filename='dir1/file1',
+                           dirname='dir1',
                            basename='file1',
                            track=entity.Track(tags=tag.Tags({
                                tag.FILENAME: ('dir1/file1',),
                                'album': ('album1',),
                                'partially_common': ('common', 'diff1'),
                            }))),
-            scan.AudioFile(dirname='dir1',
+            scan.AudioFile(filename='dir1/file2',
+                           dirname='dir1',
                            basename='file2',
                            track=entity.Track(tags=tag.Tags({
                                tag.FILENAME: ('dir1/file2',),
@@ -204,8 +215,14 @@ class DatabaseTest(unittest.TestCase):
         track1 = entity.Track(tags=tag.Tags({tag.FILENAME: ('a/b',)}))
         track2 = entity.Track(tags=tag.Tags({tag.FILENAME: ('a/c',)}))
         self._database.insert_files((
-            scan.AudioFile(dirname='a', basename='b', track=track1),
-            scan.AudioFile(dirname='a', basename='c', track=track2),
+            scan.AudioFile(filename='a/b',
+                           dirname='a',
+                           basename='b',
+                           track=track1),
+            scan.AudioFile(filename='a/c',
+                           dirname='a',
+                           basename='c',
+                           track=track2),
         ))
         self.assertCountEqual((track1.token, track2.token),
                               self._database.track_tokens())
@@ -220,7 +237,8 @@ class DatabaseTest(unittest.TestCase):
             'c': ('foo', 'bar'),
             'd': ('quux',),
         }))
-        self._database.insert_files((scan.AudioFile(dirname='a',
+        self._database.insert_files((scan.AudioFile(filename='a/b',
+                                                    dirname='a',
                                                     basename='b',
                                                     track=track),))
         self.assertEqual(track, self._database.track(track.token))

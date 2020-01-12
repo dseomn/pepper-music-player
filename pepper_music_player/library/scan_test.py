@@ -49,9 +49,15 @@ class ScanTest(unittest.TestCase):
         bar.joinpath('bar1').touch()
         self.assertCountEqual(
             (
-                scan.File(dirname=str(foo), basename='foo1'),
-                scan.File(dirname=str(foo), basename='foo2'),
-                scan.File(dirname=str(bar), basename='bar1'),
+                scan.File(filename=str(foo.joinpath('foo1')),
+                          dirname=str(foo),
+                          basename='foo1'),
+                scan.File(filename=str(foo.joinpath('foo2')),
+                          dirname=str(foo),
+                          basename='foo2'),
+                scan.File(filename=str(bar.joinpath('bar1')),
+                          dirname=str(bar),
+                          basename='bar1'),
             ),
             scan.scan(str(self._root_dirpath)),
         )
@@ -60,6 +66,7 @@ class ScanTest(unittest.TestCase):
         self._root_dirpath.joinpath('foo.flac').write_bytes(_FLAC)
         self.assertCountEqual(
             (scan.AudioFile(
+                filename=str(self._root_dirpath.joinpath('foo.flac')),
                 dirname=str(self._root_dirpath),
                 basename='foo.flac',
                 track=entity.Track(tags=tag.Tags({
@@ -85,6 +92,7 @@ class ScanTest(unittest.TestCase):
             flac_data.getvalue())
         self.assertCountEqual(
             (scan.AudioFile(
+                filename=str(self._root_dirpath.joinpath('foo.flac')),
                 dirname=str(self._root_dirpath),
                 basename='foo.flac',
                 track=entity.Track(tags=tag.Tags({
