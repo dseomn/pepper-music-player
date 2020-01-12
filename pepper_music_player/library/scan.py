@@ -55,6 +55,7 @@ def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
         tag.BASENAME: (basename,),
         tag.DIRNAME: (dirname,),
         tag.FILENAME: (filename,),
+        tag.DURATION_SECONDS: (str(file_info.info.length),),
     })
 
 

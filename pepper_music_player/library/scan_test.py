@@ -67,6 +67,7 @@ class ScanTest(unittest.TestCase):
                     tag.DIRNAME: (str(self._root_dirpath),),
                     tag.FILENAME:
                         (str(self._root_dirpath.joinpath('foo.flac')),),
+                    tag.DURATION_SECONDS: ('0.0',),
                 })),
             ),),
             scan.scan(str(self._root_dirpath)),
@@ -94,6 +95,7 @@ class ScanTest(unittest.TestCase):
                     tag.DIRNAME: (str(self._root_dirpath),),
                     tag.FILENAME:
                         (str(self._root_dirpath.joinpath('foo.flac')),),
+                    tag.DURATION_SECONDS: ('0.0',),
                 })),
             ),),
             scan.scan(str(self._root_dirpath)),
