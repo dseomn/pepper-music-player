@@ -63,12 +63,12 @@ class Album:
     """An album.
 
     Attributes:
-        token: Opaque token that identifies this album.
         tags: Tags that are common to all tracks on the album.
+        token: Opaque token that identifies this album.
         tracks: Tracks on the album.
     """
-    token: metadata_token.Album = dataclasses.field(init=False, repr=False)
     tags: tag.Tags
+    token: metadata_token.Album = dataclasses.field(init=False, repr=False)
     tracks: Tuple[Track, ...]
 
     def __post_init__(self) -> None:
