@@ -243,6 +243,16 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
         else:
             return None
 
+    def int_or_none(self, key: ArbitraryTag) -> Optional[int]:
+        """Returns a single int value, or None if that's not possible."""
+        value = self.one_or_none(key)
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return None
+
     def singular(
             self,
             key: ArbitraryTag,
