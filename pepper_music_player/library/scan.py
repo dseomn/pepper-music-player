@@ -56,7 +56,7 @@ def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
         tag.DIRNAME: (dirname,),
         tag.FILENAME: (filename,),
         tag.DURATION_SECONDS: (str(file_info.info.length),),
-    })
+    }).derive()
 
 
 def scan(root_dirname: str) -> Generator[File, None, None]:
