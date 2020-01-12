@@ -43,23 +43,20 @@ class DatabaseTest(unittest.TestCase):
 
     def test_reset_deletes_data(self):
         with self._connection:
+            self._connection.execute(
+                'INSERT INTO File (filename) VALUES ("/a/b")')
+            self._connection.execute("""
+                INSERT INTO Entity
+                    (token, type, filename, parent_token, order_in_parent)
+                VALUES ("token1", "track", "/a/b", NULL, NULL)
+            """)
             self._connection.execute("""
                 INSERT INTO Tag (token, tag_name, tag_value)
-                VALUES ("b", "c", "d")
+                VALUES ("token1", "c", "d")
             """)
-            file_id = self._connection.execute(
-                'INSERT INTO File (dirname, basename) VALUES ("a", "b")'
-            ).lastrowid
-            self._connection.execute(
-                """
-                INSERT INTO AudioFile (file_id, token, album_token)
-                VALUES (?, "b", "a")
-                """,
-                (file_id,),
-            )
         self._database.reset()
         with self._connection:
-            for table_name in ('Tag', 'File', 'AudioFile'):
+            for table_name in ('File', 'Entity', 'Tag'):
                 with self.subTest(table_name):
                     self.assertFalse(
                         self._connection.execute(
@@ -67,27 +64,24 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_generic(self):
         self._database.insert_files((
-            scan.File(filename='a/b', dirname='a', basename='b'),
+            scan.File(filename='/a/b', dirname='/a', basename='b'),
             scan.AudioFile(
-                filename='c/d',
-                dirname='c',
+                filename='/c/d',
+                dirname='/c',
                 basename='d',
-                track=entity.Track(tags=tag.Tags({tag.FILENAME: ('c/d',)}))),
+                track=entity.Track(tags=tag.Tags({tag.FILENAME: ('/c/d',)}))),
         ))
         with self._connection:
             self.assertCountEqual(
-                (
-                    ('a', 'b'),
-                    ('c', 'd'),
-                ),
-                self._connection.execute('SELECT dirname, basename FROM File'),
+                (('/a/b',), ('/c/d',)),
+                self._connection.execute('SELECT filename FROM File'),
             )
 
     def test_insert_files_duplicate(self):
         with self.assertRaises(sqlite3.IntegrityError):
             self._database.insert_files((
-                scan.File(filename='a/b', dirname='a', basename='b'),
-                scan.File(filename='a/b', dirname='a', basename='b'),
+                scan.File(filename='/a/b', dirname='/a', basename='b'),
+                scan.File(filename='/a/b', dirname='/a', basename='b'),
             ))
         with self._connection:
             self.assertFalse(
@@ -95,153 +89,102 @@ class DatabaseTest(unittest.TestCase):
 
     def test_insert_files_audio(self):
         track1 = entity.Track(tags=tag.Tags({
-            tag.FILENAME: ('a/b',),
+            tag.FILENAME: ('/a/b',),
             'c': ('d',),
         }))
         track2 = entity.Track(tags=tag.Tags({
-            tag.FILENAME: ('a/c',),
+            tag.FILENAME: ('/a/c',),
             'a': ('b', 'b'),
             'c': ('d',),
         }))
         self._database.insert_files((
-            scan.AudioFile(filename='a/b',
-                           dirname='a',
+            scan.AudioFile(filename='/a/b',
+                           dirname='/a',
                            basename='b',
                            track=track1),
-            scan.AudioFile(filename='a/c',
-                           dirname='a',
-                           basename='c',
-                           track=track2),
-        ))
-        with self._connection:
-            self.assertCountEqual(
-                (
-                    ('a', 'b', str(track1.token), str(track1.album_token)),
-                    ('a', 'c', str(track2.token), str(track2.album_token)),
-                ),
-                self._connection.execute("""
-                    SELECT dirname, basename, token, album_token
-                    FROM File
-                    JOIN AudioFile ON File.rowid = AudioFile.file_id
-                """),
-            )
-            self.assertCountEqual(
-                (
-                    ('a', 'b', '~filename', 'a/b'),
-                    ('a', 'b', 'c', 'd'),
-                    ('a', 'c', '~filename', 'a/c'),
-                    ('a', 'c', 'a', 'b'),
-                    ('a', 'c', 'a', 'b'),
-                    ('a', 'c', 'c', 'd'),
-                ),
-                self._connection.execute("""
-                    SELECT dirname, basename, tag_name, tag_value
-                    FROM File
-                    JOIN AudioFile ON AudioFile.file_id = File.rowid
-                    JOIN Tag USING (token)
-                """),
-            )
-
-    def test_insert_files_different_albums(self):
-        self._database.insert_files((
-            scan.AudioFile(filename='dir1/file1',
-                           dirname='dir1',
-                           basename='file1',
-                           track=entity.Track(tags=tag.Tags({
-                               tag.FILENAME: ('dir1/file1',),
-                               'album': ('album1',),
-                           }))),
-            scan.AudioFile(filename='dir1/file2',
-                           dirname='dir1',
-                           basename='file2',
-                           track=entity.Track(tags=tag.Tags({
-                               tag.FILENAME: ('dir1/file2',),
-                               'album': ('album2',),
-                           }))),
-        ))
-        with self._connection:
-            self.assertCountEqual(
-                (
-                    ('dir1', 'file1', '~filename', 'dir1/file1'),
-                    ('dir1', 'file1', 'album', 'album1'),
-                    ('dir1', 'file2', '~filename', 'dir1/file2'),
-                    ('dir1', 'file2', 'album', 'album2'),
-                ),
-                self._connection.execute("""
-                    SELECT dirname, basename, tag_name, tag_value
-                    FROM File
-                    JOIN AudioFile ON File.rowid = AudioFile.file_id
-                    JOIN Tag ON Tag.token = AudioFile.album_token
-                """),
-            )
-
-    def test_insert_files_same_album(self):
-        self._database.insert_files((
-            scan.AudioFile(filename='dir1/file1',
-                           dirname='dir1',
-                           basename='file1',
-                           track=entity.Track(tags=tag.Tags({
-                               tag.FILENAME: ('dir1/file1',),
-                               'album': ('album1',),
-                               'partially_common': ('common', 'diff1'),
-                           }))),
-            scan.AudioFile(filename='dir1/file2',
-                           dirname='dir1',
-                           basename='file2',
-                           track=entity.Track(tags=tag.Tags({
-                               tag.FILENAME: ('dir1/file2',),
-                               'album': ('album1',),
-                               'partially_common': ('common', 'common',
-                                                    'diff2'),
-                           }))),
-        ))
-        with self._connection:
-            self.assertCountEqual(
-                (
-                    ('dir1', 'file1', 'album', 'album1'),
-                    ('dir1', 'file1', 'partially_common', 'common'),
-                    ('dir1', 'file2', 'album', 'album1'),
-                    ('dir1', 'file2', 'partially_common', 'common'),
-                ),
-                self._connection.execute("""
-                    SELECT dirname, basename, tag_name, tag_value
-                    FROM File
-                    JOIN AudioFile ON File.rowid = AudioFile.file_id
-                    JOIN Tag ON Tag.token = AudioFile.album_token
-                """),
-            )
-
-    def test_track_tokens(self):
-        track1 = entity.Track(tags=tag.Tags({tag.FILENAME: ('a/b',)}))
-        track2 = entity.Track(tags=tag.Tags({tag.FILENAME: ('a/c',)}))
-        self._database.insert_files((
-            scan.AudioFile(filename='a/b',
-                           dirname='a',
-                           basename='b',
-                           track=track1),
-            scan.AudioFile(filename='a/c',
-                           dirname='a',
+            scan.AudioFile(filename='/a/c',
+                           dirname='/a',
                            basename='c',
                            track=track2),
         ))
         self.assertCountEqual((track1.token, track2.token),
                               self._database.track_tokens())
+        self.assertEqual(track1, self._database.track(track1.token))
+        self.assertEqual(track2, self._database.track(track2.token))
+
+    def test_insert_files_different_albums(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file1',),
+            'album': ('album1',),
+        }))
+        track2 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file2',),
+            'album': ('album2',),
+        }))
+        self._database.insert_files((
+            scan.AudioFile(filename='/dir1/file1',
+                           dirname='/dir1',
+                           basename='file1',
+                           track=track1),
+            scan.AudioFile(filename='/dir1/file2',
+                           dirname='/dir1',
+                           basename='file2',
+                           track=track2),
+        ))
+        with self._connection:
+            self.assertCountEqual(
+                (
+                    (str(track1.album_token), '~filename', '/dir1/file1'),
+                    (str(track1.album_token), 'album', 'album1'),
+                    (str(track2.album_token), '~filename', '/dir1/file2'),
+                    (str(track2.album_token), 'album', 'album2'),
+                ),
+                self._connection.execute("""
+                    SELECT token, tag_name, tag_value
+                    FROM Entity
+                    JOIN Tag USING (token)
+                    WHERE type = 'album'
+                """),
+            )
+
+    def test_insert_files_same_album(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file1',),
+            'album': ('album1',),
+            'partially_common': ('common', 'diff1'),
+        }))
+        track2 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file2',),
+            'album': ('album1',),
+            'partially_common': ('common', 'common', 'diff2'),
+        }))
+        self._database.insert_files((
+            scan.AudioFile(filename='/dir1/file1',
+                           dirname='/dir1',
+                           basename='file1',
+                           track=track1),
+            scan.AudioFile(filename='/dir1/file2',
+                           dirname='/dir1',
+                           basename='file2',
+                           track=track2),
+        ))
+        with self._connection:
+            self.assertCountEqual(
+                (
+                    (str(track1.album_token), 'album', 'album1'),
+                    (str(track1.album_token), 'partially_common', 'common'),
+                ),
+                self._connection.execute("""
+                    SELECT token, tag_name, tag_value
+                    FROM Entity
+                    JOIN Tag USING (token)
+                    WHERE type = 'album'
+                """),
+            )
 
     def test_track_not_found(self):
         with self.assertRaises(KeyError):
             self._database.track(token.Track('foo'))
-
-    def test_track(self):
-        track = entity.Track(tags=tag.Tags({
-            tag.FILENAME: ('a/b',),
-            'c': ('foo', 'bar'),
-            'd': ('quux',),
-        }))
-        self._database.insert_files((scan.AudioFile(filename='a/b',
-                                                    dirname='a',
-                                                    basename='b',
-                                                    track=track),))
-        self.assertEqual(track, self._database.track(track.token))
 
 
 if __name__ == '__main__':

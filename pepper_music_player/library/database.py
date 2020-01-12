@@ -14,6 +14,7 @@
 """Database for a library."""
 
 import collections
+import enum
 import itertools
 from typing import Generator, Iterable
 
@@ -23,23 +24,83 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player import sqlite3_db
 
-# TODO(dseomn): Split the AudioFile concept from the Track concept, to reflect
-# the split between scan.AudioFile and entity.Track.
+
+class _EntityType(enum.Enum):
+    TRACK = 'track'
+    MEDIUM = 'medium'
+    ALBUM = 'album'
+
+
 _SCHEMA = sqlite3_db.Schema(
     name='library',
     version='v1alpha',  # TODO(#20): Change to v1.
     items=(
-        # Tags for anything in the library.
+        # Files that the entities in the library come from.
+        #
+        # TODO(dseomn): Add more columns here so that it's possible to update
+        # the library efficiently without re-parsing files that are unchanged.
         #
         # Columns:
-        #   token: Token of the thing (track, album, etc.) with tags.
+        #   filename: Absolute filename.
+        sqlite3_db.SchemaItem(
+            """
+            CREATE TABLE File (
+                filename TEXT NOT NULL,
+                PRIMARY KEY (filename)
+            )
+            """,
+            drop='DROP TABLE IF EXISTS File',
+        ),
+
+        # Entities in the library, e.g., tracks, mediums, and albums.
+        #
+        # TODO(dseomn): Add a trigger to delete an entity when it has no
+        # filename and no children?
+        #
+        # Columns:
+        #   token: Opaque token identifying the entity.
+        #   type  Type of the entity, see _EntityType above. (The colon after
+        #       'type' in this comment is intentionally missing to prevent
+        #       pylint and pytype from interpreting this as a type annotation
+        #       comment.)
+        #   filename: File the entity came from, or NULL if the entity doesn't
+        #       correspond directly to a single file.
+        #   parent_token: Token of the entity that contains this entity, or NULL
+        #       if this is a top-level entity.
+        #   order_in_parent: Order of this entity within the parent, e.g., a
+        #       tracknumber or discnumber. Or NULL if this doesn't have a
+        #       defined order or doesn't have a parent. Note that this is not
+        #       guaranteed to be unique within the parent.
+        sqlite3_db.SchemaItem(
+            """
+            CREATE TABLE Entity (
+                token TEXT NOT NULL,
+                type TEXT NOT NULL,
+                filename TEXT REFERENCES File (filename) ON DELETE CASCADE,
+                parent_token TEXT REFERENCES Entity (token) ON DELETE CASCADE,
+                order_in_parent INTEGER,
+                PRIMARY KEY (token),
+                UNIQUE (filename)
+            )
+            """,
+            drop='DROP TABLE IF EXISTS Entity',
+        ),
+        sqlite3_db.SchemaItem("""
+            CREATE INDEX Entity_ParentIndex
+            ON Entity (parent_token, order_in_parent)
+        """),
+
+        # Tags for entities in the library.
+        #
+        # Columns:
+        #   token: Token of the entity with tags.
         #   tag_name: Name of the tag, e.g., 'artist'. Each value may appear
         #       multiple times for the same token.
         #   tag_value: A single value for the tag.
         sqlite3_db.SchemaItem(
             """
             CREATE TABLE Tag (
-                token TEXT NOT NULL,
+                token TEXT NOT NULL REFERENCES Entity (token) ON DELETE CASCADE,
                 tag_name TEXT NOT NULL,
                 tag_value TEXT NOT NULL
             )
@@ -49,46 +110,6 @@ _SCHEMA = sqlite3_db.Schema(
         sqlite3_db.SchemaItem('CREATE INDEX Tag_TokenIndex ON Tag (token)'),
         sqlite3_db.SchemaItem(
             'CREATE INDEX Tag_TagIndex ON Tag (tag_name, tag_value)'),
-
-        # Files in the library.
-        #
-        # Columns:
-        #   dirname: Absolute name of the directory containing the file.
-        #   basename: Name of the file, relative to dirname.
-        sqlite3_db.SchemaItem(
-            """
-            CREATE TABLE File (
-                dirname TEXT NOT NULL,
-                basename TEXT NOT NULL,
-                PRIMARY KEY (dirname, basename)
-            )
-            """,
-            drop='DROP TABLE IF EXISTS File',
-        ),
-
-        # Audio files in the library.
-        #
-        # See note in entity.AudioFile's docstring about the conflation of audio
-        # files and tracks.
-        #
-        # Columns:
-        #   file_id: Which file it is.
-        #   token: Opaque token that identifies this track.
-        #   album_token: Opaque token that identifies the album the file is on.
-        sqlite3_db.SchemaItem(
-            """
-            CREATE TABLE AudioFile (
-                file_id INTEGER NOT NULL,
-                token TEXT NOT NULL,
-                album_token TEXT NOT NULL,
-                PRIMARY KEY (file_id),
-                UNIQUE (token)
-            )
-            """,
-            drop='DROP TABLE IF EXISTS AudioFile',
-        ),
-        sqlite3_db.SchemaItem(
-            'CREATE INDEX AudioFile_AlbumIndex ON AudioFile (album_token)'),
     ),
 )
 
@@ -143,46 +164,98 @@ class Database:
     def _insert_audio_file(
             self,
             transaction: sqlite3_db.Transaction,
-            file_id: int,
             file_info: scan.AudioFile,
     ) -> None:
         """Inserts information about the given audio file.
 
         Args:
             transaction: Transaction to use.
-            file_id: Row ID of the file in the File table.
             file_info: File to insert.
         """
         track_token = str(file_info.track.token)
-        transaction.execute(
+        medium_token = str(file_info.track.medium_token)
+        album_token = str(file_info.track.album_token)
+        transaction.executemany(
             """
-            INSERT INTO AudioFile (file_id, token, album_token)
-            VALUES (:file_id, :token, :album_token)
+            INSERT OR IGNORE INTO Entity
+                (token, type, filename, parent_token, order_in_parent)
+            VALUES (:token, :type, :filename, :parent_token, :order_in_parent)
             """,
-            {
-                'file_id': file_id,
-                'token': track_token,
-                'album_token': str(file_info.track.album_token),
-            },
+            (
+                {
+                    'token': album_token,
+                    'type': _EntityType.ALBUM.value,
+                    'filename': None,
+                    'parent_token': None,
+                    'order_in_parent': None,
+                },
+                {
+                    'token':
+                        medium_token,
+                    'type':
+                        _EntityType.MEDIUM.value,
+                    'filename':
+                        None,
+                    'parent_token':
+                        album_token,
+                    # Note that this relies on all tracks in a medium having the
+                    # same PARSED_DISCNUMBER. That's currently enforced by the
+                    # medium token including the PARSED_DISCNUMBER; if it ever
+                    # changes, this will become buggy since the order_in_parent
+                    # will depend on the order the tracks are inserted into the
+                    # database.
+                    'order_in_parent':
+                        file_info.track.tags.int_or_none(tag.PARSED_DISCNUMBER),
+                },
+                {
+                    'token':
+                        track_token,
+                    'type':
+                        _EntityType.TRACK.value,
+                    'filename':
+                        file_info.filename,
+                    'parent_token':
+                        medium_token,
+                    'order_in_parent':
+                        file_info.track.tags.int_or_none(
+                            # TODO(https://github.com/google/yapf/issues/797):
+                            # Remove this TODO comment.
+                            tag.PARSED_TRACKNUMBER),
+                },
+            ),
         )
         self._set_tags(transaction, track_token, file_info.track.tags)
 
-    def _update_album_tags(self, transaction: sqlite3_db.Transaction) -> None:
-        """Updates album tags to reflect the current files."""
-        for album_token, rows in itertools.groupby(
-                transaction.execute("""
-                    SELECT album_token, token
-                    FROM AudioFile
-                    ORDER BY album_token
-                """),
+    def _compose_tags(
+            self,
+            transaction: sqlite3_db.Transaction,
+            *,
+            child_type: _EntityType,
+    ) -> None:
+        """Updates tags of parent entities based on their children's tags.
+
+        Args:
+            transaction: Transaction to use.
+            child_type: Which type of entity to update the parent's tags of.
+        """
+        for parent_token, rows in itertools.groupby(
+                transaction.execute(
+                    """
+                    SELECT parent_token, token
+                    FROM Entity
+                    WHERE type = ?
+                    ORDER BY parent_token
+                    """,
+                    (child_type.value,),
+                ),
                 lambda row: row[0],
         ):
             self._set_tags(
                 transaction,
-                album_token,
+                parent_token,
                 tag.compose(
-                    self._get_tags(transaction, track_token)
-                    for _, track_token in rows),
+                    self._get_tags(transaction, child_token)
+                    for _, child_token in rows),
             )
 
     def insert_files(self, files: Iterable[scan.File]) -> None:
@@ -197,25 +270,21 @@ class Database:
         """
         with self._db.transaction() as transaction:
             for file_info in files:
-                file_id = transaction.execute(
-                    """
-                    INSERT INTO File (dirname, basename)
-                    VALUES (:dirname, :basename)
-                    """,
-                    {
-                        'dirname': file_info.dirname,
-                        'basename': file_info.basename,
-                    },
-                ).lastrowid
+                transaction.execute('INSERT INTO File (filename) VALUES (?)',
+                                    (file_info.filename,))
                 if isinstance(file_info, scan.AudioFile):
-                    self._insert_audio_file(transaction, file_id, file_info)
-            self._update_album_tags(transaction)
+                    self._insert_audio_file(transaction, file_info)
+            self._compose_tags(transaction, child_type=_EntityType.TRACK)
+            self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
     def track_tokens(self) -> Generator[token.Track, None, None]:
         """Yields all track tokens."""
         with self._db.snapshot() as snapshot:
-            for (token_str,) in (
-                    snapshot.execute('SELECT token FROM AudioFile')):
+            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
+            # disable.
+            for (token_str,) in snapshot.execute(
+                    'SELECT token FROM Entity WHERE type = ?',
+                    (_EntityType.TRACK.value,)):  # yapf: disable
                 yield token.Track(token_str)
 
     def track(self, token_: token.Track) -> entity.Track:
@@ -228,7 +297,11 @@ class Database:
             KeyError: There's no track with the given token.
         """
         with self._db.snapshot() as snapshot:
-            if snapshot.execute('SELECT 1 FROM AudioFile WHERE token = ?',
-                                (str(token_),)).fetchone() is None:
+            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
+            # disable.
+            if snapshot.execute(
+                    'SELECT 1 FROM Entity WHERE token = ? AND type = ?',
+                    (str(token_), _EntityType.TRACK.value)).fetchone() is None:  # yapf: disable
                 raise KeyError(token_)
+            # TODO(dseomn): Do something if the returned token is different?
             return entity.Track(tags=self._get_tags(snapshot, str(token_)))
