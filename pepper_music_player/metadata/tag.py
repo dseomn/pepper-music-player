@@ -17,9 +17,10 @@ import abc
 import collections
 import dataclasses
 import functools
+import math
 import operator
 import re
-from typing import ClassVar, Iterable, Mapping, Optional, Pattern, Tuple, Union
+from typing import ClassVar, Dict, Iterable, Mapping, Optional, Pattern, Tuple, Union
 
 import frozendict
 
@@ -260,22 +261,22 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
         return separator.join(self.get(key, (default,)))
 
 
-def compose(components_tags: Iterable[Tags]) -> Tags:
-    """Returns the tags for an entity composed of tagged sub-entities.
-
-    E.g., this can get the tags for an album composed of tracks. In general, the
-    composite entity's tags are the intersection of its element's tags.
-
-    Args:
-        components_tags: Tags for all the components.
-    """
+def _compose_intersection(
+        components_tags: Iterable[Tags]) -> Dict[str, Iterable[str]]:
+    """Returns intersected tags."""
     if not components_tags:
-        return Tags({})
+        return {}
 
     tag_pair_counters = []
     for component_tags in components_tags:
         tag_pairs = []
         for name, values in component_tags.items():
+            if name in (
+                    DURATION_SECONDS.name,
+                    DURATION_HUMAN.name,
+            ):
+                # These are not intersected.
+                continue
             tag_pairs.extend((name, value) for value in values)
         tag_pair_counters.append(collections.Counter(tag_pairs))
     common_tag_pair_counter = functools.reduce(operator.and_, tag_pair_counters)
@@ -283,4 +284,38 @@ def compose(components_tags: Iterable[Tags]) -> Tags:
     tags = collections.defaultdict(list)
     for name, value in common_tag_pair_counter.elements():
         tags[name].append(value)
-    return Tags(tags)
+    return tags
+
+
+def _compose_duration(
+        components_tags: Iterable[Tags]) -> Dict[str, Iterable[str]]:
+    """Returns summed duration tags."""
+    duration_seconds_values = [
+        component_tags.one_or_none(DURATION_SECONDS)
+        for component_tags in components_tags
+    ]
+    if duration_seconds_values and None not in duration_seconds_values:
+        try:
+            return {
+                DURATION_SECONDS.name:
+                    (str(math.fsum(map(float, duration_seconds_values))),),
+            }
+        except ValueError:
+            pass
+    return {}
+
+
+def compose(components_tags: Iterable[Tags]) -> Tags:
+    """Returns the tags for an entity composed of tagged sub-entities.
+
+    E.g., this can get the tags for an album composed of tracks. In general, the
+    composite entity's tags are the intersection of its element's tags, but
+    there are exceptions.
+
+    Args:
+        components_tags: Tags for all the components.
+    """
+    return Tags({
+        **_compose_intersection(components_tags),
+        **_compose_duration(components_tags),
+    }).derive((DURATION_HUMAN,))

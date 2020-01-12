@@ -232,6 +232,8 @@ class TagsTest(unittest.TestCase):
         tags = tag.Tags({
             'foo': ('foo1', 'foo2'),
             'bar': ('bar',),
+            '~duration_seconds': ('1.3',),
+            '~duration_human': ('0∶01',),
         })
         self.assertEqual(tags, tag.compose((tags,)))
 
@@ -258,6 +260,53 @@ class TagsTest(unittest.TestCase):
                     'tracknumber': ('2/2',),
                     '~parsed_tracknumber': ('2',),
                     '~parsed_totaltracks': ('2',),
+                }),
+            )),
+        )
+
+    def test_compose_duration(self):
+        self.assertEqual(
+            tag.Tags({
+                '~duration_seconds': ('2.7',),
+                '~duration_human': ('0∶03',),
+            }),
+            tag.compose((
+                tag.Tags({
+                    '~duration_seconds': ('1.3',),
+                    '~duration_human': ('0∶01',),
+                }),
+                tag.Tags({
+                    '~duration_seconds': ('1.4',),
+                    '~duration_human': ('0∶01',),
+                }),
+            )),
+        )
+
+    def test_compose_duration_missing(self):
+        self.assertEqual(
+            tag.Tags({}),
+            tag.compose((
+                tag.Tags({
+                    '~duration_human': ('0∶01',),
+                }),
+                tag.Tags({
+                    '~duration_seconds': ('1.3',),
+                    '~duration_human': ('0∶01',),
+                }),
+            )),
+        )
+
+    def test_compose_duration_invalid(self):
+        self.assertEqual(
+            tag.Tags({}),
+            tag.compose((
+                tag.Tags({
+                    '~duration_seconds': ('foo',),
+                    '~duration_human': ('0∶01',),
+                }),
+                tag.Tags({
+                    '~duration_seconds': ('1.3',),
+                    '~duration_human': ('0∶01',),
                 }),
             )),
         )
