@@ -24,6 +24,7 @@ disable =
   invalid-name,  # Doesn't match Google-style naming.
   no-else-return,
   no-self-use,  # Complains on test methods.
+  too-many-public-methods,  # Complains on test methods.
   wrong-import-position  # Gets confused by gi.require_version().
 
 [FORMAT]
