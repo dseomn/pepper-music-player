@@ -184,8 +184,6 @@ _DERIVED_TAGS = (
     PARSED_TRACKNUMBER,
 )
 
-_DERIVED_TAG_NAMES = frozenset(tag.name for tag in _DERIVED_TAGS)
-
 
 def _tag_name_str(tag: ArbitraryTag) -> str:
     """Returns the str form of a tag name."""
@@ -219,14 +217,18 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
     def __contains__(self, key: ArbitraryTag) -> bool:
         return super().__contains__(_tag_name_str(key))
 
-    def derive(self) -> 'Tags':
-        """Returns a copy of self, with all derived tags set."""
+    def derive(
+            self,
+            derived_tags: Iterable[DerivedTag] = _DERIVED_TAGS,
+    ) -> 'Tags':
+        """Returns a copy of self, with all specified derived tags set."""
+        derived_tag_names = frozenset(tag.name for tag in derived_tags)
         tags = {
             name: values
             for name, values in self.items()
-            if name not in _DERIVED_TAG_NAMES
+            if name not in derived_tag_names
         }
-        for tag in _DERIVED_TAGS:
+        for tag in derived_tags:
             values = tag.derive(self)
             if values:
                 tags[tag] = values

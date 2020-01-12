@@ -182,6 +182,20 @@ class TagsTest(unittest.TestCase):
             }).derive(),
         )
 
+    def test_derive_specified_tags(self):
+        self.assertEqual(
+            tag.Tags({
+                'tracknumber': ('1',),
+                '~parsed_tracknumber': ('1',),
+                '~parsed_totaltracks': ('bar',),
+            }),
+            tag.Tags({
+                'tracknumber': ('1',),
+                '~parsed_tracknumber': ('foo',),
+                '~parsed_totaltracks': ('bar',),
+            }).derive((tag.PARSED_TRACKNUMBER,)),
+        )
+
     def test_one_or_none_with_zero(self):
         self.assertIs(None, tag.Tags({}).one_or_none('a'))
 
