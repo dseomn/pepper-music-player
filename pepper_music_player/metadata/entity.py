@@ -29,8 +29,8 @@ class Track:
         token: Opaque token that identifies this track.
         album_token: Opaque token that identifies the album for this track.
     """
-    tags: tag.Tags
-    token: metadata_token.Track = dataclasses.field(init=False, repr=False)
+    tags: tag.Tags = dataclasses.field(repr=False)
+    token: metadata_token.Track = dataclasses.field(init=False)
     album_token: metadata_token.Album = dataclasses.field(init=False,
                                                           repr=False)
 
@@ -67,9 +67,9 @@ class Album:
         token: Opaque token that identifies this album.
         tracks: Tracks on the album.
     """
-    tags: tag.Tags
-    token: metadata_token.Album = dataclasses.field(init=False, repr=False)
-    tracks: Tuple[Track, ...]
+    tags: tag.Tags = dataclasses.field(repr=False)
+    token: metadata_token.Album = dataclasses.field(init=False)
+    tracks: Tuple[Track, ...] = dataclasses.field(repr=False)
 
     def __post_init__(self) -> None:
         album_tokens = {track.album_token for track in self.tracks}
