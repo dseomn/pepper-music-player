@@ -23,7 +23,9 @@ disable =
   fixme,
   invalid-name,  # Doesn't match Google-style naming.
   no-else-return,
+  no-member,  # Doesn't handle __gtype__ correctly, pytype covers this anyway.
   no-self-use,  # Complains on test methods.
+  too-few-public-methods,
   too-many-public-methods,  # Complains on test methods.
   wrong-import-position  # Gets confused by gi.require_version().
 
