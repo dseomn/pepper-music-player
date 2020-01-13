@@ -26,7 +26,7 @@ class ScreenshotTest(unittest.TestCase):
 
     def test_register_widget(self):
         widget = Gtk.Label()
-        widget.set_text('Foo!')
+        widget.set_text('The quick brown fox jumps over the lazy dog!')
         screenshot_testlib.register_widget(__name__, 'test_register_widget',
                                            widget)
 
