@@ -16,7 +16,9 @@
 import collections
 import enum
 import itertools
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Optional
+
+import frozendict
 
 from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
@@ -30,6 +32,12 @@ class _EntityType(enum.Enum):
     MEDIUM = 'medium'
     ALBUM = 'album'
 
+
+_TYPE_NAME_TO_TOKEN_TYPE = frozendict.frozendict({
+    _EntityType.TRACK.value: token.Track,
+    _EntityType.MEDIUM.value: token.Medium,
+    _EntityType.ALBUM.value: token.Album,
+})
 
 _SCHEMA = sqlite3_db.Schema(
     name='library',
@@ -277,31 +285,131 @@ class Database:
             self._compose_tags(transaction, child_type=_EntityType.TRACK)
             self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
-    def track_tokens(self) -> Generator[token.Track, None, None]:
-        """Yields all track tokens."""
-        with self._db.snapshot() as snapshot:
-            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
-            # disable.
-            for (token_str,) in snapshot.execute(
-                    'SELECT token FROM Entity WHERE type = ?',
-                    (_EntityType.TRACK.value,)):  # yapf: disable
-                yield token.Track(token_str)
+    def search(self) -> Generator[token.LibraryToken, None, None]:
+        """Searches for music in the library.
 
-    def track(self, token_: token.Track) -> entity.Track:
+        TODO(dseomn): Add more function arguments to make this actually search
+        instead of returning everything.
+
+        Yields:
+            Tokens for entities that match the search terms.
+        """
+        with self._db.snapshot() as snapshot:
+            for token_str, token_type in snapshot.execute(
+                    'SELECT token, type FROM Entity'):
+                yield _TYPE_NAME_TO_TOKEN_TYPE[token_type](token_str)
+
+    def _require_token_exists(
+            self,
+            snapshot: sqlite3_db.AbstractSnapshot,
+            token_: str,
+            token_type: _EntityType,
+    ) -> None:
+        """Raises KeyError if the specified token does not exist."""
+        # TODO(dseomn): Optimize callers of this function to avoid calling it
+        # when they got the token from the database in the same transaction.
+        if snapshot.execute('SELECT 1 FROM Entity WHERE token = ? AND type = ?',
+                            (token_, token_type.value)).fetchone() is None:
+            raise KeyError(token_)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _children(
+            self,
+            snapshot: sqlite3_db.AbstractSnapshot,
+            token_: str,
+            *,
+            child_type: _EntityType,
+    ) -> Generator[token.LibraryToken, None, None]:  # yapf: disable
+        """Yields the given token's child tokens, in order."""
+        # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
+        for (child_token,) in snapshot.execute(
+                """
+                SELECT token
+                FROM Entity
+                WHERE parent_token = ? AND type =?
+                ORDER BY order_in_parent, token
+                """,
+                (token_, child_type.value),
+        ):  # yapf: disable
+            yield _TYPE_NAME_TO_TOKEN_TYPE[child_type.value](child_token)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def track(
+            self,
+            token_: token.Track,
+            *,
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> entity.Track:  # yapf: disable
         """Returns the specified track.
 
         Args:
             token_: Which track to return.
+            snapshot: Snapshot to reuse instead of starting a new one.
 
         Raises:
             KeyError: There's no track with the given token.
         """
-        with self._db.snapshot() as snapshot:
-            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
-            # disable.
-            if snapshot.execute(
-                    'SELECT 1 FROM Entity WHERE token = ? AND type = ?',
-                    (str(token_), _EntityType.TRACK.value)).fetchone() is None:  # yapf: disable
-                raise KeyError(token_)
+        with self._db.snapshot(snapshot) as snapshot_:
+            self._require_token_exists(snapshot_, str(token_),
+                                       _EntityType.TRACK)
             # TODO(dseomn): Do something if the returned token is different?
-            return entity.Track(tags=self._get_tags(snapshot, str(token_)))
+            return entity.Track(tags=self._get_tags(snapshot_, str(token_)))
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def medium(
+            self,
+            token_: token.Medium,
+            *,
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> entity.Medium:  # yapf: disable
+        """Returns the specified medium.
+
+        Args:
+            token_: Which medium to return.
+            snapshot: Snapshot to reuse instead of starting a new one.
+
+        Raises:
+            KeyError: There's no medium with the given token.
+        """
+        with self._db.snapshot(snapshot) as snapshot_:
+            self._require_token_exists(snapshot_, str(token_),
+                                       _EntityType.MEDIUM)
+            track_token_generator = self._children(snapshot_,
+                                                   str(token_),
+                                                   child_type=_EntityType.TRACK)
+            # TODO(dseomn): Do something if the returned token is different?
+            return entity.Medium(
+                tags=self._get_tags(snapshot_, str(token_)),
+                tracks=tuple(
+                    self.track(track_token, snapshot=snapshot_)
+                    for track_token in track_token_generator),
+            )
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def album(
+            self,
+            token_: token.Album,
+            *,
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> entity.Album:  # yapf: disable
+        """Returns the specified album.
+
+        Args:
+            token_: Which album to return.
+            snapshot: Snapshot to reuse instead of starting a new one.
+
+        Raises:
+            KeyError: There's no album with the given token.
+        """
+        with self._db.snapshot(snapshot) as snapshot_:
+            self._require_token_exists(snapshot_, str(token_),
+                                       _EntityType.ALBUM)
+            medium_token_generator = self._children(
+                snapshot_, str(token_), child_type=_EntityType.MEDIUM)
+            # TODO(dseomn): Do something if the returned token is different?
+            return entity.Album(
+                tags=self._get_tags(snapshot_, str(token_)),
+                mediums=tuple(
+                    self.medium(medium_token, snapshot=snapshot_)
+                    for medium_token in medium_token_generator),
+            )

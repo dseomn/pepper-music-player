@@ -108,7 +108,8 @@ class DatabaseTest(unittest.TestCase):
                            track=track2),
         ))
         self.assertCountEqual((track1.token, track2.token),
-                              self._database.track_tokens())
+                              (token_ for token_ in self._database.search()
+                               if isinstance(token_, token.Track)))
         self.assertEqual(track1, self._database.track(track1.token))
         self.assertEqual(track2, self._database.track(track2.token))
 
@@ -117,10 +118,14 @@ class DatabaseTest(unittest.TestCase):
             tag.FILENAME: ('/dir1/file1',),
             'album': ('album1',),
         }))
+        medium1 = entity.Medium(tags=track1.tags, tracks=(track1,))
+        album1 = entity.Album(tags=track1.tags, mediums=(medium1,))
         track2 = entity.Track(tags=tag.Tags({
             tag.FILENAME: ('/dir1/file2',),
             'album': ('album2',),
         }))
+        medium2 = entity.Medium(tags=track2.tags, tracks=(track2,))
+        album2 = entity.Album(tags=track2.tags, mediums=(medium2,))
         self._database.insert_files((
             scan.AudioFile(filename='/dir1/file1',
                            dirname='/dir1',
@@ -131,33 +136,38 @@ class DatabaseTest(unittest.TestCase):
                            basename='file2',
                            track=track2),
         ))
-        with self._connection:
-            self.assertCountEqual(
-                (
-                    (str(track1.album_token), '~filename', '/dir1/file1'),
-                    (str(track1.album_token), 'album', 'album1'),
-                    (str(track2.album_token), '~filename', '/dir1/file2'),
-                    (str(track2.album_token), 'album', 'album2'),
-                ),
-                self._connection.execute("""
-                    SELECT token, tag_name, tag_value
-                    FROM Entity
-                    JOIN Tag USING (token)
-                    WHERE type = 'album'
-                """),
-            )
+        self.assertCountEqual((track1.medium_token, track2.medium_token),
+                              (token_ for token_ in self._database.search()
+                               if isinstance(token_, token.Medium)))
+        self.assertEqual(medium1, self._database.medium(track1.medium_token))
+        self.assertEqual(medium2, self._database.medium(track2.medium_token))
+        self.assertCountEqual((track1.album_token, track2.album_token),
+                              (token_ for token_ in self._database.search()
+                               if isinstance(token_, token.Album)))
+        self.assertEqual(album1, self._database.album(track1.album_token))
+        self.assertEqual(album2, self._database.album(track2.album_token))
 
     def test_insert_files_same_album(self):
         track1 = entity.Track(tags=tag.Tags({
             tag.FILENAME: ('/dir1/file1',),
             'album': ('album1',),
+            'tracknumber': ('1',),
             'partially_common': ('common', 'diff1'),
-        }))
+        }).derive())
         track2 = entity.Track(tags=tag.Tags({
             tag.FILENAME: ('/dir1/file2',),
             'album': ('album1',),
+            'tracknumber': ('2',),
             'partially_common': ('common', 'common', 'diff2'),
-        }))
+        }).derive())
+        medium = entity.Medium(
+            tags=tag.Tags({
+                'album': ('album1',),
+                'partially_common': ('common',),
+            }),
+            tracks=(track1, track2),
+        )
+        album = entity.Album(tags=medium.tags, mediums=(medium,))
         self._database.insert_files((
             scan.AudioFile(filename='/dir1/file1',
                            dirname='/dir1',
@@ -168,23 +178,90 @@ class DatabaseTest(unittest.TestCase):
                            basename='file2',
                            track=track2),
         ))
-        with self._connection:
-            self.assertCountEqual(
-                (
-                    (str(track1.album_token), 'album', 'album1'),
-                    (str(track1.album_token), 'partially_common', 'common'),
-                ),
-                self._connection.execute("""
-                    SELECT token, tag_name, tag_value
-                    FROM Entity
-                    JOIN Tag USING (token)
-                    WHERE type = 'album'
-                """),
-            )
+        self.assertCountEqual((medium.token,),
+                              (token_ for token_ in self._database.search()
+                               if isinstance(token_, token.Medium)))
+        self.assertEqual(medium, self._database.medium(medium.token))
+        self.assertCountEqual((album.token,),
+                              (token_ for token_ in self._database.search()
+                               if isinstance(token_, token.Album)))
+        self.assertEqual(album, self._database.album(album.token))
 
     def test_track_not_found(self):
         with self.assertRaises(KeyError):
             self._database.track(token.Track('foo'))
+
+    def test_medium_not_found(self):
+        with self.assertRaises(KeyError):
+            self._database.medium(token.Medium('foo'))
+
+    def test_medium_returns_tracks_in_order(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file1',),
+            'tracknumber': ('1',),
+        }).derive())
+        track2 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file2',),
+            'tracknumber': ('2',),
+        }).derive())
+        track_undefined = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file3',)
+        }).derive())
+        self._database.insert_files((
+            scan.AudioFile(filename='/dir1/file1',
+                           dirname='/dir1',
+                           basename='file1',
+                           track=track1),
+            scan.AudioFile(filename='/dir1/file2',
+                           dirname='/dir1',
+                           basename='file2',
+                           track=track2),
+            scan.AudioFile(filename='/dir1/file3',
+                           dirname='/dir1',
+                           basename='file3',
+                           track=track_undefined),
+        ))
+        self.assertEqual(
+            (track_undefined, track1, track2),
+            self._database.medium(track_undefined.medium_token).tracks)
+
+    def test_album_not_found(self):
+        with self.assertRaises(KeyError):
+            self._database.album(token.Album('foo'))
+
+    def test_album_returns_mediums_in_order(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file1',),
+            'discnumber': ('1',),
+        }).derive())
+        medium1 = entity.Medium(tags=track1.tags, tracks=(track1,))
+        track2 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file2',),
+            'discnumber': ('2',),
+        }).derive())
+        medium2 = entity.Medium(tags=track2.tags, tracks=(track2,))
+        track_undefined = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file3',),
+        }).derive())
+        medium_undefined = entity.Medium(tags=track_undefined.tags,
+                                         tracks=(track_undefined,))
+        self._database.insert_files((
+            scan.AudioFile(filename='/dir1/file1',
+                           dirname='/dir1',
+                           basename='file1',
+                           track=track1),
+            scan.AudioFile(filename='/dir1/file2',
+                           dirname='/dir1',
+                           basename='file2',
+                           track=track2),
+            scan.AudioFile(filename='/dir1/file3',
+                           dirname='/dir1',
+                           basename='file3',
+                           track=track_undefined),
+        ))
+        self.assertEqual(
+            (medium_undefined, medium1, medium2),
+            self._database.album(medium_undefined.album_token).mediums)
 
 
 if __name__ == '__main__':
