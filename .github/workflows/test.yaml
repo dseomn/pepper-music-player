@@ -96,3 +96,26 @@ jobs:
       with:
         name: test-artifacts-${{ matrix.os }}-python${{ matrix.python-version }}
         path: ${{ env.TEST_ARTIFACT_DIR }}
+
+  percy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v1
+      with:
+        name: test-artifacts-macos-latest-python3.7
+    - uses: actions/download-artifact@v1
+      with:
+        name: test-artifacts-macos-latest-python3.8
+    - uses: actions/download-artifact@v1
+      with:
+        name: test-artifacts-ubuntu-latest-python3.7
+    - uses: actions/download-artifact@v1
+      with:
+        name: test-artifacts-ubuntu-latest-python3.8
+    - name: Upload screenshots to Percy
+      env:
+        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+      run: |
+        npm install @percy/agent
+        npx percy upload --ignore='node_modules/**'
