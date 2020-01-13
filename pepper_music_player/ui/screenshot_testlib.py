@@ -23,6 +23,27 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 
+def _screenshot(
+        window: Gtk.OffscreenWindow,
+        filepath: pathlib.Path,
+        *,
+        dark_theme: bool,
+) -> None:
+    """Saves a screenshot of a window to a file.
+
+    Args:
+        window: Window to take a screenshot of.
+        filepath: Where to save the screenshot.
+        dark_theme: Whether or not to use dark theme for the window.
+    """
+    settings = Gtk.Settings.get_default()
+    settings.set_property('gtk-application-prefer-dark-theme', dark_theme)
+    GLib.idle_add(Gtk.main_quit)
+    Gtk.main()
+    window.get_surface().write_to_png(filepath)
+    settings.reset_property('gtk-application-prefer-dark-theme')
+
+
 def register_widget(
         module_name: str,
         screenshot_name: str,
@@ -49,5 +70,11 @@ def register_widget(
         return
     screenshot_dir = pathlib.Path(artifact_dir).joinpath('screenshots')
     screenshot_dir.mkdir(exist_ok=True)
-    window.get_surface().write_to_png(
-        screenshot_dir.joinpath(f'{module_name}.{screenshot_name}.png'))
+    _screenshot(
+        window,
+        screenshot_dir.joinpath(f'{module_name}.{screenshot_name}.light.png'),
+        dark_theme=False)
+    _screenshot(
+        window,
+        screenshot_dir.joinpath(f'{module_name}.{screenshot_name}.dark.png'),
+        dark_theme=True)
