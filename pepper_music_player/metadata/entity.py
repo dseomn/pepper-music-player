@@ -93,6 +93,7 @@ class Medium:
         tags: Tags that are common to all tracks on the medium.
         token: Opaque token that identifies this medium.
         album_token: Opaque token that identifies the album for this medium.
+        tracks: Tracks on this medium.
     """
     tags: tag.Tags = dataclasses.field(repr=False)
     token: metadata_token.Medium = dataclasses.field(init=False)
