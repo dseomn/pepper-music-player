@@ -37,10 +37,16 @@ def _screenshot(
         dark_theme: Whether or not to use dark theme for the window.
     """
     settings = Gtk.Settings.get_default()
+    # When running under Xvfb, gtk-application-prefer-dark-theme seems to have
+    # no effect unless gtk-theme-name is set first.
+    force_gtk_theme = os.getenv('TEST_FORCE_GTK_THEME')
+    if force_gtk_theme is not None:
+        settings.set_property('gtk-theme-name', force_gtk_theme)
     settings.set_property('gtk-application-prefer-dark-theme', dark_theme)
     GLib.idle_add(Gtk.main_quit)
     Gtk.main()
     window.get_surface().write_to_png(filepath)
+    settings.reset_property('gtk-theme-name')
     settings.reset_property('gtk-application-prefer-dark-theme')
 
 

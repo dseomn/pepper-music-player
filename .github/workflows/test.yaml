@@ -79,6 +79,9 @@ jobs:
         pytype
     - name: Test (xvfb graphics)
       if: runner.os == 'Linux'
+      env:
+        # See pepper_music_player/ui/screenshot_testlib.py
+        TEST_FORCE_GTK_THEME: Adwaita
       run: |
         sudo apt-get install xvfb
         pip install pytest pytest-cov
