@@ -13,7 +13,6 @@
 # limitations under the License.
 """Tests for pepper_music_player.library.database."""
 
-import os
 import sqlite3
 import tempfile
 import unittest
@@ -33,59 +32,31 @@ class DatabaseTest(unittest.TestCase):
         self.addCleanup(tempdir.cleanup)
         self._database = database.Database(database_dir=tempdir.name)
         self._database.reset()
-        # TODO(dseomn): Change tests to use only public methods of
-        # self._database instead of inspecting the underlying database, then
-        # delete this connection.
-        self._connection = sqlite3.connect(
-            os.path.join(tempdir.name, 'library.v1alpha.sqlite3'),
-            isolation_level=None,
-        )
 
     def test_reset_deletes_data(self):
-        with self._connection:
-            self._connection.execute(
-                'INSERT INTO File (filename) VALUES ("/a/b")')
-            self._connection.execute("""
-                INSERT INTO Entity
-                    (token, type, filename, parent_token, order_in_parent)
-                VALUES ("token1", "track", "/a/b", NULL, NULL)
-            """)
-            self._connection.execute("""
-                INSERT INTO Tag (token, tag_name, tag_value)
-                VALUES ("token1", "c", "d")
-            """)
+        self._database.insert_files((scan.AudioFile(
+            filename='/a/b',
+            dirname='/a',
+            basename='b',
+            track=entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)}))),))
         self._database.reset()
-        with self._connection:
-            for table_name in ('File', 'Entity', 'Tag'):
-                with self.subTest(table_name):
-                    self.assertFalse(
-                        self._connection.execute(
-                            f'SELECT * FROM {table_name}').fetchall())
+        self.assertFalse(self._database.search())
 
     def test_insert_files_generic(self):
-        self._database.insert_files((
-            scan.File(filename='/a/b', dirname='/a', basename='b'),
-            scan.AudioFile(
-                filename='/c/d',
-                dirname='/c',
-                basename='d',
-                track=entity.Track(tags=tag.Tags({tag.FILENAME: ('/c/d',)}))),
-        ))
-        with self._connection:
-            self.assertCountEqual(
-                (('/a/b',), ('/c/d',)),
-                self._connection.execute('SELECT filename FROM File'),
-            )
+        self._database.insert_files((scan.File(filename='/a/b',
+                                               dirname='/a',
+                                               basename='b'),))
+        self.assertFalse(self._database.search())
 
     def test_insert_files_duplicate(self):
+        file1 = scan.AudioFile(
+            filename='/a/b',
+            dirname='/a',
+            basename='b',
+            track=entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)})))
         with self.assertRaises(sqlite3.IntegrityError):
-            self._database.insert_files((
-                scan.File(filename='/a/b', dirname='/a', basename='b'),
-                scan.File(filename='/a/b', dirname='/a', basename='b'),
-            ))
-        with self._connection:
-            self.assertFalse(
-                self._connection.execute('SELECT * FROM File').fetchall())
+            self._database.insert_files((file1, file1))
+        self.assertFalse(self._database.search())
 
     def test_insert_files_audio(self):
         track1 = entity.Track(tags=tag.Tags({
