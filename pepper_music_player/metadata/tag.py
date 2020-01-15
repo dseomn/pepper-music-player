@@ -208,6 +208,13 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
             tags: Tags to represent, as a mapping from each tag name to all
                 values for that tag.
         """
+        # TODO(https://github.com/python/typing/issues/256): Use a type
+        # annotation instead of manually checking if the values are of type str.
+        for name, values in tags.items():
+            if isinstance(values, str):
+                raise TypeError(
+                    'Tags takes an iterable of values for each tag, found: '
+                    f'{_tag_name_str(name)!r}={values!r}')
         super().__init__({
             _tag_name_str(name): tuple(values) for name, values in tags.items()
         })

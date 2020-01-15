@@ -137,6 +137,11 @@ class TagsTest(unittest.TestCase):
             tag.Tags({'foo': ['a', 'b']})['foo'],
         )
 
+    def test_init_rejects_single_string_value(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'iterable of values for each tag'):
+            tag.Tags({'foo': 'bar'})
+
     def test_getitem_str(self):
         self.assertEqual(('b',), tag.Tags({'a': ('b',)})['a'])
 
