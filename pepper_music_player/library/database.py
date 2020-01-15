@@ -276,6 +276,8 @@ class Database:
             sqlite3.IntegrityError: One or more files are already in the
                 database.
         """
+        # TODO(dseomn): Break this up into many smaller transactions, so that
+        # the user gets more feedback when (re)scanning the library.
         with self._db.transaction() as transaction:
             for file_info in files:
                 transaction.execute('INSERT INTO File (filename) VALUES (?)',
