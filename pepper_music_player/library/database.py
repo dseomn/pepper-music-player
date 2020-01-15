@@ -104,18 +104,20 @@ _SCHEMA = sqlite3_db.Schema(
         #   token: Token of the entity with tags.
         #   tag_name: Name of the tag, e.g., 'artist'. Each value may appear
         #       multiple times for the same token.
+        #   tag_value_order: Order of the value within the name.
         #   tag_value: A single value for the tag.
         sqlite3_db.SchemaItem(
             """
             CREATE TABLE Tag (
                 token TEXT NOT NULL REFERENCES Entity (token) ON DELETE CASCADE,
                 tag_name TEXT NOT NULL,
-                tag_value TEXT NOT NULL
+                tag_value_order INTEGER NOT NULL,
+                tag_value TEXT NOT NULL,
+                PRIMARY KEY (token, tag_name, tag_value_order)
             )
             """,
             drop='DROP TABLE IF EXISTS Tag',
         ),
-        sqlite3_db.SchemaItem('CREATE INDEX Tag_TokenIndex ON Tag (token)'),
         sqlite3_db.SchemaItem(
             'CREATE INDEX Tag_TagIndex ON Tag (tag_name, tag_value)'),
     ),
@@ -156,7 +158,12 @@ class Database:
         tags = collections.defaultdict(list)
         # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
         for name, value in snapshot.execute(
-                'SELECT tag_name, tag_value FROM Tag WHERE token = ?',
+                """
+                SELECT tag_name, tag_value
+                FROM Tag
+                WHERE token = ?
+                ORDER BY tag_name, tag_value_order
+                """,
                 (token_,)):  # yapf: disable
             tags[name].append(value)
         return tag.Tags(tags)
@@ -171,8 +178,12 @@ class Database:
         transaction.execute('DELETE FROM Tag WHERE token = ?', (token_,))
         for name, values in tags.items():
             transaction.executemany(
-                'INSERT INTO Tag (token, tag_name, tag_value) VALUES (?, ?, ?)',
-                ((token_, name, value) for value in values),
+                """
+                INSERT INTO Tag (token, tag_name, tag_value_order, tag_value)
+                VALUES (?, ?, ?, ?)
+                """,
+                ((token_, name, order, value)
+                 for order, value in enumerate(values)),
             )
 
     def _insert_audio_file(

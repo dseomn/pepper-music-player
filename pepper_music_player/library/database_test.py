@@ -66,7 +66,7 @@ class DatabaseTest(unittest.TestCase):
         track2 = entity.Track(tags=tag.Tags({
             tag.FILENAME: ('/a/c',),
             'a': ('b', 'b'),
-            'c': ('d',),
+            'c': ('d', 'e'),
         }))
         self._database.insert_files((
             scan.AudioFile(filename='/a/b',
