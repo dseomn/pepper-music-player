@@ -125,6 +125,12 @@ _SCHEMA = sqlite3_db.Schema(
 class Database:
     """Database for a library."""
 
+    # TODO(dseomn): Add support for incremental updates instead of resetting and
+    # re-adding everything each time. As part of incremental updates, it might
+    # make sense to add a pubsub-like system so the database can publish tokens
+    # that have been added/deleted or that have modified data. Subscribers could
+    # then react accordingly without needing to poll the database.
+
     def __init__(
             self,
             *,
