@@ -72,6 +72,8 @@ class Database:
     making transaction management explicit) and choose reasonable defaults.
     """
 
+    # TODO(dseomn): Add support for database schema version migration.
+
     def __init__(
             self,
             schema: Schema,
