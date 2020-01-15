@@ -299,6 +299,16 @@ class Database:
         TODO(dseomn): Add more function arguments to make this actually search
         instead of returning everything.
 
+        TODO(dseomn): Consider adding sort options. Possibly default to sorting
+        by entity ancestry, e.g., (album token, medium order in album, medium
+        token, track order in medium, track token).
+
+        TODO(dseomn): Consider adding pagination. Figure out if (limit, offset)
+        style or (page_token, page_size) style makes more sense.
+
+        TODO(dseomn): If an entity's ancestor is included in the search results,
+        don't include the descendant entity's token in the results.
+
         Returns:
             Tokens for entities that match the search terms.
         """
