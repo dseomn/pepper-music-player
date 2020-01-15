@@ -57,9 +57,9 @@ class DatabaseTest(unittest.TestCase):
     def test_reset_deletes_data(self):
         with self._db.transaction() as transaction:
             transaction.execute(
-                'INSERT INTO Test (foo, bar) VALUES ("foo1", "bar1")')
+                "INSERT INTO Test (foo, bar) VALUES ('foo1', 'bar1')")
             transaction.execute(
-                'INSERT INTO DependsOnTest (foo) VALUES ("foo1")')
+                "INSERT INTO DependsOnTest (foo) VALUES ('foo1')")
         self._db.reset()
         with self._db.snapshot() as snapshot:
             self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
@@ -69,9 +69,9 @@ class DatabaseTest(unittest.TestCase):
     def test_foreign_keys_are_enforced(self):
         with self._db.transaction() as transaction:
             transaction.execute(
-                'INSERT INTO Test (foo, bar) VALUES ("foo1", "bar1")')
+                "INSERT INTO Test (foo, bar) VALUES ('foo1', 'bar1')")
             transaction.execute(
-                'INSERT INTO DependsOnTest (foo) VALUES ("foo1")')
+                "INSERT INTO DependsOnTest (foo) VALUES ('foo1')")
             transaction.execute('DELETE FROM Test')
         with self._db.snapshot() as snapshot:
             self.assertFalse(
@@ -81,7 +81,7 @@ class DatabaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'this should propagate'):
             with self._db.transaction() as transaction:
                 transaction.execute(
-                    'INSERT INTO Test (foo, bar) VALUES ("foo1", "bar1")')
+                    "INSERT INTO Test (foo, bar) VALUES ('foo1', 'bar1')")
                 raise ValueError('this should propagate')
         with self._db.snapshot() as snapshot:
             self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
