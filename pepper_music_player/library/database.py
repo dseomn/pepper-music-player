@@ -285,19 +285,29 @@ class Database:
             self._compose_tags(transaction, child_type=_EntityType.TRACK)
             self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
-    def search(self) -> Generator[token.LibraryToken, None, None]:
+    def search(self) -> Iterable[token.LibraryToken]:
         """Searches for music in the library.
 
         TODO(dseomn): Add more function arguments to make this actually search
         instead of returning everything.
 
-        Yields:
+        Returns:
             Tokens for entities that match the search terms.
         """
+        # This returns a list instead of a generator to avoid bugs with nested
+        # transactions, which sqlite3 doesn't support. With a generator, a loop
+        # like this would fail because the inner access would try to start a
+        # nested transaction:
+        #
+        #   for result in db.search()
+        #       if isinstance(result, token.Track):
+        #           db.track(result)
+        results = []
         with self._db.snapshot() as snapshot:
             for token_str, token_type in snapshot.execute(
                     'SELECT token, type FROM Entity'):
-                yield _TYPE_NAME_TO_TOKEN_TYPE[token_type](token_str)
+                results.append(_TYPE_NAME_TO_TOKEN_TYPE[token_type](token_str))
+        return results
 
     def _require_token_exists(
             self,
