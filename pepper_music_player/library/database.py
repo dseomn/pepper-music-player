@@ -326,7 +326,7 @@ class Database:
                 """
                 SELECT token
                 FROM Entity
-                WHERE parent_token = ? AND type =?
+                WHERE parent_token = ? AND type = ?
                 ORDER BY order_in_parent, token
                 """,
                 (token_, child_type.value),
