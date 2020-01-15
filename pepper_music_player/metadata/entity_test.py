@@ -21,10 +21,69 @@ from pepper_music_player.metadata import tag
 
 class EntityTest(unittest.TestCase):
 
+    def test_track_token_format(self):
+        self.assertEqual(
+            "track/v1alpha:(('~filename', '/a/b'),)",
+            str(entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)})).token),
+        )
+
+    def test_medium_token_format_minimal(self):
+        self.assertEqual(
+            "medium/v1alpha:(('~dirname', '/a'),)",
+            str(
+                entity.Track(
+                    tags=tag.Tags({tag.DIRNAME: ('/a',)})).medium_token),
+        )
+
+    def test_medium_token_format_full(self):
+        self.assertEqual(
+            'medium/v1alpha:('
+            "('~dirname', '/a'), "
+            "('album', 'an album'), "
+            "('albumartist', 'an album artist'), "
+            "('musicbrainz_albumid', 'ef83d7bf-10c3-448b-810d-16c3d1f0ce88'), "
+            "('~parsed_discnumber', '1'))",
+            str(
+                entity.Track(tags=tag.Tags({
+                    tag.DIRNAME: ('/a',),
+                    tag.ALBUM: ('an album',),
+                    tag.ALBUMARTIST: ('an album artist',),
+                    tag.MUSICBRAINZ_ALBUMID: (
+                        'ef83d7bf-10c3-448b-810d-16c3d1f0ce88',),
+                    tag.DISCNUMBER: ('1',),
+                }).derive()).medium_token),
+        )
+
+    def test_album_token_format_minimal(self):
+        self.assertEqual(
+            "album/v1alpha:(('~dirname', '/a'),)",
+            str(
+                entity.Track(
+                    tags=tag.Tags({tag.DIRNAME: ('/a',)})).album_token),
+        )
+
+    def test_album_token_format_full(self):
+        self.assertEqual(
+            'album/v1alpha:('
+            "('~dirname', '/a'), "
+            "('album', 'an album'), "
+            "('albumartist', 'an album artist'), "
+            "('musicbrainz_albumid', 'ef83d7bf-10c3-448b-810d-16c3d1f0ce88'))",
+            str(
+                entity.Track(tags=tag.Tags({
+                    tag.DIRNAME: ('/a',),
+                    tag.ALBUM: ('an album',),
+                    tag.ALBUMARTIST: ('an album artist',),
+                    tag.MUSICBRAINZ_ALBUMID: (
+                        'ef83d7bf-10c3-448b-810d-16c3d1f0ce88',),
+                    tag.DISCNUMBER: ('1',),
+                }).derive()).album_token),
+        )
+
     def test_track_token_different(self):
         self.assertNotEqual(
-            entity.Track(tags=tag.Tags({tag.FILENAME: '/a/b'})).token,
-            entity.Track(tags=tag.Tags({tag.FILENAME: '/a/c'})).token,
+            entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)})).token,
+            entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/c',)})).token,
         )
 
     def test_album_and_medium_token_same(self):

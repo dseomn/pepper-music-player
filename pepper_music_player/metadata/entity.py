@@ -20,6 +20,34 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token as metadata_token
 
 
+def _token_str(
+        token_type: str,
+        token_version: str,
+        tag_data: tag.Tags,
+        *token_tags: tag.Tag,
+) -> str:
+    """Returns a token string from tags.
+
+    This function should minimize the situations in which token_version has to
+    change, by allowing as many code changes as possible without affecting
+    existing tokens. E.g., it includes the tag names so that a track token based
+    on the filename can stay valid if we later add track tokens based on
+    streaming URLs in additon.
+
+    Args:
+        token_type: What this token is for.
+        token_version: Version of this token. If the token string changes for
+            the same entity, this should change too.
+        tag_data: Tags to get data from for the token.
+        *token_tags: Which tags go into the token.
+    """
+    token_tag_pairs = []
+    for token_tag in token_tags:
+        token_tag_pairs.extend((token_tag.name, value)
+                               for value in sorted(tag_data.get(token_tag, ())))
+    return f'{token_type}/{token_version}:{tuple(token_tag_pairs)!r}'
+
+
 @dataclasses.dataclass(frozen=True)
 class Track:
     """A track.
@@ -38,40 +66,26 @@ class Track:
                                                           repr=False)
 
     def __post_init__(self) -> None:
+        # TODO(#20): Change versions to v1.
         object.__setattr__(
-            self,
-            'token',
+            self, 'token',
             metadata_token.Track(
-                repr((
-                    'track/v1alpha',  # TODO(#20): Change to v1.
-                    self.tags.get(tag.FILENAME, ()),
-                ))),
-        )
-        album_token_fields = (
-            self.tags.get(tag.DIRNAME, ()),
-            self.tags.get(tag.ALBUM, ()),
-            self.tags.get(tag.ALBUMARTIST, ()),
-            self.tags.get(tag.MUSICBRAINZ_ALBUMID, ()),
+                _token_str('track', 'v1alpha', self.tags, tag.FILENAME)))
+        album_token_tags = (
+            tag.DIRNAME,
+            tag.ALBUM,
+            tag.ALBUMARTIST,
+            tag.MUSICBRAINZ_ALBUMID,
         )
         object.__setattr__(
-            self,
-            'medium_token',
+            self, 'medium_token',
             metadata_token.Medium(
-                repr((
-                    'medium/v1alpha',  # TODO(#20): Change to v1.
-                    *album_token_fields,
-                    self.tags.get(tag.PARSED_DISCNUMBER, ()),
-                ))),
-        )
+                _token_str('medium', 'v1alpha', self.tags, *album_token_tags,
+                           tag.PARSED_DISCNUMBER)))
         object.__setattr__(
-            self,
-            'album_token',
+            self, 'album_token',
             metadata_token.Album(
-                repr((
-                    'album/v1alpha',  # TODO(#20): Change to v1.
-                    *album_token_fields,
-                ))),
-        )
+                _token_str('album', 'v1alpha', self.tags, *album_token_tags)))
 
 
 # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
