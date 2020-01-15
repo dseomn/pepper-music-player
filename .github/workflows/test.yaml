@@ -103,13 +103,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v1
       with:
-        name: test-artifacts-macos-latest-python3.7
-    - uses: actions/download-artifact@v1
-      with:
         name: test-artifacts-macos-latest-python3.8
-    - uses: actions/download-artifact@v1
-      with:
-        name: test-artifacts-ubuntu-latest-python3.7
     - uses: actions/download-artifact@v1
       with:
         name: test-artifacts-ubuntu-latest-python3.8
