@@ -1,0 +1,48 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+core.workflow(
+    name = "default",
+    mode = "SQUASH",
+    authoring = authoring.overwrite(
+        # TODO(dseomn): This probably shouldn't be hardcoded to my own name and
+        # email address.
+        "David Mandelberg <dseomn@google.com>",
+    ),
+    origin = git.github_origin(
+        url = "https://github.com/google/styleguide",
+        ref = "gh-pages",
+    ),
+    origin_files = glob(
+        include = [
+            "LICENSE",
+            "pylintrc",
+        ],
+    ),
+    destination = git.github_pr_destination(
+        url = "https://github.com/dseomn/pepper-music-player",
+    ),
+    destination_files = glob(
+        include = ["third_party/google-styleguide/**"],
+        exclude = [
+            "third_party/google-styleguide/copy.bara.sky",
+            "third_party/google-styleguide/patches/**",
+        ],
+    ),
+    transformations = [
+        core.move("", "third_party/google-styleguide"),
+        patch.apply(series="patches/series"),
+    ],
+)

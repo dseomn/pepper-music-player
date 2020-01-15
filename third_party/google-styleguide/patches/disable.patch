@@ -1,0 +1,21 @@
+diff --git i/third_party/google-styleguide/pylintrc w/third_party/google-styleguide/pylintrc
+index c36c30c..878e253 100644
+--- i/third_party/google-styleguide/pylintrc
++++ w/third_party/google-styleguide/pylintrc
+@@ -93,6 +93,8 @@ disable=apply-builtin,
+         next-method-called,
+         next-method-defined,
+         no-absolute-import,
++        no-else-raise,
++        no-else-return,
+         no-member,
+         no-self-use,
+         nonzero-method,
+@@ -132,6 +134,7 @@ disable=apply-builtin,
+         unpacking-in-except,
+         useless-suppression,
+         using-cmp-argument,
++        wrong-import-position,  # https://github.com/PyCQA/pylint/issues/3349
+         xrange-builtin,
+         zip-builtin-not-iterating,
+ 

@@ -1,0 +1,14 @@
+diff --git i/third_party/google-styleguide/pylintrc w/third_party/google-styleguide/pylintrc
+index 878e253..9ab3510 100644
+--- i/third_party/google-styleguide/pylintrc
++++ w/third_party/google-styleguide/pylintrc
+@@ -264,7 +264,8 @@ max-line-length=80
+ # Regexp for a line that is allowed to be longer than the limit.
+ ignore-long-lines=(?x)(
+   ^\s*(\#\ )?<?https?://\S+>?$|
+-  ^\s*(from\s+\S+\s+)?import\s+.+$)
++  ^\s*(from\s+\S+\s+)?import\s+.+$|
++  \#\s*(pytype|yapf):)
+ 
+ # Allow the body of an if to be on the same line as the test if there is no
+ # else.
