@@ -19,6 +19,7 @@ import itertools
 import os
 import sqlite3
 import threading
+import typing
 from typing import ContextManager, Generator, NewType, Optional, Tuple, Type, TypeVar
 
 
@@ -133,7 +134,21 @@ class Database:
         else:
             self._connection.commit()
 
-    def snapshot(self) -> ContextManager[Snapshot]:
+    # TODO(https://github.com/PyCQA/pylint/issues/3350): Remove pylint disable.
+    @typing.overload
+    def snapshot(self, snapshot: None = None) -> ContextManager[Snapshot]:  # pylint: disable=missing-function-docstring
+        pass
+
+    # TODO(https://github.com/PyCQA/pylint/issues/3350): Remove pylint disable.
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    @typing.overload
+    def snapshot(  # pylint: disable=missing-function-docstring
+            self,
+            snapshot: AbstractSnapshot,
+    ) -> ContextManager[AbstractSnapshot]:  # yapf: disable
+        pass
+
+    def snapshot(self, snapshot=None):
         """Returns a context manager around a snapshot (read-only transaction).
 
         Unfortunately, sqlite3 does not seem to provide true read-only
@@ -141,12 +156,31 @@ class Database:
         below if you want a read-write transaction. Hopefully the name of this
         function will make it clear when snapshots are being accidentally used
         for writing.
-        """
-        return self._transaction('DEFERRED', Snapshot)
 
-    def transaction(self) -> ContextManager[Transaction]:
-        """Returns a context manager around a read-write transaction."""
-        return self._transaction('EXCLUSIVE', Transaction)
+        Args:
+            snapshot: An existing snapshot to reuse instead of starting another
+                one.
+        """
+        if snapshot is None:
+            return self._transaction('DEFERRED', Snapshot)
+        else:
+            return contextlib.nullcontext(snapshot)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def transaction(
+            self,
+            transaction: Optional[Transaction] = None,
+    ) -> ContextManager[Transaction]:  # yapf: disable
+        """Returns a context manager around a read-write transaction.
+
+        Args:
+            transaction: An existing transaction to reuse instead of starting
+                another one.
+        """
+        if transaction is None:
+            return self._transaction('EXCLUSIVE', Transaction)
+        else:
+            return contextlib.nullcontext(transaction)
 
     def reset(self) -> None:
         """(Re)sets the database to its initial, empty state."""

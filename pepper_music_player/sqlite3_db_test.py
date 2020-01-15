@@ -86,6 +86,16 @@ class DatabaseTest(unittest.TestCase):
         with self._db.snapshot() as snapshot:
             self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
 
+    def test_reuse_snapshot(self):
+        with self._db.snapshot() as snapshot:
+            with self._db.snapshot(snapshot) as reused:
+                self.assertIs(snapshot, reused)
+
+    def test_reuse_transaction(self):
+        with self._db.transaction() as transaction:
+            with self._db.transaction(transaction) as reused:
+                self.assertIs(transaction, reused)
+
 
 if __name__ == '__main__':
     unittest.main()
