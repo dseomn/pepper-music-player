@@ -25,12 +25,15 @@ from pepper_music_player.metadata import token
 
 
 class DatabaseTest(unittest.TestCase):
+    REVERSE_UNORDERED_SELECTS = False
 
     def setUp(self):
         super().setUp()
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
-        self._database = database.Database(database_dir=tempdir.name)
+        self._database = database.Database(
+            database_dir=tempdir.name,
+            reverse_unordered_selects=self.REVERSE_UNORDERED_SELECTS)
         self._database.reset()
 
     def test_reset_deletes_data(self):
@@ -233,6 +236,10 @@ class DatabaseTest(unittest.TestCase):
         self.assertEqual(
             (medium_undefined, medium1, medium2),
             self._database.album(medium_undefined.album_token).mediums)
+
+
+class DatabaseReverseUnorderedSelectsTest(DatabaseTest):
+    REVERSE_UNORDERED_SELECTS = True
 
 
 if __name__ == '__main__':

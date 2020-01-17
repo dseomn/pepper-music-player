@@ -137,13 +137,19 @@ class Database:
             self,
             *,
             database_dir: str,
+            reverse_unordered_selects: bool = False,
     ) -> None:
         """Initializer.
 
         Args:
             database_dir: Directory containing databases.
+            reverse_unordered_selects: For tests only, see sqlite3_db.Database.
         """
-        self._db = sqlite3_db.Database(_SCHEMA, database_dir=database_dir)
+        self._db = sqlite3_db.Database(
+            _SCHEMA,
+            database_dir=database_dir,
+            reverse_unordered_selects=reverse_unordered_selects,
+        )
 
     def reset(self) -> None:
         """(Re)sets the library to its initial, empty state."""
