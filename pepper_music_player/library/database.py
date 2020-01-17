@@ -27,6 +27,10 @@ from pepper_music_player.metadata import token
 from pepper_music_player import sqlite3_db
 
 
+# TODO(#20): What are the implications of changing the allowed entity types on
+# data format stability? Does the schema version need to be bumped on any change
+# to the allowed types? Or can the code be adapted to tolerate type changes
+# without version changes?
 class _EntityType(enum.Enum):
     TRACK = 'track'
     MEDIUM = 'medium'
