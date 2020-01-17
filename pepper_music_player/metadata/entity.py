@@ -43,8 +43,8 @@ def _token_str(
     """
     token_tag_pairs = []
     for token_tag in token_tags:
-        token_tag_pairs.extend((token_tag.name, value)
-                               for value in sorted(tag_data.get(token_tag, ())))
+        token_tag_pairs.extend(
+            (token_tag.name, value) for value in tag_data.get(token_tag, ()))
     return f'{token_type}/{token_version}:{tuple(token_tag_pairs)!r}'
 
 
