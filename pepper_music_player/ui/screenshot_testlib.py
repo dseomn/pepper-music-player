@@ -22,6 +22,8 @@ from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+from pepper_music_player.ui import application
+
 
 def _screenshot(
         window: Gtk.OffscreenWindow,
@@ -66,6 +68,7 @@ def register_widget(
             module.
         widget: Widget to take a screenshot of.
     """
+    application.install_css()
     window = Gtk.OffscreenWindow()
     window.add(widget)
     window.show_all()

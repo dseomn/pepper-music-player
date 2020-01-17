@@ -21,6 +21,7 @@ from pepper_music_player.ui import application
 
 
 def main() -> None:
+    application.install_css()
     application.window().show_all()
     Gtk.main()
 

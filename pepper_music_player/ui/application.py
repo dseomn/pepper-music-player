@@ -14,10 +14,31 @@
 """Main application window."""
 
 import gi
+gi.require_version('Gdk', '3.0')
+from gi.repository import Gdk
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.ui import load
+
+# Unfortunately, GTK doesn't seem to support dependency injection very well, so
+# this global variable ensures the application CSS is installed at most once.
+# GTK already requires all calls to it to be in a single thread, so this
+# shouldn't make the thread-safety situation any worse at least.
+_css_installed = False
+
+
+def install_css() -> None:
+    """Installs the application's CSS, if it isn't already installed."""
+    global _css_installed  # pylint: disable=global-statement
+    if _css_installed:
+        return
+    css = Gtk.CssProvider()
+    css.load_from_data(
+        load.get_resource('pepper_music_player.ui', 'application.css'))
+    Gtk.StyleContext.add_provider_for_screen(
+        Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    _css_installed = True
 
 
 def window() -> Gtk.ApplicationWindow:

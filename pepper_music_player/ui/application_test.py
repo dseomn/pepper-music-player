@@ -26,6 +26,12 @@ from pepper_music_player.ui import application
 
 class ApplicationTest(unittest.TestCase):
 
+    def test_install_css_does_not_raise_exceptions(self):
+        # The function is called twice since it has a separate code path if the
+        # css is already installed.
+        application.install_css()
+        application.install_css()
+
     def test_exit_stops_main_loop(self):
         window = application.window()
         window.show_all()
