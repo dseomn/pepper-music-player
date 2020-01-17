@@ -20,8 +20,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 
-def builder_from_resource(package: str, resource: str) -> Gtk.Builder:
-    """Returns a builder from a python resource.
+def get_resource(package: str, resource: str) -> bytes:
+    """Returns the contents of a python resource.
 
     Args:
         package: Package to load from, e.g., 'pepper_music_player.ui'.
@@ -30,6 +30,16 @@ def builder_from_resource(package: str, resource: str) -> Gtk.Builder:
     resource_bytes = pkgutil.get_data(package, resource)
     if resource_bytes is None:
         raise RuntimeError("The package loader doesn't support get_data().")
+    return resource_bytes
+
+
+def builder_from_resource(package: str, resource: str) -> Gtk.Builder:
+    """Returns a builder from a python resource.
+
+    Args:
+        package: Package to load from, e.g., 'pepper_music_player.ui'.
+        resource: Filename within the package.
+    """
     builder = Gtk.Builder()
-    builder.add_from_string(resource_bytes.decode())
+    builder.add_from_string(get_resource(package, resource).decode())
     return builder

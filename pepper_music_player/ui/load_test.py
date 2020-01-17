@@ -18,6 +18,14 @@ import unittest
 from pepper_music_player.ui import load
 
 
+class GetResourceTest(unittest.TestCase):
+
+    def test_returns_data(self):
+        self.assertEqual(
+            b'foo\n',
+            load.get_resource('pepper_music_player.ui', 'load_test.txt'))
+
+
 class BuilderFromResourceTest(unittest.TestCase):
 
     def test_returns_builder(self):
