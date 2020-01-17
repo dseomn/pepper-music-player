@@ -53,6 +53,8 @@ class DatabaseTest(unittest.TestCase):
         self.addCleanup(tempdir.cleanup)
         self._db = sqlite3_db.Database(_SCHEMA, database_dir=tempdir.name)
         self._db.reset()
+        self._db_reverse_unordered_select = sqlite3_db.Database(
+            _SCHEMA, database_dir=tempdir.name, reverse_unordered_selects=True)
 
     def test_reset_deletes_data(self):
         with self._db.transaction() as transaction:
@@ -95,6 +97,20 @@ class DatabaseTest(unittest.TestCase):
         with self._db.transaction() as transaction:
             with self._db.transaction(transaction) as reused:
                 self.assertIs(transaction, reused)
+
+    def test_reverse_unordered_select(self):
+        with self._db.transaction() as transaction:
+            transaction.execute("""
+                INSERT INTO Test (foo, bar)
+                VALUES ('foo1', 'bar1'), ('foo2', 'bar2')
+            """)
+        with self._db.snapshot() as snapshot:
+            normal_order = snapshot.execute(
+                'SELECT foo, bar FROM Test').fetchall()
+        with self._db_reverse_unordered_select.snapshot() as snapshot:
+            reverse_order = snapshot.execute(
+                'SELECT foo, bar FROM Test').fetchall()
+        self.assertSequenceEqual(normal_order, tuple(reversed(reverse_order)))
 
 
 if __name__ == '__main__':

@@ -79,18 +79,24 @@ class Database:
             schema: Schema,
             *,
             database_dir: str,
+            reverse_unordered_selects: bool = False,
     ) -> None:
         """Initializer.
 
         Args:
             schema: Schema for the database.
             database_dir: Directory containing databases.
+            reverse_unordered_selects: See
+                https://www.sqlite.org/pragma.html#pragma_reverse_unordered_selects.
+                This is probably only useful for tests to make sure they're not
+                relying on undefined ordering of SQL queries.
         """
         # TODO(dseomn): Change database_dir to Optional[str], where None
         # indicates to use the default directory.
         self._filename = os.path.join(
             database_dir, f'{schema.name}.{schema.version}.sqlite3')
         self._schema = schema
+        self._reverse_unordered_selects = reverse_unordered_selects
         self._local = threading.local()
 
     @property
@@ -102,6 +108,9 @@ class Database:
                                                      isolation_level=None)
             self._local.connection.execute('PRAGMA journal_mode=WAL')
             self._local.connection.execute('PRAGMA foreign_keys=ON')
+            if self._reverse_unordered_selects:
+                self._local.connection.execute(
+                    'PRAGMA reverse_unordered_selects=ON')
         return self._local.connection
 
     @contextlib.contextmanager
