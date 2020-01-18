@@ -18,7 +18,16 @@
   opacity: 0.5;
 }
 
-.track,
-.track label {
+/* Keep columns in nested lists aligned with columns in their parent lists. */
+.card-list list,
+.card-list list row {
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.card-list > row > *,
+.card-list > row > * label {
   padding: 0 0.25em;
 }

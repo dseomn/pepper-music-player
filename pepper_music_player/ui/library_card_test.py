@@ -65,7 +65,11 @@ class LibraryCardTest(unittest.TestCase):
     def _insert_track(
             self,
             *,
+            album='Amazing Hits',
+            albumartist='Pop Star',
             discnumber='1',
+            media=None,
+            discsubtitle=None,
             tracknumber='1',
             title='Cool Song',
             artist='Pop Star',
@@ -87,7 +91,11 @@ class LibraryCardTest(unittest.TestCase):
         }
         # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
         for name, value in (
+                ('album', album),
+                ('albumartist', albumartist),
                 ('discnumber', discnumber),
+                ('media', media),
+                ('discsubtitle', discsubtitle),
                 ('tracknumber', tracknumber),
                 ('title', title),
                 ('artist', artist),
@@ -103,6 +111,22 @@ class LibraryCardTest(unittest.TestCase):
             track=track,
         ),))
         return track
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _insert_medium(
+            self,
+            *,
+            track_count=3,
+            **kwargs,
+    ):  # yapf: disable
+        """Inserts a medium into the database and returns the token."""
+        for tracknumber in range(1, track_count + 1):
+            track = self._insert_track(
+                tracknumber=str(tracknumber),
+                title=f'Cool Song #{tracknumber}',
+                **kwargs,
+            )
+        return track.medium_token
 
     def test_track_ltr(self):
         self._set_tokens(
@@ -139,7 +163,80 @@ class LibraryCardTest(unittest.TestCase):
         screenshot_testlib.register_widget(__name__, 'test_track_long',
                                            self._library_card_list.widget)
 
-    def test_track_alignment(self):
+    def test_medium_header(self):
+        # TODO(dseomn): Figure out an easy way to test the contents of the
+        # medium header without relying on screenshot tests or using a private
+        # function.
+        # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
+        for header, tags in (
+                (None, {}),
+                (
+                    'Medium: Foo',
+                    {
+                        tag.DISCSUBTITLE: ('Foo',),
+                    },
+                ),
+                (
+                    'Medium 2',
+                    {
+                        tag.PARSED_DISCNUMBER: (2,),
+                    },
+                ),
+                (
+                    'Medium 2: Foo',
+                    {
+                        tag.PARSED_DISCNUMBER: (2,),
+                        tag.DISCSUBTITLE: ('Foo',),
+                    },
+                ),
+                (
+                    'CD',
+                    {
+                        tag.MEDIA: ('CD',),
+                    },
+                ),
+                (
+                    'CD: Foo',
+                    {
+                        tag.MEDIA: ('CD',),
+                        tag.DISCSUBTITLE: ('Foo',),
+                    },
+                ),
+                (
+                    'CD 2',
+                    {
+                        tag.MEDIA: ('CD',),
+                        tag.PARSED_DISCNUMBER: (2,),
+                    },
+                ),
+                (
+                    'CD 2: Foo',
+                    {
+                        tag.MEDIA: ('CD',),
+                        tag.PARSED_DISCNUMBER: (2,),
+                        tag.DISCSUBTITLE: ('Foo',),
+                    },
+                ),
+        ):  # yapf: disable
+            with self.subTest(header=header, tags=tags):
+                self.assertEqual(
+                    header,
+                    library_card._medium_header(tag.Tags(tags)),  # pylint: disable=protected-access
+                )
+
+    def test_medium_no_header(self):
+        self._set_tokens(self._insert_medium(discnumber=None))
+        screenshot_testlib.register_widget(__name__, 'test_medium_no_header',
+                                           self._library_card_list.widget)
+
+    def test_medium_with_header(self):
+        self._set_tokens(
+            self._insert_medium(media='Digital Media',
+                                discsubtitle='Best Disc'))
+        screenshot_testlib.register_widget(__name__, 'test_medium_with_header',
+                                           self._library_card_list.widget)
+
+    def test_alignment(self):
         self._set_tokens(
             self._insert_track(
                 discnumber=None,
@@ -158,8 +255,9 @@ class LibraryCardTest(unittest.TestCase):
                 tracknumber='456',
                 duration_seconds='12345',
             ).token,
+            self._insert_medium(),
         )
-        screenshot_testlib.register_widget(__name__, 'test_track_alignment',
+        screenshot_testlib.register_widget(__name__, 'test_alignment',
                                            self._library_card_list.widget)
 
 

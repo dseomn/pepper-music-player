@@ -13,6 +13,8 @@
 # limitations under the License.
 """Cards for things in the library, and lists of those cards."""
 
+from typing import Optional
+
 import gi
 gi.require_version('GLib', '2.0')
 from gi.repository import GLib
@@ -59,6 +61,21 @@ def _fill_aligned_numerical_label(
         f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
 
 
+def _medium_header(tags: tag.Tags) -> Optional[str]:
+    """Returns the medium header, e.g., 'CD 1: Disc Title'."""
+    media = tags.singular(tag.MEDIA, default='', separator=' / ')
+    number = tags.one_or_none(tag.PARSED_DISCNUMBER)
+    title = tags.singular(tag.DISCSUBTITLE, default='')
+    if any((media, number, title)):
+        return ''.join((
+            media or 'Medium',
+            f' {number}' if number else '',
+            f': {title}' if title else '',
+        ))
+    else:
+        return None
+
+
 class List:
     """List of library cards.
 
@@ -87,17 +104,26 @@ class List:
         self.store = Gio.ListStore.new(ListItem.__gtype__)
         self.widget.bind_model(self.store, self._card)
 
-    def _track(self, track: entity.Track) -> Gtk.Widget:
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _track(
+            self,
+            track: entity.Track,
+            *,
+            show_discnumber: bool = True,
+    ) -> Gtk.Widget:  # yapf: disable
         """Returns a track widget."""
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_track.glade')
-        # TODO(dseomn): Show a blank discnumber if it's part of a Medium
-        # widget.
-        _fill_aligned_numerical_label(
-            builder.get_object('discnumber'),
-            self._discnumber_size_group,
-            track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
-        )
+        discnumber_widget = builder.get_object('discnumber')
+        if show_discnumber:
+            _fill_aligned_numerical_label(
+                discnumber_widget,
+                self._discnumber_size_group,
+                track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
+            )
+        else:
+            discnumber_widget.set_no_show_all(True)
+            discnumber_widget.hide()
         _fill_aligned_numerical_label(
             builder.get_object('tracknumber'),
             self._tracknumber_size_group,
@@ -116,11 +142,34 @@ class List:
         )
         return builder.get_object('track')
 
+    def _medium(self, medium: entity.Medium) -> Gtk.Widget:
+        """Returns a medium widget."""
+        builder = load.builder_from_resource('pepper_music_player.ui',
+                                             'library_card_medium.glade')
+        # TODO(dseomn): Add album information if this is not part of an album
+        # card.
+        self._discnumber_size_group.add_widget(
+            builder.get_object('discnumber_placeholder'))
+        header = _medium_header(medium.tags)
+        header_widget = builder.get_object('header')
+        if header:
+            header_widget.set_text(header)
+        else:
+            header_widget.set_no_show_all(True)
+            header_widget.hide()
+        tracks = builder.get_object('tracks')
+        for track in medium.tracks:
+            tracks.insert(self._track(track, show_discnumber=False),
+                          position=-1)
+        return builder.get_object('medium')
+
     def _card(self, item: ListItem) -> Gtk.Widget:
         """Returns a card widget for the given list item."""
         # TODO(dseomn): Add card types for Albums and Mediums.
         if isinstance(item.library_token, token.Track):
             return self._track(self._library_db.track(item.library_token))
+        elif isinstance(item.library_token, token.Medium):
+            return self._medium(self._library_db.medium(item.library_token))
         else:
             raise ValueError(
                 f'Unknown library token type: {item.library_token}')
