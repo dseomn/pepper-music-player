@@ -101,7 +101,7 @@ class WidgetFactory:
             self._duration_size_group,
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
-        return builder.get_object('track_card')
+        return builder.get_object('track')
 
     def build(self, item: ListItem) -> Gtk.Widget:
         """Returns a card widget for the given list item."""
