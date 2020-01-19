@@ -40,5 +40,13 @@
 
 .card-list > row > *,
 .card-list > row > * label {
-  padding: 0 0.25em;
+  padding: 0 0.25rem;
+}
+
+.album > label {
+  font-size: larger;
+}
+
+.album .medium {
+  margin-top: 18px;
 }

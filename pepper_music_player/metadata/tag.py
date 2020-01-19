@@ -148,6 +148,7 @@ class IndexOrTotalTag(DerivedTag):
 ALBUM = Tag('album')
 ALBUMARTIST = Tag('albumartist')
 ARTIST = Tag('artist')
+DATE = Tag('date')
 DISCNUMBER = Tag('discnumber')  # Prefer PARSED_DISCNUMBER below.
 DISCTOTAL = Tag('disctotal')  # Prefer PARSED_TOTALDISCS below.
 DISCSUBTITLE = Tag('discsubtitle')

@@ -73,6 +73,7 @@ class LibraryCardTest(unittest.TestCase):
             tracknumber='1',
             title='Cool Song',
             artist='Pop Star',
+            date=None,
             duration_seconds='123.4',
     ):  # yapf: disable
         """Inserts a track into the database and returns the new track."""
@@ -81,6 +82,7 @@ class LibraryCardTest(unittest.TestCase):
             tracknumber or '',
             title or '',
             artist or '',
+            album or '',
         ))
         dirname = '/a'
         filename = f'{dirname}/{basename}'
@@ -99,6 +101,7 @@ class LibraryCardTest(unittest.TestCase):
                 ('tracknumber', tracknumber),
                 ('title', title),
                 ('artist', artist),
+                ('date', date),
                 ('~duration_seconds', duration_seconds),
         ):  # yapf: disable
             if value is not None:
@@ -127,6 +130,39 @@ class LibraryCardTest(unittest.TestCase):
                 **kwargs,
             )
         return track.medium_token
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _insert_album(
+            self,
+            *,
+            medium_count=2,
+            track_count=3,
+            artists=None,
+            **kwargs,
+    ):  # yapf: disable
+        """Inserts an album into the database and returns the token.
+
+        Args:
+            medium_count: How many mediums to put on the album.
+            track_count: How many tracks to put on each medium.
+            artists: Iterable of artists to use for each track (on every
+                medium), or None to use the default.
+            **kwargs: Extra arguments to _insert_track().
+        """
+        for discnumber in range(1, medium_count + 1):
+            for tracknumber in range(1, track_count + 1):
+                extra_kwargs = {}
+                if artists is not None:
+                    extra_kwargs['artist'] = artists[tracknumber - 1]
+                track = self._insert_track(
+                    tracknumber=str(tracknumber),
+                    title=f'Cool Song #{tracknumber}',
+                    discnumber=str(discnumber),
+                    discsubtitle=f'Sweet Disc #{discnumber}',
+                    **extra_kwargs,
+                    **kwargs,
+                )
+        return track.album_token
 
     def test_track_ltr(self):
         self._set_tokens(
@@ -236,6 +272,17 @@ class LibraryCardTest(unittest.TestCase):
         screenshot_testlib.register_widget(__name__, 'test_medium_with_header',
                                            self._library_card_list.widget)
 
+    def test_album(self):
+        self._set_tokens(
+            self._insert_album(
+                albumartist='Pop Star',
+                track_count=3,
+                artists=('Pop Star', 'Pop Star feat. Friend', 'Pop Star'),
+                date='2020-01-19',
+            ))
+        screenshot_testlib.register_widget(__name__, 'test_album',
+                                           self._library_card_list.widget)
+
     def test_alignment(self):
         self._set_tokens(
             self._insert_track(
@@ -255,7 +302,8 @@ class LibraryCardTest(unittest.TestCase):
                 tracknumber='456',
                 duration_seconds='12345',
             ).token,
-            self._insert_medium(),
+            self._insert_medium(album='Standalone Medium'),
+            self._insert_album(album='Even Better Top Greatest Hits'),
         )
         screenshot_testlib.register_widget(__name__, 'test_alignment',
                                            self._library_card_list.widget)

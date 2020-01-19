@@ -97,6 +97,7 @@ class List:
             Gtk.SizeGroupMode.HORIZONTAL)
         self._duration_size_group = Gtk.SizeGroup.new(
             Gtk.SizeGroupMode.HORIZONTAL)
+        self._date_size_group = Gtk.SizeGroup.new(Gtk.SizeGroupMode.HORIZONTAL)
         self.widget: Gtk.ListBox = load.builder_from_resource(
             'pepper_music_player.ui',
             'library_card_list.glade',
@@ -109,6 +110,7 @@ class List:
             self,
             track: entity.Track,
             *,
+            albumartist: str = '',
             show_discnumber: bool = True,
     ) -> Gtk.Widget:  # yapf: disable
         """Returns a track widget."""
@@ -132,9 +134,13 @@ class List:
         # TODO(https://discourse.gnome.org/t/is-there-any-way-to-align-a-gtklabel-at-the-horizontal-start-based-on-text-direction/2429):
         # Align RTL text correctly.
         builder.get_object('title').set_text(track.tags.singular(tag.TITLE))
-        # TODO(dseomn): Don't show the artist if it's part of an Album widget
-        # and the artist is the same as the albumartist.
-        builder.get_object('artist').set_text(track.tags.singular(tag.ARTIST))
+        artist = track.tags.singular(tag.ARTIST)
+        artist_widget = builder.get_object('artist')
+        if artist != albumartist:
+            artist_widget.set_text(track.tags.singular(tag.ARTIST))
+        else:
+            artist_widget.set_no_show_all(True)
+            artist_widget.hide()
         _fill_aligned_numerical_label(
             builder.get_object('duration'),
             self._duration_size_group,
@@ -142,7 +148,12 @@ class List:
         )
         return builder.get_object('track')
 
-    def _medium(self, medium: entity.Medium) -> Gtk.Widget:
+    def _medium(
+            self,
+            medium: entity.Medium,
+            *,
+            albumartist: str = '',
+    ) -> Gtk.Widget:
         """Returns a medium widget."""
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_medium.glade')
@@ -159,9 +170,29 @@ class List:
             header_widget.hide()
         tracks = builder.get_object('tracks')
         for track in medium.tracks:
-            tracks.insert(self._track(track, show_discnumber=False),
+            tracks.insert(self._track(track,
+                                      albumartist=albumartist,
+                                      show_discnumber=False),
                           position=-1)
         return builder.get_object('medium')
+
+    def _album(self, album: entity.Album) -> Gtk.Widget:
+        """Returns an album widget."""
+        builder = load.builder_from_resource('pepper_music_player.ui',
+                                             'library_card_album.glade')
+        builder.get_object('title').set_text(album.tags.singular(tag.ALBUM))
+        artist = album.tags.singular(tag.ALBUMARTIST, tag.ARTIST)
+        builder.get_object('artist').set_text(artist)
+        _fill_aligned_numerical_label(
+            builder.get_object('date'),
+            self._date_size_group,
+            album.tags.singular(tag.DATE, default=''),
+        )
+        mediums = builder.get_object('mediums')
+        for medium in album.mediums:
+            mediums.insert(self._medium(medium, albumartist=artist),
+                           position=-1)
+        return builder.get_object('album')
 
     def _card(self, item: ListItem) -> Gtk.Widget:
         """Returns a card widget for the given list item."""
@@ -170,6 +201,8 @@ class List:
             return self._track(self._library_db.track(item.library_token))
         elif isinstance(item.library_token, token.Medium):
             return self._medium(self._library_db.medium(item.library_token))
+        elif isinstance(item.library_token, token.Album):
+            return self._album(self._library_db.album(item.library_token))
         else:
             raise ValueError(
                 f'Unknown library token type: {item.library_token}')
