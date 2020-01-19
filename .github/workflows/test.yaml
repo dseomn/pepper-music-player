@@ -30,6 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TEST_ARTIFACT_DIR: ${{ github.workspace }}/test-artifacts
+      G_DEBUG: fatal-criticals
     steps:
     - uses: actions/checkout@v1
     - name: Install system dependencies (macOS)
