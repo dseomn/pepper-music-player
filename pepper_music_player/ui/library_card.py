@@ -137,7 +137,7 @@ class List:
         artist = track.tags.singular(tag.ARTIST)
         artist_widget = builder.get_object('artist')
         if artist != albumartist:
-            artist_widget.set_text(track.tags.singular(tag.ARTIST))
+            artist_widget.set_text(artist)
         else:
             artist_widget.set_no_show_all(True)
             artist_widget.hide()
