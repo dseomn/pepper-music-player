@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+.secondary {
+  opacity: 0.5;
+}
+
 .track,
 .track label {
   padding: 0 0.25em;
-}
-
-.track .secondary {
-  color: alpha(@theme_text_color, 0.5);
 }
