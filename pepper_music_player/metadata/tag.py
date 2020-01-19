@@ -266,20 +266,23 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
 
     def singular(
             self,
-            key: ArbitraryTag,
-            *,
+            *keys: ArbitraryTag,
             default: str = '[unknown]',
             separator: str = '; ',
     ) -> str:
-        """Returns a single value that represents all of the tag's values.
+        """Returns a single value that represents all of a tag's values.
 
         Args:
-            key: Which tag to look up.
+            *keys: Which tags to look up. These are checked in order, and the
+                first one that's present is used.
             default: What to return if there are no values.
             separator: What to put between values if there is more than one
                 value.
         """
-        return separator.join(self.get(key, (default,)))
+        for key in keys:
+            if key in self:
+                return separator.join(self[key])
+        return default
 
 
 def _compose_intersection(

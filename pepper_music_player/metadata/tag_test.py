@@ -224,9 +224,9 @@ class TagsTest(unittest.TestCase):
     def test_int_or_none_not_int(self):
         self.assertIs(None, tag.Tags({'foo': ('bar',)}).int_or_none('foo'))
 
-    def test_singular_with_zero(self):
+    def test_singular_no_value(self):
         self.assertEqual('[unknown]',
-                         tag.Tags({}).singular('a', default='[unknown]'))
+                         tag.Tags({}).singular('a', 'b', default='[unknown]'))
 
     def test_singular_with_one(self):
         self.assertEqual('foo', tag.Tags({'a': ('foo',)}).singular('a'))
@@ -238,6 +238,9 @@ class TagsTest(unittest.TestCase):
                 'a': ('foo', 'bar'),
             }).singular('a', separator='; '),
         )
+
+    def test_singular_fallback(self):
+        self.assertEqual('foo', tag.Tags({'b': ('foo',)}).singular('a', 'b'))
 
     def test_compose_empty(self):
         self.assertEqual(tag.Tags({}), tag.compose(()))
