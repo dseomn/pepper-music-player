@@ -18,6 +18,8 @@ gi.require_version('GLib', '2.0')
 from gi.repository import GLib
 gi.require_version('GObject', '2.0')
 from gi.repository import GObject
+gi.require_version('Gio', '2.0')
+from gi.repository import Gio
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
@@ -57,10 +59,15 @@ def _fill_aligned_numerical_label(
         f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
 
 
-class WidgetFactory:
-    """Factory to create library card widgets."""
+class List:
+    """List of library cards.
 
-    def __init__(self, library_db: database.Database):
+    Attributes:
+        widget: Widget showing the list.
+        store: Content in the list.
+    """
+
+    def __init__(self, library_db: database.Database) -> None:
         """Initializer.
 
         Args:
@@ -73,6 +80,12 @@ class WidgetFactory:
             Gtk.SizeGroupMode.HORIZONTAL)
         self._duration_size_group = Gtk.SizeGroup.new(
             Gtk.SizeGroupMode.HORIZONTAL)
+        self.widget: Gtk.ListBox = load.builder_from_resource(
+            'pepper_music_player.ui',
+            'library_card_list.glade',
+        ).get_object('library_card_list')
+        self.store = Gio.ListStore.new(ListItem.__gtype__)
+        self.widget.bind_model(self.store, self._card)
 
     def _track(self, track: entity.Track) -> Gtk.Widget:
         """Returns a track widget."""
@@ -103,7 +116,7 @@ class WidgetFactory:
         )
         return builder.get_object('track')
 
-    def build(self, item: ListItem) -> Gtk.Widget:
+    def _card(self, item: ListItem) -> Gtk.Widget:
         """Returns a card widget for the given list item."""
         # TODO(dseomn): Add card types for Albums and Mediums.
         if isinstance(item.library_token, token.Track):

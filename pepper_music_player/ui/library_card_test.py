@@ -18,6 +18,8 @@ import tempfile
 import unittest
 
 import gi
+gi.require_version('GLib', '2.0')
+from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
@@ -43,14 +45,24 @@ class LibraryCardTest(unittest.TestCase):
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
         self._library_db.reset()
-        self._factory = library_card.WidgetFactory(self._library_db)
+        self._library_card_list = library_card.List(self._library_db)
+
+    def _set_tokens(self, *tokens):
+        """Sets the tokens in self._library_card_list."""
+        self._library_card_list.store.splice(
+            0, 0, tuple(map(library_card.ListItem, tokens)))
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
 
     def test_unknown_token_type(self):
         with self.assertRaisesRegex(ValueError, 'Unknown library token type'):
-            self._factory.build(library_card.ListItem(_FakeLibraryToken('foo')))
+            # TODO(dseomn): Figure out how to test assertions within a Gtk.main
+            # loop, instead of using the private _card method.
+            self._library_card_list._card(  # pylint: disable=protected-access
+                library_card.ListItem(_FakeLibraryToken('foo')))
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
-    def _track_card(
+    def _insert_track(
             self,
             *,
             discnumber='1',
@@ -59,7 +71,20 @@ class LibraryCardTest(unittest.TestCase):
             artist='Pop Star',
             duration_seconds='123.4',
     ):  # yapf: disable
-        tags = {}
+        """Inserts a track into the database and returns the new track."""
+        basename = '-'.join((
+            discnumber or '',
+            tracknumber or '',
+            title or '',
+            artist or '',
+        ))
+        dirname = '/a'
+        filename = f'{dirname}/{basename}'
+        tags = {
+            '~basename': (basename,),
+            '~dirname': (dirname,),
+            '~filename': (filename,),
+        }
         # TODO(https://github.com/google/yapf/issues/792): Remove yapf disable.
         for name, value in (
                 ('discnumber', discnumber),
@@ -71,34 +96,28 @@ class LibraryCardTest(unittest.TestCase):
             if value is not None:
                 tags[name] = (value,)
         track = entity.Track(tags=tag.Tags(tags).derive())
-        basename = '-'.join((
-            discnumber or '',
-            tracknumber or '',
-            title or '',
-            artist or '',
-        ))
         self._library_db.insert_files((scan.AudioFile(
-            filename=f'/a/{basename}',
-            dirname='/a',
+            filename=filename,
+            dirname=dirname,
             basename=basename,
             track=track,
         ),))
-        return self._factory.build(library_card.ListItem(track.token))
+        return track
 
     def test_track_ltr(self):
-        screenshot_testlib.register_widget(
-            __name__, 'test_track_ltr',
-            self._track_card(title='Cool Song', artist='Pop Star'))
+        self._set_tokens(
+            self._insert_track(title='Cool Song', artist='Pop Star').token)
+        screenshot_testlib.register_widget(__name__, 'test_track_ltr',
+                                           self._library_card_list.widget)
 
     def test_track_rtl(self):
-        screenshot_testlib.register_widget(
-            __name__, 'test_track_rtl',
-            self._track_card(title='אבג', artist='أبجدهو'))
+        self._set_tokens(self._insert_track(title='אבג', artist='ﺄﺒﺟﺪﻫﻭ').token)
+        screenshot_testlib.register_widget(__name__, 'test_track_rtl',
+                                           self._library_card_list.widget)
 
     def test_track_long(self):
-        screenshot_testlib.register_widget(
-            __name__, 'test_track_long',
-            self._track_card(
+        self._set_tokens(
+            self._insert_track(
                 discnumber='123456',
                 tracknumber='5000000',
                 title=' '.join((
@@ -116,38 +135,32 @@ class LibraryCardTest(unittest.TestCase):
                     'أبجدية عربية',
                 )),
                 duration_seconds='12345',
-            ))
+            ).token)
+        screenshot_testlib.register_widget(__name__, 'test_track_long',
+                                           self._library_card_list.widget)
 
     def test_track_alignment(self):
-        box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 0)
-        box.pack_start(
-            self._track_card(discnumber=None,
-                             tracknumber=None,
-                             title=None,
-                             artist=None,
-                             duration_seconds=None),
-            False,
-            False,
-            0,
-        )
-        box.pack_start(
-            self._track_card(discnumber='2',
-                             tracknumber='5',
-                             duration_seconds='3'),
-            False,
-            False,
-            0,
-        )
-        box.pack_start(
-            self._track_card(discnumber='123',
-                             tracknumber='456',
-                             duration_seconds='12345'),
-            False,
-            False,
-            0,
+        self._set_tokens(
+            self._insert_track(
+                discnumber=None,
+                tracknumber=None,
+                title=None,
+                artist=None,
+                duration_seconds=None,
+            ).token,
+            self._insert_track(
+                discnumber='2',
+                tracknumber='5',
+                duration_seconds='3',
+            ).token,
+            self._insert_track(
+                discnumber='123',
+                tracknumber='456',
+                duration_seconds='12345',
+            ).token,
         )
         screenshot_testlib.register_widget(__name__, 'test_track_alignment',
-                                           box)
+                                           self._library_card_list.widget)
 
 
 if __name__ == '__main__':
