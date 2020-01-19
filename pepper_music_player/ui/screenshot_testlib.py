@@ -45,11 +45,13 @@ def _screenshot(
     if force_gtk_theme is not None:
         settings.set_property('gtk-theme-name', force_gtk_theme)
     settings.set_property('gtk-application-prefer-dark-theme', dark_theme)
+    settings.set_property('gtk-enable-animations', False)
     GLib.idle_add(Gtk.main_quit)
     Gtk.main()
     window.get_surface().write_to_png(filepath)
     settings.reset_property('gtk-theme-name')
     settings.reset_property('gtk-application-prefer-dark-theme')
+    settings.reset_property('gtk-enable-animations')
 
 
 def register_widget(
