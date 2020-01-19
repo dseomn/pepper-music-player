@@ -18,6 +18,17 @@
   opacity: 0.5;
 }
 
+/* TODO(dseomn): Use a different background color between the card list and the
+ * cards. */
+.card-list {
+  padding: 0.5em 0;
+}
+
+.card-list > row {
+  border: 0.1em @borders solid;
+  margin: 0.5em 1em;
+}
+
 /* Keep columns in nested lists aligned with columns in their parent lists. */
 .card-list list,
 .card-list list row {
