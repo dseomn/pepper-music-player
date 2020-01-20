@@ -161,6 +161,25 @@ class DatabaseTest(unittest.TestCase):
                                if isinstance(token_, token.Album)))
         self.assertEqual(album, self._database.album(album.token))
 
+    def test_search_limit(self):
+        track1 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file1',),
+        }).derive())
+        track2 = entity.Track(tags=tag.Tags({
+            tag.FILENAME: ('/dir1/file2',),
+        }).derive())
+        self._database.insert_files((
+            scan.AudioFile(filename='/dir1/file1',
+                           dirname='/dir1',
+                           basename='file1',
+                           track=track1),
+            scan.AudioFile(filename='/dir1/file2',
+                           dirname='/dir1',
+                           basename='file2',
+                           track=track2),
+        ))
+        self.assertEqual(1, len(self._database.search(limit=1)))
+
     def test_track_not_found(self):
         with self.assertRaises(KeyError):
             self._database.track(token.Track('foo'))

@@ -314,7 +314,11 @@ class Database:
             self._compose_tags(transaction, child_type=_EntityType.TRACK)
             self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
-    def search(self) -> Iterable[token.LibraryToken]:
+    def search(
+            self,
+            *,
+            limit: int = 100,
+    ) -> Iterable[token.LibraryToken]:
         """Searches for music in the library.
 
         TODO(dseomn): Add more function arguments to make this actually search
@@ -324,11 +328,15 @@ class Database:
         by entity ancestry, e.g., (album token, medium order in album, medium
         token, track order in medium, track token).
 
-        TODO(dseomn): Consider adding pagination. Figure out if (limit, offset)
-        style or (page_token, page_size) style makes more sense.
+        TODO(dseomn): Consider expanding the limit parameter into true
+        pagination. Figure out if (limit, offset) style or (page_token,
+        page_size) style makes more sense.
 
         TODO(dseomn): If an entity's ancestor is included in the search results,
         don't include the descendant entity's token in the results.
+
+        Args:
+            limit: Max number of results to return.
 
         Returns:
             Tokens for entities that match the search terms.
@@ -343,8 +351,16 @@ class Database:
         #           db.track(result)
         results = []
         with self._db.snapshot() as snapshot:
+            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
+            # disable.
             for token_str, token_type in snapshot.execute(
-                    'SELECT token, type FROM Entity'):
+                    """
+                    SELECT token, type
+                    FROM Entity
+                    LIMIT ?
+                    """,
+                    (limit,),
+            ):  # yapf: disable
                 results.append(_TYPE_NAME_TO_TOKEN_TYPE[token_type](token_str))
         return results
 
