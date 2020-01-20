@@ -24,6 +24,7 @@ jobs:
         os:
         - macos-latest
         - ubuntu-latest
+        - windows-latest
         python-version:
         - '3.7'
         - '3.8'
@@ -45,10 +46,35 @@ jobs:
         sudo apt-get install \
           gir1.2-gtk-3.0 \
           libgirepository1.0-dev
+    - name: windows debugging
+      if: runner.os == 'Windows'
+      run: |
+        Get-ChildItem Env: | Sort Name
+        dir $Env:VCPKG_INSTALLATION_ROOT
+    - name: Install system dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        vcpkg install gtk:x64-windows
+        vcpkg integrate install
+        dir $Env:VCPKG_INSTALLATION_ROOT
+        cmd /r dir /s C:\vcpkg\installed
+        #choco install --no-progress msys2
+        #C:\tools\msys64\mingw64.exe -defterm -no-start -c ^
+        #  "pacman -S --noconfirm mingw-w64-x86_64-gtk3 mingw-w64-x86_64-python3 mingw-w64-x86_64-python3-gobject"
     - uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Python dependencies
+    - name: Install Python dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        # See https://github.com/pygobject/pycairo/issues/149.
+        $Env:INCLUDE += ";C:\vcpkg\installed\x64-windows\include"
+        $Env:LIB += ";C:\vcpkg\installed\x64-windows\lib"
+        $Env:PATH += ";C:\vcpkg\installed\x64-windows\bin"
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Install Python dependencies (other)
+      if: runner.os != 'Windows'
       env:
         # Brew on macOS outputs a message to set these environment variables.
         LDFLAGS: '-L/usr/local/opt/libffi/lib'
@@ -109,6 +135,9 @@ jobs:
     - uses: actions/download-artifact@v1
       with:
         name: test-artifacts-ubuntu-latest-python3.8
+    - uses: actions/download-artifact@v1
+      with:
+        name: test-artifacts-windows-latest-python3.8
     - name: Upload screenshots to Percy
       env:
         PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
