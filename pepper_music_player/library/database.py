@@ -324,9 +324,10 @@ class Database:
         TODO(dseomn): Add more function arguments to make this actually search
         instead of returning everything.
 
-        TODO(dseomn): Consider adding sort options. Possibly default to sorting
-        by entity ancestry, e.g., (album token, medium order in album, medium
-        token, track order in medium, track token).
+        TODO(dseomn): Make sorting more sensible than always using a random
+        order. Possibly default to sorting by entity ancestry, e.g., (album
+        token, medium order in album, medium token, track order in medium, track
+        token).
 
         TODO(dseomn): Consider expanding the limit parameter into true
         pagination. Figure out if (limit, offset) style or (page_token,
@@ -357,6 +358,7 @@ class Database:
                     """
                     SELECT token, type
                     FROM Entity
+                    ORDER BY random()
                     LIMIT ?
                     """,
                     (limit,),
