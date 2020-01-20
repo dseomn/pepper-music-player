@@ -99,6 +99,7 @@ jobs:
         path: ${{ env.TEST_ARTIFACT_DIR }}
 
   percy:
+    if: github.event_name == 'schedule'
     needs: test
     runs-on: ubuntu-latest
     steps:
