@@ -46,17 +46,14 @@ class ListItem(GObject.Object):
 
 def _fill_aligned_numerical_label(
         label: Gtk.Label,
-        size_group: Gtk.SizeGroup,
         text: str,
 ) -> None:
     """Fills in a numerical label that's aligned with others of its type.
 
     Args:
         label: Label to fill in.
-        size_group: Group to add the label to.
         text: Text to put in the label.
     """
-    size_group.add_widget(label)
     label.set_markup(
         f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
 
@@ -91,13 +88,6 @@ class List:
             library_db: Library database.
         """
         self._library_db = library_db
-        self._discnumber_size_group = Gtk.SizeGroup.new(
-            Gtk.SizeGroupMode.HORIZONTAL)
-        self._tracknumber_size_group = Gtk.SizeGroup.new(
-            Gtk.SizeGroupMode.HORIZONTAL)
-        self._duration_size_group = Gtk.SizeGroup.new(
-            Gtk.SizeGroupMode.HORIZONTAL)
-        self._date_size_group = Gtk.SizeGroup.new(Gtk.SizeGroupMode.HORIZONTAL)
         self.widget: Gtk.ListBox = load.builder_from_resource(
             'pepper_music_player.ui',
             'library_card_list.glade',
@@ -120,7 +110,6 @@ class List:
         if show_discnumber:
             _fill_aligned_numerical_label(
                 discnumber_widget,
-                self._discnumber_size_group,
                 track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
             )
         else:
@@ -128,7 +117,6 @@ class List:
             discnumber_widget.hide()
         _fill_aligned_numerical_label(
             builder.get_object('tracknumber'),
-            self._tracknumber_size_group,
             track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '',
         )
         # TODO(https://discourse.gnome.org/t/is-there-any-way-to-align-a-gtklabel-at-the-horizontal-start-based-on-text-direction/2429):
@@ -143,7 +131,6 @@ class List:
             artist_widget.hide()
         _fill_aligned_numerical_label(
             builder.get_object('duration'),
-            self._duration_size_group,
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
         return builder.get_object('track')
@@ -159,8 +146,6 @@ class List:
                                              'library_card_medium.glade')
         # TODO(dseomn): Add album information if this is not part of an album
         # card.
-        self._discnumber_size_group.add_widget(
-            builder.get_object('discnumber_placeholder'))
         header = _medium_header(medium.tags)
         header_widget = builder.get_object('header')
         if header:
@@ -185,7 +170,6 @@ class List:
         builder.get_object('artist').set_text(artist)
         _fill_aligned_numerical_label(
             builder.get_object('date'),
-            self._date_size_group,
             album.tags.singular(tag.DATE, default=''),
         )
         mediums = builder.get_object('mediums')
