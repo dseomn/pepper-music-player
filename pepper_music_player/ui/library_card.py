@@ -196,7 +196,6 @@ class List:
 
     def _card(self, item: ListItem) -> Gtk.Widget:
         """Returns a card widget for the given list item."""
-        # TODO(dseomn): Add card types for Albums and Mediums.
         if isinstance(item.library_token, token.Track):
             return self._track(self._library_db.track(item.library_token))
         elif isinstance(item.library_token, token.Medium):
