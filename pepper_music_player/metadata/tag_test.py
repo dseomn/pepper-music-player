@@ -215,6 +215,13 @@ class TagsTest(unittest.TestCase):
             }).one_or_none('a'),
         )
 
+    def test_one(self):
+        self.assertEqual('foo', tag.Tags({'a': ('foo',)}).one('a'))
+
+    def test_one_no_value(self):
+        with self.assertRaisesRegex(ValueError, 'exactly one value'):
+            tag.Tags({}).one('foo')
+
     def test_int_or_none(self):
         self.assertEqual(3, tag.Tags({'foo': ('3',)}).int_or_none('foo'))
 
