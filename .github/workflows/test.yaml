@@ -30,7 +30,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TEST_ARTIFACT_DIR: ${{ github.workspace }}/test-artifacts
-      G_DEBUG: fatal-criticals
     steps:
     - uses: actions/checkout@v1
     - name: Install system dependencies (macOS)
@@ -81,6 +80,7 @@ jobs:
     - name: Test (xvfb graphics)
       if: runner.os == 'Linux'
       env:
+        G_DEBUG: fatal-criticals
         # See pepper_music_player/ui/screenshot_testlib.py
         TEST_FORCE_GTK_THEME: Adwaita
       run: |
@@ -89,6 +89,8 @@ jobs:
         xvfb-run pytest --cov=. --cov-branch --cov-report=term-missing
     - name: Test (native graphics)
       if: runner.os != 'Linux'
+      env:
+        G_DEBUG: fatal-criticals
       run: |
         pip install pytest pytest-cov
         pytest --cov=. --cov-branch --cov-report=term-missing
