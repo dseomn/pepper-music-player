@@ -24,6 +24,7 @@ from gi.repository import Gst
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+from pepper_music_player.metadata import token
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,8 +33,12 @@ class PlayableUnit:
 
     Attributes:
         track: The track to play.
+        playlist_entry_token: Where the track is in a playlist. The Player
+            doesn't use this itself, but it can be useful for a playlist's
+            NextPlayableUnitCallback.
     """
     track: entity.Track
+    playlist_entry_token: token.PlaylistEntry
 
 
 # Given the current playable unit (or None if nothing's playing), returns the

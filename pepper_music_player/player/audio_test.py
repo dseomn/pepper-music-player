@@ -28,6 +28,7 @@ from gi.repository import GstApp
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
 
 _CHANNEL_COUNT = 1
@@ -65,8 +66,10 @@ class PlayerTest(unittest.TestCase):
             wave_file.setsampwidth(_SAMPLE_WIDTH_BYTES)
             wave_file.setframerate(_SAMPLE_RATE)
             wave_file.writeframes(data)
-        return audio.PlayableUnit(track=entity.Track(
-            tags=tag.Tags({tag.FILENAME: (filename,)})))
+        return audio.PlayableUnit(
+            track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
+            playlist_entry_token=token.PlaylistEntry('ignore-this-token'),
+        )
 
     def _all_audio(self):
         """Returns all audio output after waiting for the output to finish."""

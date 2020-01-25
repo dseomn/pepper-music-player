@@ -48,3 +48,8 @@ class Medium(LibraryToken):
 @dataclasses.dataclass(frozen=True)
 class Album(LibraryToken):
     """Opaque token for an album."""
+
+
+@dataclasses.dataclass(frozen=True)
+class PlaylistEntry(Token):
+    """Opaque token for an entry in a playlist."""
