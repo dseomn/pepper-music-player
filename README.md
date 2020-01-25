@@ -47,7 +47,10 @@ None yet.
 
 ```
 sudo apt install \
+    gir1.2-gst-plugins-base-1.0 \
+    gir1.2-gstreamer-1.0 \
     gir1.2-gtk-3.0 \
+    gstreamer1.0-plugins-good \
     libgirepository1.0-dev \
     python3-frozendict \
     python3-gi \

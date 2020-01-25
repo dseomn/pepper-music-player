@@ -36,13 +36,19 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew install \
+          gst-plugins-base \
+          gst-plugins-good \
+          gstreamer \
           gtk+3 \
           pygobject3
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get install \
+          gir1.2-gst-plugins-base-1.0 \
+          gir1.2-gstreamer-1.0 \
           gir1.2-gtk-3.0 \
+          gstreamer1.0-plugins-good \
           libgirepository1.0-dev
     - uses: actions/setup-python@v1
       with:
