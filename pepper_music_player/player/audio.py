@@ -14,6 +14,7 @@
 """Audio player."""
 
 import dataclasses
+import datetime
 import threading
 from typing import Callable, Optional
 
@@ -48,16 +49,16 @@ def _parse_pipeline(pipeline_description: str) -> Gst.Element:
                                  flags=Gst.ParseFlags.FATAL_ERRORS)
 
 
+def _timedelta_to_gst_clock_time(timedelta: datetime.timedelta) -> int:
+    return round(1000 * timedelta / datetime.timedelta(microseconds=1))
+
+
 class Player:
     """Audio player.
 
     This handles actually playing audio, but does not do any playlist
     management.
     """
-
-    # TODO(dseomn): Add support for seeking, either by the playlist to resume
-    # playback where it left off when the app was last closed, or manually by
-    # the user.
 
     def __init__(
             self,
@@ -164,3 +165,24 @@ class Player:
         with self._lock:
             self._playable_unit = None
             self._playbin.set_state(Gst.State.NULL)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def seek(
+            self,
+            position: datetime.timedelta,
+            *,
+            state_change_timeout: datetime.timedelta = datetime.timedelta(
+                milliseconds=100),
+    ) -> None:  # yapf: disable
+        """Seeks to the given position.
+
+        Args:
+            position: Offset from the beginning of the playable unit to seek to.
+            state_change_timeout: How long to wait for the player to settle
+                before attempting to seek.
+        """
+        self._playbin.get_state(
+            _timedelta_to_gst_clock_time(state_change_timeout))
+        self._playbin.seek_simple(Gst.Format.TIME,
+                                  Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                                  _timedelta_to_gst_clock_time(position))

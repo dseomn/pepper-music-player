@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.player.audio."""
 
+import datetime
 import os
 import tempfile
 import unittest
@@ -132,6 +133,25 @@ class PlayerTest(unittest.TestCase):
         self._next_playable_unit_callback.side_effect = (None,)
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
+
+    def test_seek(self):
+        self._next_playable_unit_callback.side_effect = (
+            self._playable_unit('zeroes', _AUDIO_ZEROES),
+            # It seems that the about-to-finish signal gets sent a few times
+            # because the audio is so short and the seek is therefore also close
+            # to the end of the audio. That's not really important (in general,
+            # or for this test case specifically), but it does mean we need to
+            # return None a few extra times.
+            None,
+            None,
+            None,
+        )
+        self._player.pause()
+        self._player.seek(
+            datetime.timedelta(seconds=_AUDIO_DURATION_SECONDS) / 2)
+        self._player.play()
+        self.assertEqual(_AUDIO_ZEROES[len(_AUDIO_ZEROES) // 2:],
+                         self._all_audio())
 
 
 if __name__ == '__main__':
