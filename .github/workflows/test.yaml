@@ -56,6 +56,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Lint
+      env:
+        # Gstreamer issues a bunch of warnings when it's inspected by pylint
+        # (but not when it's run in a test), e.g.,
+        # https://github.com/neomake/neomake/issues/1828. Unlike warnings in a
+        # test run, these seem more likely to be confusing/misleading than
+        # helpful.
+        PYTHONWARNINGS: ignore
       run: |
         pip install pylint
         pylint pepper_music_player
