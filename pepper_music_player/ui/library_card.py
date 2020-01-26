@@ -44,6 +44,23 @@ class ListItem(GObject.Object):
         self.library_token = library_token
 
 
+class _ListBoxRow(Gtk.ListBoxRow):
+    """Row that represents a library entity in a ListBox.
+
+    Attributes:
+        library_token: Which thing in the library this row shows.
+    """
+
+    def __init__(
+            self,
+            library_token: token.LibraryToken,
+            child: Gtk.Widget,
+    ) -> None:
+        super().__init__()
+        self.library_token = library_token
+        self.add(child)
+
+
 def _fill_aligned_numerical_label(
         label: Gtk.Label,
         text: str,
@@ -104,7 +121,7 @@ class List:
             *,
             albumartist: str = '',
             show_discnumber: bool = True,
-    ) -> Gtk.Widget:  # yapf: disable
+    ) -> _ListBoxRow:  # yapf: disable
         """Returns a track widget."""
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_track.glade')
@@ -135,14 +152,14 @@ class List:
             builder.get_object('duration'),
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
-        return builder.get_object('track')
+        return _ListBoxRow(track.token, builder.get_object('track'))
 
     def _medium(
             self,
             medium: entity.Medium,
             *,
             albumartist: str = '',
-    ) -> Gtk.Widget:
+    ) -> _ListBoxRow:
         """Returns a medium widget."""
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_medium.glade')
@@ -161,9 +178,9 @@ class List:
                                       albumartist=albumartist,
                                       show_discnumber=False),
                           position=-1)
-        return builder.get_object('medium')
+        return _ListBoxRow(medium.token, builder.get_object('medium'))
 
-    def _album(self, album: entity.Album) -> Gtk.Widget:
+    def _album(self, album: entity.Album) -> _ListBoxRow:
         """Returns an album widget."""
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_album.glade')
@@ -178,9 +195,9 @@ class List:
         for medium in album.mediums:
             mediums.insert(self._medium(medium, albumartist=artist),
                            position=-1)
-        return builder.get_object('album')
+        return _ListBoxRow(album.token, builder.get_object('album'))
 
-    def _card(self, item: ListItem) -> Gtk.Widget:
+    def _card(self, item: ListItem) -> _ListBoxRow:
         """Returns a card widget for the given list item."""
         if isinstance(item.library_token, token.Track):
             return self._track(self._library_db.track(item.library_token))
