@@ -120,9 +120,9 @@ class Playlist:
             snapshot: Database snapshot.
 
         Raises:
-            KeyError: The entity was not found.
+            KeyError: The entry or entity was not found.
         """
-        library_token_type, library_token = snapshot.execute(
+        row = snapshot.execute(
             """
             SELECT library_token_type, library_token
             FROM Entry
@@ -130,6 +130,9 @@ class Playlist:
             """,
             (str(entry_token),),
         ).fetchone()
+        if row is None:
+            raise KeyError(entry_token)
+        library_token_type, library_token = row
         if library_token_type == _LibraryEntityType.TRACK.value:
             return (self._library_db.track(token.Track(library_token)),)
         elif library_token_type == _LibraryEntityType.MEDIUM.value:
@@ -168,22 +171,78 @@ class Playlist:
         (entry_token,) = row
         return token.PlaylistEntry(entry_token)
 
+    def _next_entry_token(
+            self,
+            entry_token: token.PlaylistEntry,
+            *,
+            snapshot: sqlite3_db.AbstractSnapshot,
+    ) -> token.PlaylistEntry:
+        """Returns the token of the next entry.
+
+        Args:
+            entry_token: Token of the entry before the one that will be
+                returned.
+            snapshot: Database snapshot.
+
+        Raises:
+            KeyError: The given entry does not exist.
+            IndexError: There is no next entry.
+        """
+        row = snapshot.execute(
+            """
+            SELECT next_token
+            FROM Entry
+            WHERE token = ?
+            """,
+            (str(entry_token),),
+        ).fetchone()
+        if row is None:
+            raise KeyError(entry_token)
+        (next_entry_token,) = row
+        if next_entry_token is None:
+            raise IndexError('There is no entry after {entry_token}.')
+        return token.PlaylistEntry(next_entry_token)
+
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(
             self,
             playable_unit: Optional[audio.PlayableUnit],
     ) -> Optional[audio.PlayableUnit]:  # yapf: disable
         """See audio.NextPlayableUnitCallback."""
+        # TODO(dseomn): Support modes other than linear playback, e.g., shuffle,
+        # repeat track, and repeat all.
         with self._db.snapshot() as snapshot:
             if playable_unit is None:
                 try:
                     entry_token = self._first_entry_token(snapshot=snapshot)
-                    track = self._all_tracks(entry_token, snapshot=snapshot)[0]
+                    return audio.PlayableUnit(
+                        track=self._all_tracks(entry_token,
+                                               snapshot=snapshot)[0],
+                        playlist_entry_token=entry_token,
+                    )
                 except LookupError:
                     return None
-            else:
-                raise NotImplementedError('TODO(dseomn)')
-        return audio.PlayableUnit(track=track, playlist_entry_token=entry_token)
+            try:
+                all_tracks = self._all_tracks(
+                    playable_unit.playlist_entry_token, snapshot=snapshot)
+                track_index = {
+                    track.token: index for index, track in enumerate(all_tracks)
+                }[playable_unit.track.token]
+            except LookupError:
+                return None
+            if track_index + 1 < len(all_tracks):
+                return audio.PlayableUnit(
+                    track=all_tracks[track_index + 1],
+                    playlist_entry_token=playable_unit.playlist_entry_token)
+            try:
+                entry_token = self._next_entry_token(
+                    playable_unit.playlist_entry_token, snapshot=snapshot)
+                return audio.PlayableUnit(
+                    track=self._all_tracks(entry_token, snapshot=snapshot)[0],
+                    playlist_entry_token=entry_token,
+                )
+            except LookupError:
+                return None
 
     def append(self, library_token: token.LibraryToken) -> token.PlaylistEntry:
         """Appends the given token to the playlist.
