@@ -91,6 +91,8 @@ class List:
         builder = load.builder_from_resource('pepper_music_player.ui',
                                              'library_card_list.glade')
         self.widget: Gtk.ListBox = builder.get_object('library_card_list')
+        # TODO(dseomn): If the library is empty, show a 'Scan' button in the
+        # placeholder.
         self.widget.set_placeholder(builder.get_object('empty_placeholder'))
         self.store = Gio.ListStore.new(ListItem.__gtype__)
         self.widget.bind_model(self.store, self._card)
