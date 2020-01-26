@@ -15,7 +15,6 @@
 
 import contextlib
 import dataclasses
-import itertools
 import os
 import sqlite3
 import threading
@@ -29,12 +28,8 @@ class SchemaItem:
 
     Attributes:
         create: DDL statement to create the item.
-        drop: DDL statement to drop the item if it exists, or None if dropping
-            is unnecessary. E.g., this can be left out for indexes that are
-            automatically dropped when their tables are dropped.
     """
     create: str
-    drop: Optional[str] = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,6 +93,11 @@ class Database:
         self._schema = schema
         self._reverse_unordered_selects = reverse_unordered_selects
         self._local = threading.local()
+
+        if not os.path.exists(self._filename):
+            with self.transaction() as transaction:
+                for item in self._schema.items:
+                    transaction.execute(item.create)
 
     @property
     def _connection(self) -> sqlite3.Connection:
@@ -192,14 +192,3 @@ class Database:
             return self._transaction('EXCLUSIVE', Transaction)
         else:
             return contextlib.nullcontext(transaction)
-
-    def reset(self) -> None:
-        """(Re)sets the database to its initial, empty state."""
-        with self.transaction() as transaction:
-            for statement in itertools.chain(
-                (item.drop
-                 for item in reversed(self._schema.items)
-                 if item.drop is not None),
-                (item.create for item in self._schema.items),
-            ):
-                transaction.execute(statement)

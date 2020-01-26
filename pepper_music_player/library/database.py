@@ -54,15 +54,12 @@ _SCHEMA = sqlite3_db.Schema(
         #
         # Columns:
         #   filename: Absolute filename.
-        sqlite3_db.SchemaItem(
-            """
+        sqlite3_db.SchemaItem("""
             CREATE TABLE File (
                 filename TEXT NOT NULL,
                 PRIMARY KEY (filename)
             )
-            """,
-            drop='DROP TABLE IF EXISTS File',
-        ),
+        """),
 
         # Entities in the library, e.g., tracks, mediums, and albums.
         #
@@ -83,8 +80,7 @@ _SCHEMA = sqlite3_db.Schema(
         #       tracknumber or discnumber. Or NULL if this doesn't have a
         #       defined order or doesn't have a parent. Note that this is not
         #       guaranteed to be unique within the parent.
-        sqlite3_db.SchemaItem(
-            """
+        sqlite3_db.SchemaItem("""
             CREATE TABLE Entity (
                 token TEXT NOT NULL,
                 type TEXT NOT NULL,
@@ -94,9 +90,7 @@ _SCHEMA = sqlite3_db.Schema(
                 PRIMARY KEY (token),
                 UNIQUE (filename)
             )
-            """,
-            drop='DROP TABLE IF EXISTS Entity',
-        ),
+        """),
         sqlite3_db.SchemaItem("""
             CREATE INDEX Entity_ParentIndex
             ON Entity (parent_token, order_in_parent)
@@ -110,8 +104,7 @@ _SCHEMA = sqlite3_db.Schema(
         #       multiple times for the same token.
         #   tag_value_order: Order of the value within the name.
         #   tag_value: A single value for the tag.
-        sqlite3_db.SchemaItem(
-            """
+        sqlite3_db.SchemaItem("""
             CREATE TABLE Tag (
                 token TEXT NOT NULL REFERENCES Entity (token) ON DELETE CASCADE,
                 tag_name TEXT NOT NULL,
@@ -119,9 +112,7 @@ _SCHEMA = sqlite3_db.Schema(
                 tag_value TEXT NOT NULL,
                 PRIMARY KEY (token, tag_name, tag_value_order)
             )
-            """,
-            drop='DROP TABLE IF EXISTS Tag',
-        ),
+        """),
         sqlite3_db.SchemaItem(
             'CREATE INDEX Tag_TagIndex ON Tag (tag_name, tag_value)'),
     ),
@@ -154,10 +145,6 @@ class Database:
             database_dir=database_dir,
             reverse_unordered_selects=reverse_unordered_selects,
         )
-
-    def reset(self) -> None:
-        """(Re)sets the library to its initial, empty state."""
-        self._db.reset()
 
     def _get_tags(
             self,

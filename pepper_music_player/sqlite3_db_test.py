@@ -22,25 +22,19 @@ _SCHEMA = sqlite3_db.Schema(
     name='test',
     version='v1alpha',
     items=(
-        sqlite3_db.SchemaItem(
-            """
+        sqlite3_db.SchemaItem("""
             CREATE TABLE Test (
                 foo TEXT,
                 bar TEXT,
                 PRIMARY KEY (foo)
             )
-            """,
-            drop='DROP TABLE IF EXISTS Test',
-        ),
+        """),
         sqlite3_db.SchemaItem('CREATE INDEX Test_BarIndex ON Test (bar)'),
-        sqlite3_db.SchemaItem(
-            """
+        sqlite3_db.SchemaItem("""
             CREATE TABLE DependsOnTest (
                 foo TEXT REFERENCES Test (foo) ON DELETE CASCADE
             )
-            """,
-            drop='DROP TABLE IF EXISTS DependsOnTest',
-        ),
+        """),
     ),
 )
 
@@ -52,21 +46,23 @@ class DatabaseTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._db = sqlite3_db.Database(_SCHEMA, database_dir=tempdir.name)
-        self._db.reset()
         self._db_reverse_unordered_select = sqlite3_db.Database(
             _SCHEMA, database_dir=tempdir.name, reverse_unordered_selects=True)
 
-    def test_reset_deletes_data(self):
-        with self._db.transaction() as transaction:
+    def test_schema_created_only_on_initial_open(self):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        with sqlite3_db.Database(
+                _SCHEMA,
+                database_dir=tempdir.name).transaction() as transaction:
             transaction.execute(
                 "INSERT INTO Test (foo, bar) VALUES ('foo1', 'bar1')")
-            transaction.execute(
-                "INSERT INTO DependsOnTest (foo) VALUES ('foo1')")
-        self._db.reset()
-        with self._db.snapshot() as snapshot:
-            self.assertFalse(snapshot.execute('SELECT * FROM Test').fetchall())
-            self.assertFalse(
-                snapshot.execute('SELECT * FROM DependsOnTest').fetchall())
+        with sqlite3_db.Database(
+                _SCHEMA, database_dir=tempdir.name).snapshot() as snapshot:
+            self.assertCountEqual(
+                (('foo1', 'bar1'),),
+                snapshot.execute('SELECT foo, bar FROM Test'),
+            )
 
     def test_foreign_keys_are_enforced(self):
         with self._db.transaction() as transaction:

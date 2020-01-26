@@ -34,16 +34,6 @@ class DatabaseTest(unittest.TestCase):
         self._database = database.Database(
             database_dir=tempdir.name,
             reverse_unordered_selects=self.REVERSE_UNORDERED_SELECTS)
-        self._database.reset()
-
-    def test_reset_deletes_data(self):
-        self._database.insert_files((scan.AudioFile(
-            filename='/a/b',
-            dirname='/a',
-            basename='b',
-            track=entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)}))),))
-        self._database.reset()
-        self.assertFalse(self._database.search())
 
     def test_insert_files_generic(self):
         self._database.insert_files((scan.File(filename='/a/b',

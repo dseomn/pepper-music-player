@@ -44,7 +44,6 @@ class LibraryCardTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
-        self._library_db.reset()
         self._library_card_list = library_card.List(self._library_db)
 
     def _set_tokens(self, *tokens):
