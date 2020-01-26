@@ -15,6 +15,7 @@
 
 import dataclasses
 from typing import Iterable, Tuple
+import uuid
 
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token as metadata_token
@@ -162,3 +163,26 @@ class Album:
         object.__setattr__(
             self, 'token',
             _require_one_token(medium.album_token for medium in self.mediums))
+
+
+def _playlist_entry_token() -> metadata_token.PlaylistEntry:
+    # TODO(#20): Change version to v1.
+    return metadata_token.PlaylistEntry(
+        _token_str(
+            token_type='playlistEntry',
+            token_version='v1alpha',
+            data=str(uuid.uuid4()),
+        ))
+
+
+@dataclasses.dataclass(frozen=True)
+class PlaylistEntry:
+    """An entry in the playlist.
+
+    Attributes:
+        library_token: Token of the library entity for this playlist entry.
+        token: Token of the entry.
+    """
+    library_token: metadata_token.LibraryToken
+    token: metadata_token.PlaylistEntry = dataclasses.field(
+        default_factory=_playlist_entry_token)

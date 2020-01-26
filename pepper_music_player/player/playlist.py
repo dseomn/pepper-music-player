@@ -16,7 +16,6 @@
 import enum
 import itertools
 from typing import Optional, Sequence
-import uuid
 
 import frozendict
 
@@ -72,11 +71,6 @@ _SCHEMA = sqlite3_db.Schema(
         # TODO(dseomn): Keep track of the position in the playlist.
     ),
 )
-
-
-def _new_entry_token() -> token.PlaylistEntry:
-    # TODO(#20): Change version to v1.
-    return token.PlaylistEntry(f'playlistEntry/v1alpha:{uuid.uuid4()}')
 
 
 class Playlist:
@@ -254,14 +248,14 @@ class Playlist:
             Token of the newly added entry.
         """
         with self._db.transaction() as transaction:
-            entry_token = _new_entry_token()
+            entry = entity.PlaylistEntry(library_token=library_token)
             transaction.execute(
                 """
                 UPDATE Entry
                 SET next_token = ?
                 WHERE next_token IS NULL
                 """,
-                (str(entry_token),),
+                (str(entry.token),),
             )
             transaction.execute(
                 """
@@ -269,9 +263,9 @@ class Playlist:
                 VALUES (?, ?, ?)
                 """,
                 (
-                    str(entry_token),
+                    str(entry.token),
                     _TOKEN_TYPE_TO_STR[type(library_token)],
                     str(library_token),
                 ),
             )
-            return entry_token
+            return entry.token

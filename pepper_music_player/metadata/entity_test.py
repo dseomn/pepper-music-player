@@ -17,9 +17,10 @@ import unittest
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+from pepper_music_player.metadata import token
 
 
-class EntityTest(unittest.TestCase):
+class LibraryEntityTest(unittest.TestCase):
 
     def test_track_token_format(self):
         self.assertEqual(
@@ -172,6 +173,35 @@ class EntityTest(unittest.TestCase):
             entity.Medium(tags=tag.Tags({}), tracks=(track1, track2))
         with self.assertRaisesRegex(ValueError, 'exactly one token'):
             entity.Album(tags=tag.Tags({}), mediums=(medium1, medium2))
+
+
+class PlaylistEntryTest(unittest.TestCase):
+
+    def test_token_format(self):
+        self.assertRegex(
+            str(
+                entity.PlaylistEntry(
+                    library_token=token.Track('irrelevant-token')).token),
+            r'^playlistEntry/v1alpha:'
+            r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        )
+
+    def test_tokens_are_unique(self):
+        library_token = token.Track('irrelevant-token')
+        self.assertNotEqual(
+            entity.PlaylistEntry(library_token=library_token).token,
+            entity.PlaylistEntry(library_token=library_token).token)
+
+    def test_token_can_be_specified(self):
+        library_token = token.Track('irrelevant-token')
+        entry = entity.PlaylistEntry(library_token=library_token)
+        self.assertEqual(
+            entry.token,
+            entity.PlaylistEntry(
+                token=entry.token,
+                library_token=library_token,
+            ).token,
+        )
 
 
 if __name__ == '__main__':
