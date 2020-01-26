@@ -68,7 +68,8 @@ class PlayerTest(unittest.TestCase):
             wave_file.writeframes(data)
         return audio.PlayableUnit(
             track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
-            playlist_entry_token=token.PlaylistEntry('ignore-this-token'),
+            playlist_entry=entity.PlaylistEntry(
+                library_token=token.Track('ignore-this-token')),
         )
 
     def _all_audio(self):

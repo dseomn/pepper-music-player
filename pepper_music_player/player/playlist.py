@@ -42,6 +42,9 @@ _TOKEN_TYPE_TO_STR = frozendict.frozendict({
     token.Album: _LibraryEntityType.ALBUM.value,
 })
 
+_STR_TO_TOKEN_TYPE = frozendict.frozendict(
+    {value: key for key, value in _TOKEN_TYPE_TO_STR.items()})
+
 _SCHEMA = sqlite3_db.Schema(
     name='playlist',
     version='v1alpha',  # TODO(#20): Change to v1.
@@ -103,99 +106,66 @@ class Playlist:
 
     def _all_tracks(
             self,
-            entry_token: token.PlaylistEntry,
-            *,
-            snapshot: sqlite3_db.AbstractSnapshot,
+            entry: entity.PlaylistEntry,
     ) -> Sequence[entity.Track]:
         """Returns all tracks for the given entry, in order.
 
         Args:
-            entry_token: PlaylistEntry token.
-            snapshot: Database snapshot.
+            entry: Entry to get all the tracks of.
 
         Raises:
-            KeyError: The entry or entity was not found.
+            KeyError: The library entity was not found.
         """
-        row = snapshot.execute(
-            """
-            SELECT library_token_type, library_token
-            FROM Entry
-            WHERE token = ?
-            """,
-            (str(entry_token),),
-        ).fetchone()
-        if row is None:
-            raise KeyError(entry_token)
-        library_token_type, library_token = row
-        if library_token_type == _LibraryEntityType.TRACK.value:
-            return (self._library_db.track(token.Track(library_token)),)
-        elif library_token_type == _LibraryEntityType.MEDIUM.value:
-            return self._library_db.medium(token.Medium(library_token)).tracks
-        elif library_token_type == _LibraryEntityType.ALBUM.value:
-            mediums = self._library_db.album(token.Album(library_token)).mediums
+        if isinstance(entry.library_token, token.Track):
+            return (self._library_db.track(entry.library_token),)
+        elif isinstance(entry.library_token, token.Medium):
+            return self._library_db.medium(entry.library_token).tracks
+        elif isinstance(entry.library_token, token.Album):
+            mediums = self._library_db.album(entry.library_token).mediums
             return tuple(
                 itertools.chain.from_iterable(
                     medium.tracks for medium in mediums))
         else:
             raise TypeError(
-                f'Unknown library_token_type {library_token_type!r}.')
+                f'Unknown library token type: {entry.library_token}')
 
-    def _first_entry_token(
+    def _next_entry(
             self,
+            entry_token: Optional[token.PlaylistEntry],
             *,
             snapshot: sqlite3_db.AbstractSnapshot,
-    ) -> token.PlaylistEntry:
-        """Returns the token of the first entry.
-
-        Args:
-            snapshot: Database snapshot.
-
-        Raises:
-            IndexError: There is no first entry.
-        """
-        row = snapshot.execute("""
-            SELECT Entry.token
-            FROM Entry
-            LEFT JOIN Entry AS PreviousEntry
-                ON PreviousEntry.next_token = Entry.token
-            WHERE PreviousEntry.token IS NULL
-        """).fetchone()
-        if row is None:
-            raise IndexError('There is no first entry.')
-        (entry_token,) = row
-        return token.PlaylistEntry(entry_token)
-
-    def _next_entry_token(
-            self,
-            entry_token: token.PlaylistEntry,
-            *,
-            snapshot: sqlite3_db.AbstractSnapshot,
-    ) -> token.PlaylistEntry:
-        """Returns the token of the next entry.
+    ) -> entity.PlaylistEntry:
+        """Returns the next entry.
 
         Args:
             entry_token: Token of the entry before the one that will be
-                returned.
+                returned, or None to return the first entry.
             snapshot: Database snapshot.
 
         Raises:
-            KeyError: The given entry does not exist.
-            IndexError: There is no next entry.
+            LookupError: There is no next entry.
         """
         row = snapshot.execute(
             """
-            SELECT next_token
+            SELECT Entry.token, Entry.library_token_type, Entry.library_token
             FROM Entry
-            WHERE token = ?
+            LEFT JOIN Entry AS PreviousEntry
+                ON PreviousEntry.next_token = Entry.token
+            WHERE PreviousEntry.token IS ?
             """,
-            (str(entry_token),),
+            (None if entry_token is None else str(entry_token),),
         ).fetchone()
         if row is None:
-            raise KeyError(entry_token)
-        (next_entry_token,) = row
-        if next_entry_token is None:
-            raise IndexError('There is no entry after {entry_token}.')
-        return token.PlaylistEntry(next_entry_token)
+            if entry_token is None:
+                raise LookupError('There is no first entry.')
+            else:
+                raise LookupError(
+                    f"Either {entry_token} doesn't exist, or it's at the end.")
+        next_entry_token, library_token_type, library_token = row
+        return entity.PlaylistEntry(
+            token=token.PlaylistEntry(next_entry_token),
+            library_token=_STR_TO_TOKEN_TYPE[library_token_type](library_token),
+        )
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(
@@ -208,17 +178,15 @@ class Playlist:
         with self._db.snapshot() as snapshot:
             if playable_unit is None:
                 try:
-                    entry_token = self._first_entry_token(snapshot=snapshot)
+                    entry = self._next_entry(None, snapshot=snapshot)
                     return audio.PlayableUnit(
-                        track=self._all_tracks(entry_token,
-                                               snapshot=snapshot)[0],
-                        playlist_entry_token=entry_token,
+                        track=self._all_tracks(entry)[0],
+                        playlist_entry=entry,
                     )
                 except LookupError:
                     return None
             try:
-                all_tracks = self._all_tracks(
-                    playable_unit.playlist_entry_token, snapshot=snapshot)
+                all_tracks = self._all_tracks(playable_unit.playlist_entry)
                 track_index = {
                     track.token: index for index, track in enumerate(all_tracks)
                 }[playable_unit.track.token]
@@ -227,25 +195,25 @@ class Playlist:
             if track_index + 1 < len(all_tracks):
                 return audio.PlayableUnit(
                     track=all_tracks[track_index + 1],
-                    playlist_entry_token=playable_unit.playlist_entry_token)
+                    playlist_entry=playable_unit.playlist_entry)
             try:
-                entry_token = self._next_entry_token(
-                    playable_unit.playlist_entry_token, snapshot=snapshot)
+                entry = self._next_entry(playable_unit.playlist_entry.token,
+                                         snapshot=snapshot)
                 return audio.PlayableUnit(
-                    track=self._all_tracks(entry_token, snapshot=snapshot)[0],
-                    playlist_entry_token=entry_token,
+                    track=self._all_tracks(entry)[0],
+                    playlist_entry=entry,
                 )
             except LookupError:
                 return None
 
-    def append(self, library_token: token.LibraryToken) -> token.PlaylistEntry:
+    def append(self, library_token: token.LibraryToken) -> entity.PlaylistEntry:
         """Appends the given token to the playlist.
 
         Args:
             library_token: What to append to the playlist.
 
         Returns:
-            Token of the newly added entry.
+            The newly added entry.
         """
         with self._db.transaction() as transaction:
             entry = entity.PlaylistEntry(library_token=library_token)
@@ -268,4 +236,4 @@ class Playlist:
                     str(library_token),
                 ),
             )
-            return entry.token
+            return entry
