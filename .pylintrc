@@ -22,6 +22,7 @@ disable =
   duplicate-code,  # Catches some import blocks.
   fixme,
   invalid-name,  # Doesn't match Google-style naming.
+  no-else-raise,
   no-else-return,
   no-member,  # Doesn't handle __gtype__ correctly, pytype covers this anyway.
   no-self-use,  # Complains on test methods.
