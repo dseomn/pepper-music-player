@@ -124,6 +124,7 @@ class List:
         self.widget: Gtk.ListBox = builder.get_object('library_card_list')
         # TODO(dseomn): If the library is empty, show a 'Scan' button in the
         # placeholder.
+        # TODO(dseomn): view-list-symbolic for the placeholder in the playlist?
         self.widget.set_placeholder(builder.get_object('empty_placeholder'))
         self.store = Gio.ListStore.new(ListItem.__gtype__)
         self.widget.bind_model(self.store, self._card)
