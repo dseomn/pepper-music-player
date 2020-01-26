@@ -26,32 +26,46 @@ from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 
 
-def _insert_album(library_db):
+def _insert_album(library_db, album_name):
     """Inserts an album, then returns it."""
-    library_db.insert_files((
-        scan.AudioFile(
-            filename='/a/1',
-            dirname='/a',
-            basename='1',
-            track=entity.Track(tags=tag.Tags({
-                '~filename': ('/a/1',),
-                '~dirname': ('/a',),
-            })),
-        ),
-        scan.AudioFile(
-            filename='/a/2',
-            dirname='/a',
-            basename='2',
-            track=entity.Track(tags=tag.Tags({
-                '~filename': ('/a/2',),
-                '~dirname': ('/a',),
-            })),
-        ),
-    ))
-    return library_db.album(
-        next(
-            iter(token_ for token_ in library_db.search()
-                 if isinstance(token_, token.Album))))
+    tracks = (
+        entity.Track(tags=tag.Tags({
+            '~filename': (f'/{album_name}/1.1',),
+            '~dirname': (f'/{album_name}',),
+            '~basename': ('1.1',),
+            'album': (album_name,),
+            'discnumber': ('1',),
+        }).derive()),
+        entity.Track(tags=tag.Tags({
+            '~filename': (f'/{album_name}/1.2',),
+            '~dirname': (f'/{album_name}',),
+            '~basename': ('1.2',),
+            'album': (album_name,),
+            'discnumber': ('1',),
+        }).derive()),
+        entity.Track(tags=tag.Tags({
+            '~filename': (f'/{album_name}/2.1',),
+            '~dirname': (f'/{album_name}',),
+            '~basename': ('2.1',),
+            'album': (album_name,),
+            'discnumber': ('2',),
+        }).derive()),
+        entity.Track(tags=tag.Tags({
+            '~filename': (f'/{album_name}/2.2',),
+            '~dirname': (f'/{album_name}',),
+            '~basename': ('2.2',),
+            'album': (album_name,),
+            'discnumber': ('2',),
+        }).derive()),
+    )
+    for track in tracks:
+        library_db.insert_files((scan.AudioFile(
+            filename=track.tags.one(tag.FILENAME),
+            dirname=track.tags.one(tag.DIRNAME),
+            basename=track.tags.one(tag.BASENAME),
+            track=track,
+        ),))
+    return library_db.album(tracks[0].album_token)
 
 
 class PlaylistTest(unittest.TestCase):
@@ -62,7 +76,10 @@ class PlaylistTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         library_db = database.Database(database_dir=tempdir.name)
-        self._album = _insert_album(library_db)
+        self._albums = (
+            _insert_album(library_db, '1'),
+            _insert_album(library_db, '2'),
+        )
         self._player = mock.create_autospec(audio.Player, instance=True)
         self._playlist = playlist.Playlist(
             player=self._player,
@@ -85,19 +102,19 @@ class PlaylistTest(unittest.TestCase):
         self.assertIsNone(self._next_playable_unit_callback()(None))
 
     def test_plays_first_entry_track(self):
-        track = self._album.mediums[0].tracks[0]
+        track = self._albums[0].mediums[0].tracks[0]
         self._playlist.append(track.token)
         self.assertEqual(track, self._next_playable_unit_callback()(None).track)
 
     def test_plays_first_entry_medium(self):
-        medium = self._album.mediums[0]
+        medium = self._albums[0].mediums[0]
         self._playlist.append(medium.token)
         self.assertEqual(medium.tracks[0],
                          self._next_playable_unit_callback()(None).track)
 
     def test_plays_first_entry_album(self):
-        self._playlist.append(self._album.token)
-        self.assertEqual(self._album.mediums[0].tracks[0],
+        self._playlist.append(self._albums[0].token)
+        self.assertEqual(self._albums[0].mediums[0].tracks[0],
                          self._next_playable_unit_callback()(None).track)
 
 
