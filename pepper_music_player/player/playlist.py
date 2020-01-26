@@ -109,18 +109,27 @@ class Playlist:
 
     def _all_tracks(
             self,
-            library_token_type: str,
-            library_token: str,
+            entry_token: token.PlaylistEntry,
+            *,
+            snapshot: sqlite3_db.AbstractSnapshot,
     ) -> Sequence[entity.Track]:
-        """Returns all tracks in the given entity, in order.
+        """Returns all tracks for the given entry, in order.
 
         Args:
-            library_token_type: Type of the entity.
-            library_token: Token of the entity.
+            entry_token: PlaylistEntry token.
+            snapshot: Database snapshot.
 
         Raises:
             KeyError: The entity was not found.
         """
+        library_token_type, library_token = snapshot.execute(
+            """
+            SELECT library_token_type, library_token
+            FROM Entry
+            WHERE token = ?
+            """,
+            (str(entry_token),),
+        ).fetchone()
         if library_token_type == _LibraryEntityType.TRACK.value:
             return (self._library_db.track(token.Track(library_token)),)
         elif library_token_type == _LibraryEntityType.MEDIUM.value:
@@ -134,27 +143,30 @@ class Playlist:
             raise TypeError(
                 f'Unknown library_token_type {library_token_type!r}.')
 
-    def _first_playable_unit(self) -> Optional[audio.PlayableUnit]:
-        """Returns the first playable unit, if there is one."""
-        with self._db.snapshot() as snapshot:
-            row = snapshot.execute("""
-                SELECT
-                    Entry.token, Entry.library_token_type, Entry.library_token
-                FROM Entry
-                LEFT JOIN Entry AS PreviousEntry
-                    ON PreviousEntry.next_token = Entry.token
-                WHERE PreviousEntry.token IS NULL
-            """).fetchone()
-            if row is None:
-                return None
-            entry_token, library_token_type, library_token = row
-            try:
-                track = self._all_tracks(library_token_type, library_token)[0]
-            except KeyError:
-                return None
-            return audio.PlayableUnit(
-                track=track,
-                playlist_entry_token=token.PlaylistEntry(entry_token))
+    def _first_entry_token(
+            self,
+            *,
+            snapshot: sqlite3_db.AbstractSnapshot,
+    ) -> token.PlaylistEntry:
+        """Returns the token of the first entry.
+
+        Args:
+            snapshot: Database snapshot.
+
+        Raises:
+            IndexError: There is no first entry.
+        """
+        row = snapshot.execute("""
+            SELECT Entry.token
+            FROM Entry
+            LEFT JOIN Entry AS PreviousEntry
+                ON PreviousEntry.next_token = Entry.token
+            WHERE PreviousEntry.token IS NULL
+        """).fetchone()
+        if row is None:
+            raise IndexError('There is no first entry.')
+        (entry_token,) = row
+        return token.PlaylistEntry(entry_token)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(
@@ -162,9 +174,16 @@ class Playlist:
             playable_unit: Optional[audio.PlayableUnit],
     ) -> Optional[audio.PlayableUnit]:  # yapf: disable
         """See audio.NextPlayableUnitCallback."""
-        if playable_unit is None:
-            return self._first_playable_unit()
-        raise NotImplementedError('TODO(dseomn)')
+        with self._db.snapshot() as snapshot:
+            if playable_unit is None:
+                try:
+                    entry_token = self._first_entry_token(snapshot=snapshot)
+                    track = self._all_tracks(entry_token, snapshot=snapshot)[0]
+                except LookupError:
+                    return None
+            else:
+                raise NotImplementedError('TODO(dseomn)')
+        return audio.PlayableUnit(track=track, playlist_entry_token=entry_token)
 
     def append(self, library_token: token.LibraryToken) -> None:
         """Appends the given token to the playlist."""
