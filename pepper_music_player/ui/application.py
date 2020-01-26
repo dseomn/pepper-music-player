@@ -19,6 +19,8 @@ from gi.repository import Gdk
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+from pepper_music_player.library import database
+from pepper_music_player.ui import library_card
 from pepper_music_player.ui import load
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
@@ -41,11 +43,21 @@ def install_css() -> None:
     _css_installed = True
 
 
-def window() -> Gtk.ApplicationWindow:
-    """Returns a new main application window."""
+def window(library_db: database.Database) -> Gtk.ApplicationWindow:
+    """Returns a new main application window.
+
+    Args:
+        library_db: Library database.
+    """
     builder = load.builder_from_resource('pepper_music_player.ui',
                                          'application.glade')
     builder.connect_signals({
         'on_destroy': Gtk.main_quit,
     })
+    library = library_card.List(library_db)
+    builder.get_object('library').add(library.widget)
+    # TODO(dseomn): Show a more sensible slice of the library by default, and
+    # add UI controls to search the library.
+    library.store.splice(
+        0, 0, tuple(map(library_card.ListItem, library_db.search(limit=100))))
     return builder.get_object('application')

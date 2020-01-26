@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.ui.application."""
 
+import tempfile
 import unittest
 
 import gi
@@ -21,10 +22,17 @@ from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+from pepper_music_player.library import database
 from pepper_music_player.ui import application
 
 
 class ApplicationTest(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        self._library_db = database.Database(database_dir=tempdir.name)
 
     def test_install_css_does_not_raise_exceptions(self):
         # The function is called twice since it has a separate code path if the
@@ -33,7 +41,7 @@ class ApplicationTest(unittest.TestCase):
         application.install_css()
 
     def test_exit_stops_main_loop(self):
-        window = application.window()
+        window = application.window(self._library_db)
         window.show_all()
         GLib.idle_add(window.destroy)
         # This just tests that Gtk.main doesn't run forever.
