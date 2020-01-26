@@ -20,6 +20,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
+from pepper_music_player.player import playlist
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import load
 
@@ -43,18 +44,22 @@ def install_css() -> None:
     _css_installed = True
 
 
-def window(library_db: database.Database) -> Gtk.ApplicationWindow:
+def window(
+        library_db: database.Database,
+        playlist_: playlist.Playlist,
+) -> Gtk.ApplicationWindow:
     """Returns a new main application window.
 
     Args:
         library_db: Library database.
+        playlist_: Playlist.
     """
     builder = load.builder_from_resource('pepper_music_player.ui',
                                          'application.glade')
     builder.connect_signals({
         'on_destroy': Gtk.main_quit,
     })
-    library = library_card.List(library_db)
+    library = library_card.List(library_db, playlist_)
     builder.get_object('library').add(library.widget)
     # TODO(dseomn): Show a more sensible slice of the library by default, and
     # add UI controls to search the library.

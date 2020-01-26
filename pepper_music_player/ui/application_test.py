@@ -15,6 +15,7 @@
 
 import tempfile
 import unittest
+from unittest import mock
 
 import gi
 gi.require_version('GLib', '2.0')
@@ -23,6 +24,8 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
+from pepper_music_player.player import audio
+from pepper_music_player.player import playlist
 from pepper_music_player.ui import application
 
 
@@ -33,6 +36,11 @@ class ApplicationTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
+        self._playlist = playlist.Playlist(
+            player=mock.create_autospec(audio.Player, instance=True),
+            library_db=self._library_db,
+            database_dir=tempdir.name,
+        )
 
     def test_install_css_does_not_raise_exceptions(self):
         # The function is called twice since it has a separate code path if the
@@ -41,7 +49,7 @@ class ApplicationTest(unittest.TestCase):
         application.install_css()
 
     def test_exit_stops_main_loop(self):
-        window = application.window(self._library_db)
+        window = application.window(self._library_db, self._playlist)
         window.show_all()
         GLib.idle_add(window.destroy)
         # This just tests that Gtk.main doesn't run forever.

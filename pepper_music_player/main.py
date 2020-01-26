@@ -18,14 +18,22 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
+from pepper_music_player.player import audio
+from pepper_music_player.player import playlist
 from pepper_music_player.ui import application
 
 
 def main() -> None:
     # TODO(dseomn): Switch to the real default database_dir, once there is one.
-    library_db = database.Database(database_dir='.')
+    database_dir = '.'
+    library_db = database.Database(database_dir=database_dir)
+    playlist_ = playlist.Playlist(
+        player=audio.Player(),
+        library_db=library_db,
+        database_dir=database_dir,
+    )
     application.install_css()
-    application.window(library_db).show_all()
+    application.window(library_db, playlist_).show_all()
     Gtk.main()
 
 

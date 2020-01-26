@@ -16,6 +16,7 @@
 import dataclasses
 import tempfile
 import unittest
+from unittest import mock
 
 import gi
 gi.require_version('GLib', '2.0')
@@ -28,6 +29,8 @@ from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
+from pepper_music_player.player import audio
+from pepper_music_player.player import playlist
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import screenshot_testlib
 
@@ -44,7 +47,13 @@ class LibraryCardTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
-        self._library_card_list = library_card.List(self._library_db)
+        self._playlist = playlist.Playlist(
+            player=mock.create_autospec(audio.Player, instance=True),
+            library_db=self._library_db,
+            database_dir=tempdir.name,
+        )
+        self._library_card_list = library_card.List(self._library_db,
+                                                    self._playlist)
 
     def _set_tokens(self, *tokens):
         """Sets the tokens in self._library_card_list."""
@@ -310,6 +319,56 @@ class LibraryCardTest(unittest.TestCase):
         )
         screenshot_testlib.register_widget(__name__, 'test_alignment',
                                            self._library_card_list.widget)
+
+    def _activate(self, library_token, widget=None):
+        if widget is None:
+            widget = self._library_card_list.widget
+        if (isinstance(widget, library_card.ListBoxRow) and
+                widget.library_token == library_token):
+            widget.activate()
+            GLib.idle_add(Gtk.main_quit)
+            Gtk.main()
+            return True
+        if isinstance(widget, Gtk.Container):
+            for child in widget.get_children():
+                if self._activate(library_token, child):
+                    if isinstance(widget, library_card.ListBoxRow):
+                        # In real usage, activating a child seems to bubble up,
+                        # but the activate() method does not seem to bubble up.
+                        # This simulates the real behavior.
+                        widget.activate()
+                        GLib.idle_add(Gtk.main_quit)
+                        Gtk.main()
+                    return True
+        return False
+
+    def test_activate_top_level(self):
+        library_token = self._insert_album()
+        self._set_tokens(library_token)
+        self._activate(library_token)
+        self.assertSequenceEqual(
+            (library_token,),
+            tuple(entry.library_token for entry in self._playlist))
+
+    def test_activate_nested(self):
+        album_token = self._insert_album()
+        self._set_tokens(album_token)
+        activate_token = (
+            self._library_db.album(album_token).mediums[0].tracks[0].token)
+        self._activate(activate_token)
+        self.assertSequenceEqual(
+            (activate_token,),
+            tuple(entry.library_token for entry in self._playlist))
+
+    def test_activate_multiple(self):
+        token1 = self._insert_track(tracknumber='1').token
+        token2 = self._insert_track(tracknumber='2').token
+        self._set_tokens(token1, token2)
+        self._activate(token1)
+        self._activate(token2)
+        self.assertSequenceEqual(
+            (token1, token2),
+            tuple(entry.library_token for entry in self._playlist))
 
 
 if __name__ == '__main__':
