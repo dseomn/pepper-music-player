@@ -18,6 +18,10 @@
   opacity: 0.5;
 }
 
+.placeholder {
+  margin: 18px;
+}
+
 /* TODO(dseomn): Use a different background color between the card list and the
  * cards. */
 
@@ -26,8 +30,8 @@
   margin: 12px 12px 0 12px;
 }
 
-.card-list > row:last-child {
-  margin: 12px;
+.card-list {
+  padding-bottom: 12px;
 }
 
 .card-list label {

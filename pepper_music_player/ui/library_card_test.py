@@ -60,6 +60,10 @@ class LibraryCardTest(unittest.TestCase):
             self._library_card_list._card(  # pylint: disable=protected-access
                 library_card.ListItem(_FakeLibraryToken('foo')))
 
+    def test_empty_list(self):
+        screenshot_testlib.register_widget(__name__, 'test_empty_list',
+                                           self._library_card_list.widget)
+
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _insert_track(
             self,

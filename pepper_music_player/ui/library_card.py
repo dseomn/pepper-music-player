@@ -88,10 +88,10 @@ class List:
             library_db: Library database.
         """
         self._library_db = library_db
-        self.widget: Gtk.ListBox = load.builder_from_resource(
-            'pepper_music_player.ui',
-            'library_card_list.glade',
-        ).get_object('library_card_list')
+        builder = load.builder_from_resource('pepper_music_player.ui',
+                                             'library_card_list.glade')
+        self.widget: Gtk.ListBox = builder.get_object('library_card_list')
+        self.widget.set_placeholder(builder.get_object('empty_placeholder'))
         self.store = Gio.ListStore.new(ListItem.__gtype__)
         self.widget.bind_model(self.store, self._card)
 
