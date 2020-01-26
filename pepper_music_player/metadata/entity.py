@@ -21,6 +21,23 @@ from pepper_music_player.metadata import token as metadata_token
 
 
 def _token_str(
+        *,
+        token_type: str,
+        token_version: str,
+        data: str,
+) -> str:
+    """Returns a token string.
+
+    Args:
+        token_type: What this token is for.
+        token_version: Version of this token. If the token string changes for
+            the same entity, this should change too.
+        data: Contents of the token.
+    """
+    return f'{token_type}/{token_version}:{data}'
+
+
+def _tag_token_str(
         token_type: str,
         token_version: str,
         tag_data: tag.Tags,
@@ -35,9 +52,8 @@ def _token_str(
     streaming URLs in additon.
 
     Args:
-        token_type: What this token is for.
-        token_version: Version of this token. If the token string changes for
-            the same entity, this should change too.
+        token_type: See _token_str().
+        token_version: See _token_str().
         tag_data: Tags to get data from for the token.
         *token_tags: Which tags go into the token.
     """
@@ -45,7 +61,11 @@ def _token_str(
     for token_tag in token_tags:
         token_tag_pairs.extend(
             (token_tag.name, value) for value in tag_data.get(token_tag, ()))
-    return f'{token_type}/{token_version}:{tuple(token_tag_pairs)!r}'
+    return _token_str(
+        token_type=token_type,
+        token_version=token_version,
+        data=repr(tuple(token_tag_pairs)),
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -70,7 +90,7 @@ class Track:
         object.__setattr__(
             self, 'token',
             metadata_token.Track(
-                _token_str('track', 'v1alpha', self.tags, tag.FILENAME)))
+                _tag_token_str('track', 'v1alpha', self.tags, tag.FILENAME)))
         album_token_tags = (
             tag.DIRNAME,
             tag.ALBUM,
@@ -80,12 +100,13 @@ class Track:
         object.__setattr__(
             self, 'medium_token',
             metadata_token.Medium(
-                _token_str('medium', 'v1alpha', self.tags, *album_token_tags,
-                           tag.PARSED_DISCNUMBER)))
+                _tag_token_str('medium', 'v1alpha', self.tags,
+                               *album_token_tags, tag.PARSED_DISCNUMBER)))
         object.__setattr__(
             self, 'album_token',
             metadata_token.Album(
-                _token_str('album', 'v1alpha', self.tags, *album_token_tags)))
+                _tag_token_str('album', 'v1alpha', self.tags,
+                               *album_token_tags)))
 
 
 # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
