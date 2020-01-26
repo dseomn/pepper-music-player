@@ -103,19 +103,28 @@ class PlaylistTest(unittest.TestCase):
 
     def test_plays_first_entry_track(self):
         track = self._albums[0].mediums[0].tracks[0]
-        self._playlist.append(track.token)
-        self.assertEqual(track, self._next_playable_unit_callback()(None).track)
+        entry_token = self._playlist.append(track.token)
+        self.assertEqual(
+            audio.PlayableUnit(track=track, playlist_entry_token=entry_token),
+            self._next_playable_unit_callback()(None),
+        )
 
     def test_plays_first_entry_medium(self):
         medium = self._albums[0].mediums[0]
-        self._playlist.append(medium.token)
-        self.assertEqual(medium.tracks[0],
-                         self._next_playable_unit_callback()(None).track)
+        entry_token = self._playlist.append(medium.token)
+        self.assertEqual(
+            audio.PlayableUnit(track=medium.tracks[0],
+                               playlist_entry_token=entry_token),
+            self._next_playable_unit_callback()(None),
+        )
 
     def test_plays_first_entry_album(self):
-        self._playlist.append(self._albums[0].token)
-        self.assertEqual(self._albums[0].mediums[0].tracks[0],
-                         self._next_playable_unit_callback()(None).track)
+        entry_token = self._playlist.append(self._albums[0].token)
+        self.assertEqual(
+            audio.PlayableUnit(track=self._albums[0].mediums[0].tracks[0],
+                               playlist_entry_token=entry_token),
+            self._next_playable_unit_callback()(None),
+        )
 
 
 class PlaylistReverseUnorderedSelectsTest(PlaylistTest):

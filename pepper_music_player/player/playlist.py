@@ -185,8 +185,15 @@ class Playlist:
                 raise NotImplementedError('TODO(dseomn)')
         return audio.PlayableUnit(track=track, playlist_entry_token=entry_token)
 
-    def append(self, library_token: token.LibraryToken) -> None:
-        """Appends the given token to the playlist."""
+    def append(self, library_token: token.LibraryToken) -> token.PlaylistEntry:
+        """Appends the given token to the playlist.
+
+        Args:
+            library_token: What to append to the playlist.
+
+        Returns:
+            Token of the newly added entry.
+        """
         with self._db.transaction() as transaction:
             entry_token = _new_entry_token()
             transaction.execute(
@@ -208,3 +215,4 @@ class Playlist:
                     str(library_token),
                 ),
             )
+            return entry_token
