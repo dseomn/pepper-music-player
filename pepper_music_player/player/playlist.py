@@ -15,7 +15,7 @@
 
 import enum
 import itertools
-from typing import Optional, Sequence
+from typing import Iterable, Iterator, Optional, Sequence
 
 import frozendict
 
@@ -76,7 +76,7 @@ _SCHEMA = sqlite3_db.Schema(
 )
 
 
-class Playlist:
+class Playlist(Iterable[entity.PlaylistEntry]):
     """A list of things to play, along with the state of what's playing."""
 
     def __init__(
@@ -166,6 +166,18 @@ class Playlist:
             token=token.PlaylistEntry(next_entry_token),
             library_token=_STR_TO_TOKEN_TYPE[library_token_type](library_token),
         )
+
+    def __iter__(self) -> Iterator[entity.PlaylistEntry]:
+        """Yields all entries in the playlist, in order."""
+        entry_token = None
+        while True:
+            try:
+                with self._db.snapshot() as snapshot:
+                    entry = self._next_entry(entry_token, snapshot=snapshot)
+            except LookupError:
+                return
+            yield entry
+            entry_token = entry.token
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(

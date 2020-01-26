@@ -173,6 +173,14 @@ class PlaylistTest(unittest.TestCase):
                 track=track1, playlist_entry=entry1)),
         )
 
+    def test_iter_empty(self):
+        self.assertSequenceEqual((), tuple(self._playlist))
+
+    def test_iter(self):
+        entry1 = self._playlist.append(self._albums[0].mediums[0].token)
+        entry2 = self._playlist.append(self._albums[0].mediums[1].token)
+        self.assertSequenceEqual((entry1, entry2), tuple(self._playlist))
+
 
 class PlaylistReverseUnorderedSelectsTest(PlaylistTest):
     REVERSE_UNORDERED_SELECTS = True
