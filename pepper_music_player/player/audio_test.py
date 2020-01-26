@@ -109,6 +109,16 @@ class PlayerTest(unittest.TestCase):
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES + _AUDIO_ONES, self._all_audio())
 
+    def test_play_can_repeat_a_unit(self):
+        playable_unit = self._playable_unit('zeroes', _AUDIO_ZEROES)
+        self._next_playable_unit_callback.side_effect = (
+            playable_unit,
+            playable_unit,
+            None,
+        )
+        self._player.play()
+        self.assertEqual(_AUDIO_ZEROES * 2, self._all_audio())
+
     def test_play_resumes_from_pause_and_pause_while_paused_is_noop(self):
         self._next_playable_unit_callback.side_effect = (
             self._playable_unit('zeroes', _AUDIO_ZEROES),
