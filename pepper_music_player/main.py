@@ -27,13 +27,14 @@ def main() -> None:
     # TODO(dseomn): Switch to the real default database_dir, once there is one.
     database_dir = '.'
     library_db = database.Database(database_dir=database_dir)
+    player = audio.Player()
     playlist_ = playlist.Playlist(
-        player=audio.Player(),
+        player=player,
         library_db=library_db,
         database_dir=database_dir,
     )
     application.install_css()
-    application.window(library_db, playlist_).show_all()
+    application.window(library_db, player, playlist_).show_all()
     Gtk.main()
 
 

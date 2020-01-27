@@ -36,8 +36,9 @@ class ApplicationTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
+        self._player = mock.create_autospec(audio.Player, instance=True)
         self._playlist = playlist.Playlist(
-            player=mock.create_autospec(audio.Player, instance=True),
+            player=self._player,
             library_db=self._library_db,
             database_dir=tempdir.name,
         )
@@ -49,13 +50,16 @@ class ApplicationTest(unittest.TestCase):
         application.install_css()
 
     def test_exit_stops_main_loop(self):
-        window = application.window(self._library_db, self._playlist)
+        window = application.window(self._library_db, self._player,
+                                    self._playlist)
         window.show_all()
         GLib.idle_add(window.destroy)
         # This just tests that Gtk.main doesn't run forever.
         # TODO(dseomn): Figure out how to end the test early if Gtk.main is
         # still running after a short time.
         Gtk.main()
+
+    # TODO(dseomn): Add tests for the play and pause buttons.
 
 
 if __name__ == '__main__':
