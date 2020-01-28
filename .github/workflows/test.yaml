@@ -36,6 +36,7 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew install \
+          adwaita-icon-theme \
           gst-plugins-base \
           gst-plugins-good \
           gstreamer \
