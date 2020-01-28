@@ -13,6 +13,8 @@
 # limitations under the License.
 """Main application window."""
 
+from importlib import resources
+
 import gi
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk
@@ -23,7 +25,6 @@ from pepper_music_player.library import database
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player.ui import library_card
-from pepper_music_player.ui import load
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
 # this global variable ensures the application CSS is installed at most once.
@@ -39,7 +40,7 @@ def install_css() -> None:
         return
     css = Gtk.CssProvider()
     css.load_from_data(
-        load.get_resource('pepper_music_player.ui', 'application.css'))
+        resources.read_binary('pepper_music_player.ui', 'application.css'))
     Gtk.StyleContext.add_provider_for_screen(
         Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
     _css_installed = True
@@ -57,8 +58,10 @@ def window(
         player: Player.
         playlist_: Playlist.
     """
-    builder = load.builder_from_resource('pepper_music_player.ui',
-                                         'application.glade')
+    builder = Gtk.Builder.new_from_string(
+        resources.read_text('pepper_music_player.ui', 'application.glade'),
+        length=-1,
+    )
     builder.connect_signals({
         'on_destroy': Gtk.main_quit,
         # TODO(dseomn): Keep track of the current play/pause state and only show

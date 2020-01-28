@@ -14,6 +14,7 @@
 """Cards for things in the library, and lists of those cards."""
 
 import enum
+from importlib import resources
 from typing import Optional
 
 import gi
@@ -31,7 +32,6 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import playlist
-from pepper_music_player.ui import load
 
 
 class ListItem(GObject.Object):
@@ -119,8 +119,11 @@ class List:
         self._library_db = library_db
         self._playlist = playlist_
         self._in_list_box_row_activated = False
-        builder = load.builder_from_resource('pepper_music_player.ui',
-                                             'library_card_list.glade')
+        builder = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_list.glade'),
+            length=-1,
+        )
         self.widget: Gtk.ListBox = builder.get_object('library_card_list')
         # TODO(dseomn): If the library is empty, show a 'Scan' button in the
         # placeholder.
@@ -159,8 +162,11 @@ class List:
             show_discnumber: bool = True,
     ) -> ListBoxRow:  # yapf: disable
         """Returns a track widget."""
-        builder = load.builder_from_resource('pepper_music_player.ui',
-                                             'library_card_track.glade')
+        builder = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_track.glade'),
+            length=-1,
+        )
         discnumber_widget = builder.get_object('discnumber')
         if show_discnumber:
             _fill_aligned_numerical_label(
@@ -197,8 +203,11 @@ class List:
             albumartist: str = '',
     ) -> ListBoxRow:
         """Returns a medium widget."""
-        builder = load.builder_from_resource('pepper_music_player.ui',
-                                             'library_card_medium.glade')
+        builder = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_medium.glade'),
+            length=-1,
+        )
         # TODO(dseomn): Add album information if this is not part of an album
         # card.
         header = _medium_header(medium.tags)
@@ -220,8 +229,11 @@ class List:
 
     def _album(self, album: entity.Album) -> ListBoxRow:
         """Returns an album widget."""
-        builder = load.builder_from_resource('pepper_music_player.ui',
-                                             'library_card_album.glade')
+        builder = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_album.glade'),
+            length=-1,
+        )
         builder.get_object('title').set_text(album.tags.singular(tag.ALBUM))
         artist = album.tags.singular(tag.ALBUMARTIST, tag.ARTIST)
         builder.get_object('artist').set_text(artist)
