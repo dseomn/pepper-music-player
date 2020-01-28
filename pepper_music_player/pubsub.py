@@ -13,10 +13,11 @@
 # limitations under the License.
 """Publish-subscribe system."""
 
-from concurrent import futures
 import dataclasses
+import logging
+import queue
 import threading
-from typing import Callable, Generic, List, Type, TypeVar
+from typing import Callable, Generic, List, NoReturn, Type, TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -33,37 +34,58 @@ AnyMessage = TypeVar('AnyMessage', bound=Message)
 
 @dataclasses.dataclass(frozen=True)
 class _Subscriber(Generic[AnyMessage]):
-    # TODO(dseomn): Remove these pytype disables.
+    # TODO(dseomn): Remove pytype disable.
     message_type: Type[AnyMessage]  # pytype: disable=not-supported-yet
-    callback: Callable[[AnyMessage], None]  # pytype: disable=not-supported-yet
+    queue: 'queue.Queue[AnyMessage]' = dataclasses.field(
+        default_factory=queue.Queue)
 
 
 class PubSub:
-    """In-memory publish-subscribe message bus."""
+    """In-memory publish-subscribe message bus.
+
+    Each subscriber (identified by a call to the subscribe method) is guaranteed
+    to receive messages in the order they were published. No guarantees are made
+    about the order of message between subscribers.
+    """
 
     def __init__(self) -> None:
         self._subscribers: List[_Subscriber] = []
         self._subscribers_lock = threading.Lock()
-        self._pool = futures.ThreadPoolExecutor()
 
-    def shutdown(self) -> None:
-        """Shuts down the message bus.
+    def join(self) -> None:
+        """Waits for all messages to be processed.
 
-        After this method starts, calls to other methods are not supported and
-        may raise exceptions.
+        This is an expensive method that holds the lock potentially much longer
+        than other methods. It's primarily intended for testing, and for before
+        the application exits.
         """
-        self._pool.shutdown()
-
-    def _send(self, message: Message) -> None:
-        """Sends a message to all appropriate subscribers."""
         with self._subscribers_lock:
             for subscriber in self._subscribers:
-                if isinstance(message, subscriber.message_type):
-                    self._pool.submit(subscriber.callback, message)
+                subscriber.queue.join()
 
     def publish(self, message: Message) -> None:
         """Publishes a message."""
-        self._pool.submit(self._send, message)
+        with self._subscribers_lock:
+            for subscriber in self._subscribers:
+                if isinstance(message, subscriber.message_type):
+                    subscriber.queue.put(message)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _process_subscriber_queue(
+            self,
+            subscriber_queue: 'queue.Queue[AnyMessage]',
+            callback: Callable[[AnyMessage], None],
+    ) -> NoReturn:  # yapf: disable
+        """Processes messages for a single subscriber, in a daemon thread."""
+        while True:
+            message = subscriber_queue.get()
+            try:
+                callback(message)
+            except Exception:  # pylint: disable=broad-except
+                logging.exception('Subscriber %r failed to process message %r',
+                                  callback, message)
+            finally:
+                subscriber_queue.task_done()
 
     def subscribe(
             self,
@@ -78,4 +100,10 @@ class PubSub:
                 appropriate type.
         """
         with self._subscribers_lock:
-            self._subscribers.append(_Subscriber(message_type, callback))
+            subscriber = _Subscriber(message_type)
+            self._subscribers.append(subscriber)
+        threading.Thread(
+            target=self._process_subscriber_queue,
+            args=(subscriber.queue, callback),
+            daemon=True,
+        ).start()

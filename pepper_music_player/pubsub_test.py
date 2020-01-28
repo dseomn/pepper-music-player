@@ -14,8 +14,6 @@
 """Tests for pepper_music_player.pubsub."""
 
 import dataclasses
-import time
-import threading
 import unittest
 from unittest import mock
 
@@ -37,32 +35,45 @@ class PubSubTest(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self._pubsub = pubsub.PubSub()
-        self.addCleanup(self._pubsub.shutdown)
+        self._callback = mock.Mock(spec=())
 
     def test_subscriber_receives_published_message(self):
-        barrier = threading.Barrier(2)
-        callback = mock.Mock(spec=(), side_effect=barrier.wait)
-        self._pubsub.subscribe(_Message, callback)
+        self._pubsub.subscribe(_Message, self._callback)
         self._pubsub.publish(_Message('foo'))
-        barrier.wait()
-        callback.assert_called_once_with(_Message('foo'))
+        self._pubsub.join()
+        self._callback.assert_called_once_with(_Message('foo'))
 
     def test_subscriber_receives_subclassed_message(self):
-        barrier = threading.Barrier(2)
-        callback = mock.Mock(spec=(), side_effect=barrier.wait)
-        self._pubsub.subscribe(pubsub.Message, callback)
+        self._pubsub.subscribe(pubsub.Message, self._callback)
         self._pubsub.publish(_Message('foo'))
-        barrier.wait()
-        callback.assert_called_once_with(_Message('foo'))
+        self._pubsub.join()
+        self._callback.assert_called_once_with(_Message('foo'))
 
     def test_subscriber_does_not_receive_unwanted_message(self):
-        callback = mock.Mock(spec=())
-        self._pubsub.subscribe(_OtherMessage, callback)
+        self._pubsub.subscribe(_OtherMessage, self._callback)
         self._pubsub.publish(_Message('foo'))
-        # This tests that the callback is not getting called, so a barrier
-        # wouldn't work.
-        time.sleep(1)
-        callback.assert_not_called()
+        self._pubsub.join()
+        self._callback.assert_not_called()
+
+    def test_subscriber_recieves_messages_in_order(self):
+        self._pubsub.subscribe(_OtherMessage, self._callback)
+        for index in range(1000):
+            self._pubsub.publish(_OtherMessage(index))
+        self._pubsub.join()
+        self.assertSequenceEqual(
+            tuple(mock.call(_OtherMessage(index)) for index in range(1000)),
+            self._callback.mock_calls,
+        )
+
+    def test_callback_exception_is_logged(self):
+        self._callback.side_effect = ValueError('kumquat')
+        self._pubsub.subscribe(pubsub.Message, self._callback)
+        with self.assertLogs() as logs:
+            self._pubsub.publish(_Message('cauliflower'))
+            self._pubsub.join()
+        self.assertRegex(
+            '\n'.join(logs.output),
+            r'failed to process message.*cauliflower(.|\n)*kumquat')
 
 
 if __name__ == '__main__':
