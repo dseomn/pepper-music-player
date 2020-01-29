@@ -15,7 +15,9 @@
 
 import dataclasses
 import datetime
+import functools
 import logging
+import operator
 import threading
 from typing import Callable, Optional
 
@@ -209,7 +211,12 @@ class Player:
 
     def _handle_messages(self, bus: Gst.Bus) -> None:
         """Handles messages from gstreamer in a daemon thread."""
+        handlers = {
+            Gst.MessageType.ERROR: self._on_error,
+        }
+        message_type_mask = functools.reduce(operator.or_, handlers.keys(),
+                                             Gst.MessageType.UNKNOWN)
         while True:
-            message = bus.timed_pop(Gst.CLOCK_TIME_NONE)
-            if message.type is Gst.MessageType.ERROR:
-                self._on_error(message)
+            message = bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE,
+                                             message_type_mask)
+            handlers[message.type](message)
