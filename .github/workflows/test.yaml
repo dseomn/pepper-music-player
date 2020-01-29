@@ -15,7 +15,7 @@
 on:
   push: {}
   schedule:
-  - cron: '47 4 * * *'
+  - cron: '47 8 * * *'
 
 jobs:
   test:
