@@ -43,6 +43,23 @@ _AUDIO_ZEROES = b'\x00' * _AUDIO_BYTE_COUNT
 _AUDIO_ONES = b'\xff' * _AUDIO_BYTE_COUNT
 
 
+def _args_then_none(*args):
+    """Yields its arguments, then None forever.
+
+    It seems that the about-to-finish signal sometimes gets sent a few extra
+    times when we do anything other than the simplest play() all the way
+    through. The exact number of times seems to vary, and doesn't seem
+    important. This function makes it easy for tests to return None from the
+    NextPlayableUnitCallback after the interesting return values.
+
+    Args:
+        *args: What to yield initially.
+    """
+    yield from args
+    while True:
+        yield None
+
+
 class PlayerTest(unittest.TestCase):
 
     def setUp(self):
@@ -121,10 +138,8 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(_AUDIO_ZEROES * 2, self._all_audio())
 
     def test_play_resumes_from_pause_and_pause_while_paused_is_noop(self):
-        self._next_playable_unit_callback.side_effect = (
-            self._playable_unit('zeroes', _AUDIO_ZEROES),
-            None,
-        )
+        self._next_playable_unit_callback.side_effect = _args_then_none(
+            self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.play()
         self._player.pause()
         self._player.pause()
@@ -132,10 +147,8 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
     def test_play_while_already_playing_is_noop(self):
-        self._next_playable_unit_callback.side_effect = (
-            self._playable_unit('zeroes', _AUDIO_ZEROES),
-            None,
-        )
+        self._next_playable_unit_callback.side_effect = _args_then_none(
+            self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.play()
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
@@ -144,22 +157,14 @@ class PlayerTest(unittest.TestCase):
         self._next_playable_unit_callback.side_effect = (self._playable_unit(
             'zeroes', _AUDIO_ZEROES),)
         self._player.pause()
-        self._next_playable_unit_callback.side_effect = (None,)
+        self._next_playable_unit_callback.side_effect = None
+        self._next_playable_unit_callback.return_value = None
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
     def test_seek(self):
-        self._next_playable_unit_callback.side_effect = (
-            self._playable_unit('zeroes', _AUDIO_ZEROES),
-            # It seems that the about-to-finish signal gets sent a few times
-            # because the audio is so short and the seek is therefore also close
-            # to the end of the audio. That's not really important (in general,
-            # or for this test case specifically), but it does mean we need to
-            # return None a few extra times.
-            None,
-            None,
-            None,
-        )
+        self._next_playable_unit_callback.side_effect = _args_then_none(
+            self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.pause()
         self._player.seek(
             datetime.timedelta(seconds=_AUDIO_DURATION_SECONDS) / 2)
