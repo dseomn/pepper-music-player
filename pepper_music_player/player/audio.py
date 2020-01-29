@@ -219,4 +219,8 @@ class Player:
         while True:
             message = bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE,
                                              message_type_mask)
-            handlers[message.type](message)
+            try:
+                handlers[message.type](message)
+            except Exception:  # pylint: disable=broad-except
+                logging.exception('Error handling gstreamer message of type %s',
+                                  message.type)
