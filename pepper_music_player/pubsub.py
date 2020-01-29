@@ -59,6 +59,8 @@ class PubSub:
         than other methods. It's primarily intended for testing, and for before
         the application exits.
         """
+        # TODO(dseomn): This could deadlock if one of the subscriber callbacks
+        # tries to publish (or subscribe). Does that matter?
         with self._subscribers_lock:
             for subscriber in self._subscribers:
                 subscriber.queue.join()
