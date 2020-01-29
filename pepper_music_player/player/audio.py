@@ -15,6 +15,7 @@
 
 import dataclasses
 import datetime
+import logging
 import threading
 from typing import Callable, Optional
 
@@ -92,6 +93,11 @@ class Player:
         self._next_playable_unit_callback: NextPlayableUnitCallback = (
             lambda _: None)
 
+        threading.Thread(
+            target=self._handle_messages,
+            args=(self._playbin.get_bus(),),
+            daemon=True,
+        ).start()
         self._playbin.connect('about-to-finish',
                               self._prepare_next_playable_unit)
 
@@ -190,3 +196,20 @@ class Player:
         self._playbin.seek_simple(Gst.Format.TIME,
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
+
+    def _on_error(self, message: Gst.Message) -> None:
+        gerror, debug = message.parse_error()
+        logging.error(
+            'Error from gstreamer element %s: %s%s',
+            message.src.get_name(),
+            gerror.message,
+            '' if debug is None else f'\n{debug}',
+        )
+        self.stop()
+
+    def _handle_messages(self, bus: Gst.Bus) -> None:
+        """Handles messages from gstreamer in a daemon thread."""
+        while True:
+            message = bus.timed_pop(Gst.CLOCK_TIME_NONE)
+            if message.type is Gst.MessageType.ERROR:
+                self._on_error(message)

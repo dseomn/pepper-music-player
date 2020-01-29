@@ -167,6 +167,24 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(_AUDIO_ZEROES[len(_AUDIO_ZEROES) // 2:],
                          self._all_audio())
 
+    def test_logs_and_stops_on_error(self):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        filename = os.path.join(tempdir.name, f'error.wav')
+        with open(filename, 'wb') as fh:
+            fh.write(b'This is probably not a valid wav file.')
+        self._next_playable_unit_callback.side_effect = (audio.PlayableUnit(
+            track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
+            playlist_entry=entity.PlaylistEntry(
+                library_token=token.Track('ignore-this-token')),
+        ),)
+        with self.assertLogs() as logs:
+            self._player.play()
+            all_audio = self._all_audio()
+        self.assertRegex('\n'.join(logs.output),
+                         r'Error from gstreamer element')
+        self.assertEqual(b'', all_audio)
+
 
 if __name__ == '__main__':
     unittest.main()
