@@ -101,11 +101,11 @@ class PubSub:
             callback: Function that is called for every published message of the
                 appropriate type.
         """
-        with self._subscribers_lock:
-            subscriber = _Subscriber(message_type)
-            self._subscribers.append(subscriber)
+        subscriber = _Subscriber(message_type)
         threading.Thread(
             target=self._process_subscriber_queue,
             args=(subscriber.queue, callback),
             daemon=True,
         ).start()
+        with self._subscribers_lock:
+            self._subscribers.append(subscriber)
