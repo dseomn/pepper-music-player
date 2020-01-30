@@ -20,6 +20,7 @@ from gi.repository import Gtk
 from pepper_music_player.library import database
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
+from pepper_music_player import pubsub
 from pepper_music_player.ui import application
 
 
@@ -27,7 +28,8 @@ def main() -> None:
     # TODO(dseomn): Switch to the real default database_dir, once there is one.
     database_dir = '.'
     library_db = database.Database(database_dir=database_dir)
-    player = audio.Player()
+    pubsub_bus = pubsub.PubSub()
+    player = audio.Player(pubsub_bus=pubsub_bus)
     playlist_ = playlist.Playlist(
         player=player,
         library_db=library_db,

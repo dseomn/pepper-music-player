@@ -13,13 +13,16 @@
 # limitations under the License.
 """Audio player."""
 
+import collections
 import dataclasses
 import datetime
+import enum
 import functools
 import logging
 import operator
 import threading
-from typing import Callable, Optional
+import time
+from typing import Callable, Deque, Optional
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -27,6 +30,7 @@ from gi.repository import Gst
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+from pepper_music_player import pubsub
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,6 +53,35 @@ NextPlayableUnitCallback = Callable[[Optional[PlayableUnit]],
                                     Optional[PlayableUnit]]
 
 
+class State(enum.Enum):
+    """State of the player.
+
+    Attributes:
+        STOPPED: Nothing is playing or ready to play.
+        PAUSED: Something is ready, but not playing.
+        PLAYING: Something is actively playing.
+    """
+    STOPPED = enum.auto()
+    PAUSED = enum.auto()
+    PLAYING = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True)
+class PlayStatus(pubsub.Message):
+    """Status update on what is currently playing.
+
+    Attributes:
+        state: Current state of playback.
+        playable_unit: The current playable unit, or None if state is STOPPED.
+        duration: Duration of the current playable unit.
+        position: Position of the player within the current playable unit.
+    """
+    state: State
+    playable_unit: Optional[PlayableUnit]
+    duration: datetime.timedelta
+    position: datetime.timedelta
+
+
 def _parse_pipeline(pipeline_description: str) -> Gst.Element:
     """Returns an Element from a pipeline string."""
     return Gst.parse_launch_full(pipeline_description,
@@ -58,6 +91,10 @@ def _parse_pipeline(pipeline_description: str) -> Gst.Element:
 
 def _timedelta_to_gst_clock_time(timedelta: datetime.timedelta) -> int:
     return round(1000 * timedelta / datetime.timedelta(microseconds=1))
+
+
+def _gst_clock_time_to_timedelta(gst_clock_time: int) -> datetime.timedelta:
+    return datetime.timedelta(microseconds=gst_clock_time / 1000)
 
 
 class Player:
@@ -70,28 +107,31 @@ class Player:
     def __init__(
             self,
             *,
+            pubsub_bus: pubsub.PubSub,
             audio_sink: Optional[Gst.Element] = None,
     ) -> None:
         """Initializer.
 
         Args:
+            pubsub_bus: Where to send status updates.
             audio_sink: Audio sink to use, or None to use the default. This is
                 primarily intended for testing.
         """
         # Thread-safe attributes. These attributes are set only during __init__.
         # The values are also safe to mutate from any thread.
+        self._pubsub = pubsub_bus
         Gst.init(argv=None)
         self._playbin = _parse_pipeline('playbin')
         self._playbin.set_property('audio-filter', _parse_pipeline('rgvolume'))
         self._playbin.set_property('audio-sink', audio_sink)
         self._playbin.set_property('video-sink', _parse_pipeline('fakesink'))
+        self._state_change_counter = threading.Semaphore(0)
 
         self._lock = threading.RLock()
 
-        # Mutable attributes with immutable values. To get or set these
-        # attributes, self._lock must be held. However, the values may be used
-        # without holding the lock.
-        self._playable_unit: Optional[PlayableUnit] = None
+        # Mutable attributes, protected by the lock.
+        self._state = State.STOPPED
+        self._playable_units: Deque[PlayableUnit] = collections.deque()
         self._next_playable_unit_callback: NextPlayableUnitCallback = (
             lambda _: None)
 
@@ -102,6 +142,8 @@ class Player:
         ).start()
         self._playbin.connect('about-to-finish',
                               self._prepare_next_playable_unit)
+
+        threading.Thread(target=self._poll_status, daemon=True).start()
 
     def set_next_playable_unit_callback(
             self,
@@ -136,17 +178,62 @@ class Player:
         """
         del _element  # See docstring.
         with self._lock:
-            if initial and self._playable_unit is not None:
+            if initial and self._playable_units:
                 # Something is already prepared, and we're only supposed to
                 # prepare something if nothing is ready.
                 return
-            self._playable_unit = self._next_playable_unit_callback(
-                self._playable_unit)
-            if self._playable_unit is not None:
-                self._playbin.set_property(
-                    'uri',
-                    Gst.filename_to_uri(
-                        self._playable_unit.track.tags.one(tag.FILENAME)))
+            next_playable_unit = self._next_playable_unit_callback(
+                self._playable_units[-1] if self._playable_units else None)
+            if next_playable_unit is None:
+                return
+            self._playable_units.append(next_playable_unit)
+            self._playbin.set_property(
+                'uri',
+                Gst.filename_to_uri(
+                    next_playable_unit.track.tags.one(tag.FILENAME)))
+
+    def _poll_status(
+            self,
+            *,
+            inter_update_delay_seconds: float = 0.02,
+    ) -> None:
+        """Periodically sends status updates to pubsub, in a daemon thread.
+
+        Args:
+            inter_update_delay_seconds: How long to sleep between updates when
+                not in a steady state.
+        """
+        while True:
+            with self._lock:
+                state = self._state
+                playable_unit = (self._playable_units[0]
+                                 if self._playable_units else None)
+            duration_ok, duration_gst_time = self._playbin.query_duration(
+                Gst.Format.TIME)
+            position_ok, position_gst_time = self._playbin.query_position(
+                Gst.Format.TIME)
+            # When transitioning away from STOPPED, it sometimes takes gstreamer
+            # some time to get up to speed. This if-condition prevents sending
+            # status updates during that transition time.
+            if state is State.STOPPED or (duration_ok and position_ok):
+                waiting_to_settle = False
+                self._pubsub.publish(
+                    PlayStatus(
+                        state=state,
+                        playable_unit=playable_unit,
+                        duration=(
+                            _gst_clock_time_to_timedelta(duration_gst_time)
+                            if duration_ok else datetime.timedelta(0)),
+                        position=(
+                            _gst_clock_time_to_timedelta(position_gst_time)
+                            if position_ok else datetime.timedelta(0)),
+                    ))
+            else:
+                waiting_to_settle = True
+            if state is State.PLAYING or waiting_to_settle:
+                time.sleep(inter_update_delay_seconds)
+            else:
+                self._state_change_counter.acquire()
 
     def play(self) -> None:
         """Starts playing, if possible.
@@ -159,6 +246,8 @@ class Player:
         with self._lock:
             self._prepare_next_playable_unit(initial=True)
             self._playbin.set_state(Gst.State.PLAYING)
+            self._state = State.PLAYING
+        self._state_change_counter.release()
 
     def pause(self) -> None:
         """Pauses playing, if possible.
@@ -171,12 +260,16 @@ class Player:
         with self._lock:
             self._prepare_next_playable_unit(initial=True)
             self._playbin.set_state(Gst.State.PAUSED)
+            self._state = State.PAUSED
+        self._state_change_counter.release()
 
     def stop(self) -> None:
         """Stops playing."""
         with self._lock:
-            self._playable_unit = None
+            self._playable_units.clear()
             self._playbin.set_state(Gst.State.NULL)
+            self._state = State.STOPPED
+        self._state_change_counter.release()
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def seek(
@@ -199,6 +292,10 @@ class Player:
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
 
+    def _on_end_of_stream(self, message: Gst.Message) -> None:
+        del message  # Unused.
+        self.stop()
+
     def _on_error(self, message: Gst.Message) -> None:
         gerror, debug = message.parse_error()
         logging.error(
@@ -209,10 +306,23 @@ class Player:
         )
         self.stop()
 
+    def _on_stream_start(self, message: Gst.Message) -> None:
+        del message  # Unused.
+        with self._lock:
+            # If there's only one playable unit, then this is starting the first
+            # one, so self._playable_units[0] is now the current playing one.
+            # Otherwise, something was already playing when a new stream
+            # started, so we pop the previous one. Then self._playable_units[0]
+            # will be the new stream that just started.
+            if len(self._playable_units) > 1:
+                self._playable_units.popleft()
+
     def _handle_messages(self, bus: Gst.Bus) -> None:
         """Handles messages from gstreamer in a daemon thread."""
         handlers = {
+            Gst.MessageType.EOS: self._on_end_of_stream,
             Gst.MessageType.ERROR: self._on_error,
+            Gst.MessageType.STREAM_START: self._on_stream_start,
         }
         message_type_mask = functools.reduce(operator.or_, handlers.keys(),
                                              Gst.MessageType.UNKNOWN)

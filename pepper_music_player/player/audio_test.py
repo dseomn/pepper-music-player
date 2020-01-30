@@ -14,8 +14,10 @@
 """Tests for pepper_music_player.player.audio."""
 
 import datetime
+import operator
 import os
 import tempfile
+import time
 import unittest
 from unittest import mock
 import wave
@@ -30,12 +32,13 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
+from pepper_music_player import pubsub
 
 _CHANNEL_COUNT = 1
 _SAMPLE_WIDTH_BYTES = 2
 _SAMPLE_RATE = 48000
 
-_AUDIO_DURATION_SECONDS = 0.1
+_AUDIO_DURATION_SECONDS = 0.5
 _AUDIO_BYTE_COUNT = (_CHANNEL_COUNT * _SAMPLE_WIDTH_BYTES *
                      round(_SAMPLE_RATE * _AUDIO_DURATION_SECONDS))
 
@@ -64,10 +67,16 @@ class PlayerTest(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
+        self._pubsub = pubsub.PubSub()
+        self._play_status_callback = mock.Mock(spec=())
+        self._pubsub.subscribe(audio.PlayStatus, self._play_status_callback)
         Gst.init(argv=None)
         self._audio_sink = Gst.parse_launch_full('appsink', None,
                                                  Gst.ParseFlags.FATAL_ERRORS)
-        self._player = audio.Player(audio_sink=self._audio_sink)
+        self._player = audio.Player(
+            pubsub_bus=self._pubsub,
+            audio_sink=self._audio_sink,
+        )
         self.addCleanup(self._player.stop)
         self._next_playable_unit_callback = mock.Mock(spec=())
         self._player.set_next_playable_unit_callback(
@@ -98,8 +107,58 @@ class PlayerTest(unittest.TestCase):
                 return b''.join(data)
             data.append(sample.get_buffer().map(Gst.MapFlags.READ)[1].data)
 
+    def _deduplicated_status_updates(self):
+        """Returns deduplicated PlayStatus messages from pubsub.
+
+        Messages are deduplicated such that:
+            1. Any two adjacent, equal messages are collapsed into one.
+            2. Any range of message that differ only in a monotonically
+               non-decreasing position attribute are collapsed into two
+               messages, one for the minimum position and one for the maximum
+               position.
+        """
+        self._pubsub.join()
+        statuses = []
+        in_a_range_of_messages = False  # Condition 2 from the docstring.
+        for mock_call in self._play_status_callback.mock_calls:
+            _, (status,), _ = mock_call
+            if not statuses:
+                statuses.append(status)
+            elif status == statuses[-1]:
+                pass
+            elif all((
+                    operator.eq(
+                        (
+                            status.state,
+                            status.playable_unit,
+                            status.duration,
+                        ),
+                        (
+                            statuses[-1].state,
+                            statuses[-1].playable_unit,
+                            statuses[-1].duration,
+                        ),
+                    ),
+                    status.position >= statuses[-1].position,
+            )):
+                if in_a_range_of_messages:
+                    # Continuing the existing range, overwrite the end of the
+                    # range.
+                    statuses[-1] = status
+                else:
+                    # Second message in a newly discovered range.
+                    in_a_range_of_messages = True
+                    statuses.append(status)
+            else:
+                in_a_range_of_messages = False
+                statuses.append(status)
+        return statuses
+
     def test_default_next_playable_unit_is_none(self):
-        default_player = audio.Player(audio_sink=self._audio_sink)
+        default_player = audio.Player(
+            pubsub_bus=self._pubsub,
+            audio_sink=self._audio_sink,
+        )
         default_player.play()
         self.assertEqual(b'', self._all_audio())
 
@@ -189,6 +248,75 @@ class PlayerTest(unittest.TestCase):
         self.assertRegex('\n'.join(logs.output),
                          r'Error from gstreamer element')
         self.assertEqual(b'', all_audio)
+
+    def test_publishes_play_status(self):
+        zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
+        ones = self._playable_unit('ones', _AUDIO_ONES)
+        self._next_playable_unit_callback.side_effect = (zeroes, ones, None)
+        time.sleep(_AUDIO_DURATION_SECONDS)
+        self._player.play()
+        self._all_audio()
+        time.sleep(_AUDIO_DURATION_SECONDS)
+        self.assertSequenceEqual(
+            (
+                audio.PlayStatus(
+                    state=audio.State.STOPPED,
+                    playable_unit=None,
+                    duration=datetime.timedelta(0),
+                    position=datetime.timedelta(0),
+                ),
+                audio.PlayStatus(
+                    state=audio.State.PLAYING,
+                    playable_unit=zeroes,
+                    duration=datetime.timedelta(
+                        seconds=_AUDIO_DURATION_SECONDS),
+                    position=mock.ANY,  # Near the beginning.
+                ),
+                audio.PlayStatus(
+                    state=audio.State.PLAYING,
+                    playable_unit=zeroes,
+                    duration=datetime.timedelta(
+                        seconds=_AUDIO_DURATION_SECONDS),
+                    position=mock.ANY,  # Near the end.
+                ),
+                audio.PlayStatus(
+                    state=audio.State.PLAYING,
+                    playable_unit=ones,
+                    duration=datetime.timedelta(
+                        seconds=_AUDIO_DURATION_SECONDS),
+                    position=mock.ANY,  # Near the beginning.
+                ),
+                audio.PlayStatus(
+                    state=audio.State.PLAYING,
+                    playable_unit=ones,
+                    duration=datetime.timedelta(
+                        seconds=_AUDIO_DURATION_SECONDS),
+                    position=mock.ANY,  # Near the end.
+                ),
+                audio.PlayStatus(
+                    state=audio.State.STOPPED,
+                    playable_unit=None,
+                    duration=datetime.timedelta(0),
+                    position=datetime.timedelta(0),
+                ),
+            ),
+            self._deduplicated_status_updates(),
+        )
+
+    def test_publishes_play_status_on_initial_pause(self):
+        zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
+        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._player.pause()
+        time.sleep(_AUDIO_DURATION_SECONDS)
+        self.assertIn(
+            audio.PlayStatus(
+                state=audio.State.PAUSED,
+                playable_unit=zeroes,
+                duration=datetime.timedelta(seconds=_AUDIO_DURATION_SECONDS),
+                position=datetime.timedelta(0),
+            ),
+            self._deduplicated_status_updates(),
+        )
 
 
 if __name__ == '__main__':
