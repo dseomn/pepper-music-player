@@ -19,6 +19,7 @@ None yet.
 *   [ReplayGain](https://en.wikipedia.org/wiki/ReplayGain) support
 *   [Gapless playback](https://en.wikipedia.org/wiki/Gapless_playback) between
     tracks on the same album
+*   [MPRIS](https://www.freedesktop.org/wiki/Specifications/mpris-spec/) support
 *   Run on Linux.
 *   Easily handle a music library with about 10k files.
 *   Handle a variety of metadata gracefully. E.g.,
