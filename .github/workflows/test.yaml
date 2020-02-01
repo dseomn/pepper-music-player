@@ -45,6 +45,7 @@ jobs:
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
+        sudo apt-get update
         sudo apt-get install \
           gir1.2-gst-plugins-base-1.0 \
           gir1.2-gstreamer-1.0 \
