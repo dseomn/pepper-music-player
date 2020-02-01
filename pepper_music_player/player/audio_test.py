@@ -68,6 +68,12 @@ def _args_then_none(*args):
 
 
 class PlayerTest(unittest.TestCase):
+    """Tests for audio.Player.
+
+    Attributes:
+        maxDiff: See base class.
+    """
+    maxDiff = None
 
     def setUp(self):
         super().setUp()
