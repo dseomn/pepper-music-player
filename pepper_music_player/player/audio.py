@@ -130,10 +130,13 @@ class Player:
         self._lock = threading.RLock()
 
         # Mutable attributes, protected by the lock.
-        self._state = State.STOPPED
+        self._state = State.STOPPED  # Target state.
+        self._state_has_stabilized = True  # If the target state is current.
         self._playable_units: Deque[PlayableUnit] = collections.deque()
         self._next_playable_unit_callback: NextPlayableUnitCallback = (
             lambda _: None)
+        self._next_stream_is_first_after_stop = True
+        self._current_duration = datetime.timedelta(0)
 
         threading.Thread(
             target=self._handle_messages,
@@ -206,31 +209,23 @@ class Player:
         while True:
             with self._lock:
                 state = self._state
+                state_has_stabilized = self._state_has_stabilized
                 playable_unit = (self._playable_units[0]
                                  if self._playable_units else None)
-            duration_ok, duration_gst_time = self._playbin.query_duration(
-                Gst.Format.TIME)
+                duration = self._current_duration
             position_ok, position_gst_time = self._playbin.query_position(
                 Gst.Format.TIME)
-            # When transitioning away from STOPPED, it sometimes takes gstreamer
-            # some time to get up to speed. This if-condition prevents sending
-            # status updates during that transition time.
-            if state is State.STOPPED or (duration_ok and position_ok):
-                waiting_to_settle = False
+            if state_has_stabilized:
                 self._pubsub.publish(
                     PlayStatus(
                         state=state,
                         playable_unit=playable_unit,
-                        duration=(
-                            _gst_clock_time_to_timedelta(duration_gst_time)
-                            if duration_ok else datetime.timedelta(0)),
+                        duration=duration,
                         position=(
                             _gst_clock_time_to_timedelta(position_gst_time)
                             if position_ok else datetime.timedelta(0)),
                     ))
-            else:
-                waiting_to_settle = True
-            if state is State.PLAYING or waiting_to_settle:
+            if state is State.PLAYING or not state_has_stabilized:
                 time.sleep(inter_update_delay_seconds)
             else:
                 self._state_change_counter.acquire()
@@ -247,6 +242,7 @@ class Player:
             self._prepare_next_playable_unit(initial=True)
             self._playbin.set_state(Gst.State.PLAYING)
             self._state = State.PLAYING
+            self._state_has_stabilized = False
         self._state_change_counter.release()
 
     def pause(self) -> None:
@@ -261,6 +257,7 @@ class Player:
             self._prepare_next_playable_unit(initial=True)
             self._playbin.set_state(Gst.State.PAUSED)
             self._state = State.PAUSED
+            self._state_has_stabilized = False
         self._state_change_counter.release()
 
     def stop(self) -> None:
@@ -269,6 +266,9 @@ class Player:
             self._playable_units.clear()
             self._playbin.set_state(Gst.State.NULL)
             self._state = State.STOPPED
+            self._state_has_stabilized = True
+            self._next_stream_is_first_after_stop = True
+            self._current_duration = datetime.timedelta(0)
         self._state_change_counter.release()
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
@@ -309,13 +309,15 @@ class Player:
     def _on_stream_start(self, message: Gst.Message) -> None:
         del message  # Unused.
         with self._lock:
-            # If there's only one playable unit, then this is starting the first
-            # one, so self._playable_units[0] is now the current playing one.
-            # Otherwise, something was already playing when a new stream
-            # started, so we pop the previous one. Then self._playable_units[0]
-            # will be the new stream that just started.
-            if len(self._playable_units) > 1:
+            self._state_has_stabilized = True
+            if not self._next_stream_is_first_after_stop:
                 self._playable_units.popleft()
+            self._next_stream_is_first_after_stop = False
+            duration_ok, duration_gst_time = self._playbin.query_duration(
+                Gst.Format.TIME)
+            self._current_duration = (
+                _gst_clock_time_to_timedelta(duration_gst_time)
+                if duration_ok else datetime.timedelta(0))
 
     def _handle_messages(self, bus: Gst.Bus) -> None:
         """Handles messages from gstreamer in a daemon thread."""
