@@ -21,7 +21,6 @@ import functools
 import logging
 import operator
 import threading
-import time
 from typing import Callable, Deque, Optional
 
 import gi
@@ -241,7 +240,8 @@ class Player:
                             if position_ok else datetime.timedelta(0)),
                     ))
             if state is State.PLAYING or not fully_stabilized:
-                time.sleep(inter_update_delay_seconds)
+                self._status_change_counter.acquire(
+                    timeout=inter_update_delay_seconds)
             else:
                 self._status_change_counter.acquire()
 
