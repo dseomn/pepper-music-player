@@ -38,12 +38,16 @@ _CHANNEL_COUNT = 1
 _SAMPLE_WIDTH_BYTES = 2
 _SAMPLE_RATE = 48000
 
-_AUDIO_DURATION_SECONDS = 0.5
-_AUDIO_BYTE_COUNT = (_CHANNEL_COUNT * _SAMPLE_WIDTH_BYTES *
-                     round(_SAMPLE_RATE * _AUDIO_DURATION_SECONDS))
+_DEFAULT_DURATION_SECONDS = 0.1
 
-_AUDIO_ZEROES = b'\x00' * _AUDIO_BYTE_COUNT
-_AUDIO_ONES = b'\xff' * _AUDIO_BYTE_COUNT
+
+def _audio_data(byte, *, duration_seconds=_DEFAULT_DURATION_SECONDS):
+    return byte * (_CHANNEL_COUNT * _SAMPLE_WIDTH_BYTES *
+                   round(_SAMPLE_RATE * duration_seconds))
+
+
+_AUDIO_ZEROES = _audio_data(b'\x00')
+_AUDIO_ONES = _audio_data(b'\xff')
 
 
 def _args_then_none(*args):
@@ -226,7 +230,7 @@ class PlayerTest(unittest.TestCase):
             self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.pause()
         self._player.seek(
-            datetime.timedelta(seconds=_AUDIO_DURATION_SECONDS) / 2)
+            datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS) / 2)
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES[len(_AUDIO_ZEROES) // 2:],
                          self._all_audio())
@@ -250,13 +254,18 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(b'', all_audio)
 
     def test_publishes_play_status(self):
-        zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
-        ones = self._playable_unit('ones', _AUDIO_ONES)
+        # This uses durations that are longer than the default, since the status
+        # updates run in the background and aren't guaranteed to capture every
+        # status change.
+        zeroes = self._playable_unit('zeroes',
+                                     _audio_data(b'\x00', duration_seconds=1.0))
+        ones = self._playable_unit('ones',
+                                   _audio_data(b'\xff', duration_seconds=1.1))
         self._next_playable_unit_callback.side_effect = (zeroes, ones, None)
-        time.sleep(_AUDIO_DURATION_SECONDS)
+        time.sleep(1)  # Wait for the initial STOPPED status.
         self._player.play()
         self._all_audio()
-        time.sleep(_AUDIO_DURATION_SECONDS)
+        time.sleep(1)  # Wait for the final STOPPED status.
         self.assertSequenceEqual(
             (
                 audio.PlayStatus(
@@ -268,29 +277,25 @@ class PlayerTest(unittest.TestCase):
                 audio.PlayStatus(
                     state=audio.State.PLAYING,
                     playable_unit=zeroes,
-                    duration=datetime.timedelta(
-                        seconds=_AUDIO_DURATION_SECONDS),
+                    duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the beginning.
                 ),
                 audio.PlayStatus(
                     state=audio.State.PLAYING,
                     playable_unit=zeroes,
-                    duration=datetime.timedelta(
-                        seconds=_AUDIO_DURATION_SECONDS),
+                    duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the end.
                 ),
                 audio.PlayStatus(
                     state=audio.State.PLAYING,
                     playable_unit=ones,
-                    duration=datetime.timedelta(
-                        seconds=_AUDIO_DURATION_SECONDS),
+                    duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the beginning.
                 ),
                 audio.PlayStatus(
                     state=audio.State.PLAYING,
                     playable_unit=ones,
-                    duration=datetime.timedelta(
-                        seconds=_AUDIO_DURATION_SECONDS),
+                    duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the end.
                 ),
                 audio.PlayStatus(
@@ -307,12 +312,12 @@ class PlayerTest(unittest.TestCase):
         zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
         self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
         self._player.pause()
-        time.sleep(_AUDIO_DURATION_SECONDS)
+        time.sleep(1)
         self.assertIn(
             audio.PlayStatus(
                 state=audio.State.PAUSED,
                 playable_unit=zeroes,
-                duration=datetime.timedelta(seconds=_AUDIO_DURATION_SECONDS),
+                duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=datetime.timedelta(0),
             ),
             self._deduplicated_status_updates(),
