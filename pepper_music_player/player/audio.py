@@ -196,6 +196,18 @@ class Player:
                 Gst.filename_to_uri(
                     next_playable_unit.track.tags.one(tag.FILENAME)))
 
+    def _try_set_current_duration(self) -> None:
+        """Attempts to set the current duration if it's None."""
+        with self._lock:
+            if self._current_duration is not None:
+                return
+            duration_ok, duration_gst_time = self._playbin.query_duration(
+                Gst.Format.TIME)
+            if not duration_ok:
+                return
+            self._current_duration = _gst_clock_time_to_timedelta(
+                duration_gst_time)
+
     def _poll_status(
             self,
             *,
@@ -213,12 +225,7 @@ class Player:
                 state_has_stabilized = self._state_has_stabilized
                 playable_unit = (self._playable_units[0]
                                  if self._playable_units else None)
-                if self._current_duration is None:
-                    duration_ok, duration_gst_time = (
-                        self._playbin.query_duration(Gst.Format.TIME))
-                    if duration_ok:
-                        self._current_duration = _gst_clock_time_to_timedelta(
-                            duration_gst_time)
+                self._try_set_current_duration()
                 duration = self._current_duration
             if state_has_stabilized and duration is not None:
                 position_ok, position_gst_time = self._playbin.query_position(
@@ -321,6 +328,7 @@ class Player:
                 self._playable_units.popleft()
             self._next_stream_is_first_after_stop = False
             self._current_duration = None  # Unknown.
+            self._try_set_current_duration()
 
     def _handle_messages(self, bus: Gst.Bus) -> None:
         """Handles messages from gstreamer in a daemon thread."""
