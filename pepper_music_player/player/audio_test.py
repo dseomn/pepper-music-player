@@ -329,6 +329,23 @@ class PlayerTest(unittest.TestCase):
             self._deduplicated_status_updates(),
         )
 
+    def test_publishes_play_status_after_seek_while_paused(self):
+        zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
+        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._player.pause()
+        position = datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS) / 2
+        self._player.seek(position)
+        time.sleep(1)
+        self.assertIn(
+            audio.PlayStatus(
+                state=audio.State.PAUSED,
+                playable_unit=zeroes,
+                duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
+                position=position,
+            ),
+            self._deduplicated_status_updates(),
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

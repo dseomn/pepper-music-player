@@ -125,7 +125,7 @@ class Player:
         self._playbin.set_property('audio-filter', _parse_pipeline('rgvolume'))
         self._playbin.set_property('audio-sink', audio_sink)
         self._playbin.set_property('video-sink', _parse_pipeline('fakesink'))
-        self._state_change_counter = threading.Semaphore(0)
+        self._status_change_counter = threading.Semaphore(0)
 
         self._lock = threading.RLock()
 
@@ -243,7 +243,7 @@ class Player:
             if state is State.PLAYING or not fully_stabilized:
                 time.sleep(inter_update_delay_seconds)
             else:
-                self._state_change_counter.acquire()
+                self._status_change_counter.acquire()
 
     def play(self) -> None:
         """Starts playing, if possible.
@@ -258,7 +258,7 @@ class Player:
             self._playbin.set_state(Gst.State.PLAYING)
             self._state = State.PLAYING
             self._state_has_stabilized = False
-        self._state_change_counter.release()
+        self._status_change_counter.release()
 
     def pause(self) -> None:
         """Pauses playing, if possible.
@@ -273,7 +273,7 @@ class Player:
             self._playbin.set_state(Gst.State.PAUSED)
             self._state = State.PAUSED
             self._state_has_stabilized = False
-        self._state_change_counter.release()
+        self._status_change_counter.release()
 
     def stop(self) -> None:
         """Stops playing."""
@@ -284,7 +284,7 @@ class Player:
             self._state_has_stabilized = True
             self._next_stream_is_first_after_stop = True
             self._current_duration = datetime.timedelta(0)
-        self._state_change_counter.release()
+        self._status_change_counter.release()
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def seek(
@@ -321,6 +321,10 @@ class Player:
         )
         self.stop()
 
+    def _on_async_done(self, message: Gst.Message) -> None:
+        del message  # Unused.
+        self._status_change_counter.release()
+
     def _on_stream_start(self, message: Gst.Message) -> None:
         del message  # Unused.
         with self._lock:
@@ -336,6 +340,7 @@ class Player:
         handlers = {
             Gst.MessageType.EOS: self._on_end_of_stream,
             Gst.MessageType.ERROR: self._on_error,
+            Gst.MessageType.ASYNC_DONE: self._on_async_done,
             Gst.MessageType.STREAM_START: self._on_stream_start,
         }
         message_type_mask = functools.reduce(operator.or_, handlers.keys(),
