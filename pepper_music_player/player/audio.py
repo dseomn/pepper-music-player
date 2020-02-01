@@ -227,7 +227,8 @@ class Player:
                                  if self._playable_units else None)
                 self._try_set_current_duration()
                 duration = self._current_duration
-            if state_has_stabilized and duration is not None:
+            fully_stabilized = state_has_stabilized and duration is not None
+            if fully_stabilized:
                 position_ok, position_gst_time = self._playbin.query_position(
                     Gst.Format.TIME)
                 self._pubsub.publish(
@@ -239,7 +240,7 @@ class Player:
                             _gst_clock_time_to_timedelta(position_gst_time)
                             if position_ok else datetime.timedelta(0)),
                     ))
-            if state is State.PLAYING or not state_has_stabilized:
+            if state is State.PLAYING or not fully_stabilized:
                 time.sleep(inter_update_delay_seconds)
             else:
                 self._state_change_counter.acquire()
