@@ -33,6 +33,7 @@ def main() -> None:
     playlist_ = playlist.Playlist(
         player=player,
         library_db=library_db,
+        pubsub_bus=pubsub_bus,
         database_dir=database_dir,
     )
     application.install_css()

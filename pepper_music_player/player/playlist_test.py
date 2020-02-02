@@ -24,6 +24,7 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
+from pepper_music_player import pubsub
 
 
 def _insert_album(library_db, album_name):
@@ -76,11 +77,15 @@ class PlaylistTest(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         library_db = database.Database(database_dir=tempdir.name)
+        self._pubsub = pubsub.PubSub()
+        self._update_callback = mock.Mock(spec=())
+        self._pubsub.subscribe(playlist.Update, self._update_callback)
         self._album = _insert_album(library_db, 'album')
         self._player = mock.create_autospec(audio.Player, instance=True)
         self._playlist = playlist.Playlist(
             player=self._player,
             library_db=library_db,
+            pubsub_bus=self._pubsub,
             database_dir=tempdir.name,
             reverse_unordered_selects=self.REVERSE_UNORDERED_SELECTS,
         )
@@ -183,6 +188,11 @@ class PlaylistTest(unittest.TestCase):
         entry1 = self._playlist.append(self._album.mediums[0].token)
         entry2 = self._playlist.append(self._album.mediums[1].token)
         self.assertSequenceEqual((entry1, entry2), tuple(self._playlist))
+
+    def test_sends_update_on_append(self):
+        self._playlist.append(self._album.token)
+        self._pubsub.join()
+        self._update_callback.assert_called_once_with(playlist.Update())
 
 
 class PlaylistReverseUnorderedSelectsTest(PlaylistTest):

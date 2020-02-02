@@ -13,6 +13,7 @@
 # limitations under the License.
 """Playlist management."""
 
+import dataclasses
 import enum
 import itertools
 from typing import Iterable, Iterator, Optional, Sequence
@@ -23,6 +24,7 @@ from pepper_music_player.library import database
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
+from pepper_music_player import pubsub
 from pepper_music_player import sqlite3_db
 
 
@@ -76,6 +78,15 @@ _SCHEMA = sqlite3_db.Schema(
 )
 
 
+@dataclasses.dataclass(frozen=True)
+class Update(pubsub.Message):
+    """Update on the state of the playlist.
+
+    This is currently used to indicate any change, with no indication of what
+    changed. In the future, it may include more information about what changed.
+    """
+
+
 class Playlist(Iterable[entity.PlaylistEntry]):
     """A list of things to play, along with the state of what's playing."""
 
@@ -84,6 +95,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             *,
             player: audio.Player,
             library_db: database.Database,
+            pubsub_bus: pubsub.PubSub,
             database_dir: str,
             reverse_unordered_selects: bool = False,
     ) -> None:
@@ -92,6 +104,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         Args:
             player: Audio player to use for playing this playlist.
             library_db: Library database.
+            pubsub_bus: PubSub bus.
             database_dir: Directory containing databases.
             reverse_unordered_selects: For tests only, see sqlite3_db.Database.
         """
@@ -103,6 +116,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         self._player = player
         self._player.set_next_playable_unit_callback(self._next_playable_unit)
         self._library_db = library_db
+        self._pubsub = pubsub_bus
 
     def _all_tracks(
             self,
@@ -256,4 +270,5 @@ class Playlist(Iterable[entity.PlaylistEntry]):
                     str(library_token),
                 ),
             )
-            return entry
+        self._pubsub.publish(Update())
+        return entry

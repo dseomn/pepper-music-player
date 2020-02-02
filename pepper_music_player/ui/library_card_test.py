@@ -31,6 +31,7 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
+from pepper_music_player import pubsub
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import screenshot_testlib
 
@@ -50,6 +51,7 @@ class LibraryCardTest(unittest.TestCase):
         self._playlist = playlist.Playlist(
             player=mock.create_autospec(audio.Player, instance=True),
             library_db=self._library_db,
+            pubsub_bus=mock.create_autospec(pubsub.PubSub, instance=True),
             database_dir=tempdir.name,
         )
         self._library_card_list = library_card.List(self._library_db,
