@@ -30,7 +30,6 @@ limitations under the License.
         <property name="hexpand">True</property>
         <property name="wrap">True</property>
         <property name="wrap_mode">word-char</property>
-        <property name="width_chars">40</property>
         <property name="xalign">0</property>
         <attributes>
           <attribute name="weight" value="bold"/>
@@ -48,7 +47,6 @@ limitations under the License.
         <property name="hexpand">True</property>
         <property name="wrap">True</property>
         <property name="wrap_mode">word-char</property>
-        <property name="width_chars">40</property>
         <property name="xalign">0</property>
       </object>
       <packing>

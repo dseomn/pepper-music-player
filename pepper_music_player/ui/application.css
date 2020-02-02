@@ -22,6 +22,10 @@
   margin: 18px;
 }
 
+.card-list {
+  min-width: 480px;
+}
+
 /* TODO(dseomn): Use a different background color between the card list and the
  * cards. */
 
