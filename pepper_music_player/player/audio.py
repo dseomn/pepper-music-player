@@ -23,6 +23,7 @@ import operator
 import threading
 from typing import Callable, Deque, Optional
 
+import frozendict
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
@@ -63,6 +64,13 @@ class State(enum.Enum):
     STOPPED = enum.auto()
     PAUSED = enum.auto()
     PLAYING = enum.auto()
+
+
+_GST_STATE_TO_STATE = frozendict.frozendict({
+    Gst.State.NULL: State.STOPPED,
+    Gst.State.PAUSED: State.PAUSED,
+    Gst.State.PLAYING: State.PLAYING,
+})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -257,6 +265,16 @@ class Player:
             else:
                 self._status_change_counter.acquire()
 
+    def _play_or_pause(self, gst_state: Gst.State, state: State) -> None:
+        """Implementation for both play() and pause()."""
+        with self._lock:
+            self._prepare_next_playable_unit(initial=True)
+            state_change = self._playbin.set_state(gst_state)
+            self._state = state
+            self._state_has_stabilized = (state_change is
+                                          Gst.StateChangeReturn.SUCCESS)
+        self._status_change_counter.release()
+
     def play(self) -> None:
         """Starts playing, if possible.
 
@@ -265,12 +283,7 @@ class Player:
         tries playing whatever is next. If nothing is playing, paused, or next,
         it's a no-op.
         """
-        with self._lock:
-            self._prepare_next_playable_unit(initial=True)
-            self._playbin.set_state(Gst.State.PLAYING)
-            self._state = State.PLAYING
-            self._state_has_stabilized = False
-        self._status_change_counter.release()
+        self._play_or_pause(Gst.State.PLAYING, State.PLAYING)
 
     def pause(self) -> None:
         """Pauses playing, if possible.
@@ -280,12 +293,7 @@ class Player:
         preparing whatever is next in a paused state. If nothing is playing,
         paused, or next, it's a no-op.
         """
-        with self._lock:
-            self._prepare_next_playable_unit(initial=True)
-            self._playbin.set_state(Gst.State.PAUSED)
-            self._state = State.PAUSED
-            self._state_has_stabilized = False
-        self._status_change_counter.release()
+        self._play_or_pause(Gst.State.PAUSED, State.PAUSED)
 
     def stop(self) -> None:
         """Stops playing."""
@@ -335,6 +343,10 @@ class Player:
 
     def _on_async_done(self, message: Gst.Message) -> None:
         del message  # Unused.
+        with self._lock:
+            _, gst_state, _ = self._playbin.get_state(timeout=0)
+            if _GST_STATE_TO_STATE.get(gst_state) is self._state:
+                self._state_has_stabilized = True
         self._status_change_counter.release()
 
     def _on_stream_start(self, message: Gst.Message) -> None:

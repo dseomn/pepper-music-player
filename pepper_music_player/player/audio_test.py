@@ -346,6 +346,38 @@ class PlayerTest(unittest.TestCase):
             self._deduplicated_status_updates(),
         )
 
+    def test_publishes_play_status_on_state_change(self,
+                                                   async_state_change=False):
+        self._audio_sink.set_property('async', async_state_change)
+        zeroes = self._playable_unit('zeroes',
+                                     _audio_data(b'\x00', duration_seconds=1.0))
+        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._player.play()
+        time.sleep(0.2)  # Wait for play to start.
+        self._player.pause()
+        time.sleep(0.2)  # Wait for pause() to generate a PlayStatus.
+        self._player.play()
+        self._all_audio()
+        statuses = self._deduplicated_status_updates()
+        sync_pause_status = audio.PlayStatus(
+            state=audio.State.PAUSED,
+            playable_unit=zeroes,
+            duration=datetime.timedelta(seconds=1.0),
+            position=mock.ANY,  # Near 0.2.
+        )
+        sync_play_status = audio.PlayStatus(
+            state=audio.State.PLAYING,
+            playable_unit=zeroes,
+            duration=datetime.timedelta(seconds=1.0),
+            position=mock.ANY,  # Near 0.2.
+        )
+        self.assertIn(sync_pause_status, statuses)
+        self.assertIn(sync_play_status,
+                      statuses[statuses.index(sync_pause_status):])
+
+    def test_publishes_play_status_on_async_state_change(self):
+        self.test_publishes_play_status_on_state_change(async_state_change=True)
+
 
 if __name__ == '__main__':
     unittest.main()
