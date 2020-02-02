@@ -179,6 +179,14 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             yield entry
             entry_token = entry.token
 
+    def __bool__(self) -> bool:
+        try:
+            next(iter(self))
+        except StopIteration:
+            return False
+        else:
+            return True
+
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(
             self,

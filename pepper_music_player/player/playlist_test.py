@@ -169,6 +169,13 @@ class PlaylistTest(unittest.TestCase):
                 track=track1, playlist_entry=entry1)),
         )
 
+    def test_bool_empty(self):
+        self.assertFalse(self._playlist)
+
+    def test_bool_non_empty(self):
+        self._playlist.append(self._album.token)
+        self.assertTrue(self._playlist)
+
     def test_iter_empty(self):
         self.assertSequenceEqual((), tuple(self._playlist))
 
