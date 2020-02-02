@@ -36,7 +36,7 @@ def main() -> None:
         database_dir=database_dir,
     )
     application.install_css()
-    application.window(library_db, player, playlist_).show_all()
+    application.Application(library_db, player, playlist_).window.show_all()
     Gtk.main()
 
 

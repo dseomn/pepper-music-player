@@ -60,9 +60,9 @@ class ApplicationTest(unittest.TestCase):
             database_dir=tempdir.name,
         )
 
-    def _window(self):
-        return application.window(self._library_db, self._player,
-                                  self._playlist)
+    def _application(self):
+        return application.Application(self._library_db, self._player,
+                                       self._playlist)
 
     def test_install_css_does_not_raise_exceptions(self):
         # The function is called twice since it has a separate code path if the
@@ -71,10 +71,10 @@ class ApplicationTest(unittest.TestCase):
         application.install_css()
 
     def test_blank(self):
-        _register_screenshot('test_blank', self._window())
+        _register_screenshot('test_blank', self._application().window)
 
     def test_exit_stops_main_loop(self):
-        window = self._window()
+        window = self._application().window
         window.show_all()
         GLib.idle_add(window.destroy)
         # This just tests that Gtk.main doesn't run forever.

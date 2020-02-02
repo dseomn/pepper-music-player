@@ -46,34 +46,56 @@ def install_css() -> None:
     _css_installed = True
 
 
-def window(
-        library_db: database.Database,
-        player: audio.Player,
-        playlist_: playlist.Playlist,
-) -> Gtk.ApplicationWindow:
-    """Returns a new main application window.
+class Application:
+    """Main application.
 
-    Args:
-        library_db: Library database.
-        player: Player.
-        playlist_: Playlist.
+    Attributes:
+        window: Main window.
     """
-    builder = Gtk.Builder.new_from_string(
-        resources.read_text('pepper_music_player.ui', 'application.glade'),
-        length=-1,
-    )
-    builder.connect_signals({
-        'on_destroy': Gtk.main_quit,
-        # TODO(dseomn): Keep track of the current play/pause state and only show
-        # the appropriate button. Also make it insensitive when there's nothing
-        # to play.
-        'on_pause': lambda button: player.pause(),
-        'on_play': lambda button: player.play(),
-    })
-    library = library_card.List(library_db, playlist_)
-    builder.get_object('library').add(library.widget)
-    # TODO(dseomn): Show a more sensible slice of the library by default, and
-    # add UI controls to search the library.
-    library.store.splice(
-        0, 0, tuple(map(library_card.ListItem, library_db.search(limit=100))))
-    return builder.get_object('application')
+
+    def __init__(
+            self,
+            library_db: database.Database,
+            player: audio.Player,
+            playlist_: playlist.Playlist,
+    ) -> None:
+        """Initializer.
+
+        Args:
+            library_db: Library database.
+            player: Player.
+            playlist_: Playlist.
+        """
+        self._library_db = library_db
+        self._player = player
+        self._playlist = playlist_
+        builder = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui', 'application.glade'),
+            length=-1,
+        )
+        builder.connect_signals(self)
+        library = library_card.List(library_db, playlist_)
+        builder.get_object('library').add(library.widget)
+        # TODO(dseomn): Show a more sensible slice of the library by default,
+        # and add UI controls to search the library.
+        library.store.splice(
+            0, 0, tuple(map(library_card.ListItem,
+                            library_db.search(limit=100))))
+        self.window: Gtk.ApplicationWindow = builder.get_object('application')
+
+    def on_destroy(self, window: Gtk.ApplicationWindow) -> None:
+        """Handler for the window being destroyed."""
+        del window  # Unused.
+        Gtk.main_quit()
+
+    # TODO(dseomn): Keep track of the current play/pause state and only show the
+    # appropriate button. Also make it insensitive when there's nothing to play.
+    def on_pause(self, button: Gtk.Button) -> None:
+        """Handler for the pause button."""
+        del button  # Unused.
+        self._player.pause()
+
+    def on_play(self, button: Gtk.Button) -> None:
+        """Handler for the play button."""
+        del button  # Unused.
+        self._player.play()
