@@ -226,18 +226,30 @@ class Player:
                                  if self._playable_units else None)
                 self._try_set_current_duration()
                 duration = self._current_duration
-            fully_stabilized = state_has_stabilized and duration is not None
+            position_ok, position_gst_time = self._playbin.query_position(
+                Gst.Format.TIME)
+            position = (_gst_clock_time_to_timedelta(position_gst_time)
+                        if position_ok else datetime.timedelta(0))
+            fully_stabilized = all((
+                state_has_stabilized,
+                duration is not None,
+                # There seems to be a race condition between _poll_status() and
+                # _on_stream_start(), where _poll_status() can get the position
+                # from track N+1 before _on_stream_start() is called to remove
+                # track N from self._playable_units. Since gstreamer doesn't
+                # seem to provide a way to detect this race condition, we just
+                # ignore status updates at the very beginning of a track when
+                # the state is PLAYING.
+                (state is not State.PLAYING or
+                 position > datetime.timedelta(milliseconds=200)),
+            ))
             if fully_stabilized:
-                position_ok, position_gst_time = self._playbin.query_position(
-                    Gst.Format.TIME)
                 self._pubsub.publish(
                     PlayStatus(
                         state=state,
                         playable_unit=playable_unit,
                         duration=duration,
-                        position=(
-                            _gst_clock_time_to_timedelta(position_gst_time)
-                            if position_ok else datetime.timedelta(0)),
+                        position=position,
                     ))
             if state is State.PLAYING or not fully_stabilized:
                 self._status_change_counter.acquire(
