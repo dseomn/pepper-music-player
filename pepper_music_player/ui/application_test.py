@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.ui.application."""
 
+import datetime
 import tempfile
 import unittest
 from unittest import mock
@@ -24,6 +25,9 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
+from pepper_music_player.library import scan
+from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import tag
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
@@ -56,6 +60,13 @@ class ApplicationTest(unittest.TestCase):
         self._library_db = database.Database(database_dir=tempdir.name)
         self._pubsub = pubsub.PubSub()
         self._player = mock.create_autospec(audio.Player, instance=True)
+        self._pubsub.publish(
+            audio.PlayStatus(
+                state=audio.State.STOPPED,
+                playable_unit=None,
+                duration=datetime.timedelta(0),
+                position=datetime.timedelta(0),
+            ))
         self._playlist = playlist.Playlist(
             player=self._player,
             library_db=self._library_db,
@@ -63,9 +74,59 @@ class ApplicationTest(unittest.TestCase):
             database_dir=tempdir.name,
         )
 
+    def _insert_track(self):
+        track = entity.Track(tags=tag.Tags({
+            '~basename': ('b',),
+            '~dirname': ('/a',),
+            '~filename': ('/a/b',),
+            'discnumber': ('1',),
+            'tracknumber': ('1',),
+            'title': ('Cool Song',),
+            'artist': ('Pop Star',),
+            '~duration_seconds': ('123',),
+        }).derive())
+        self._library_db.insert_files((scan.AudioFile(
+            filename='/a/b',
+            dirname='/a',
+            basename='b',
+            track=track,
+        ),))
+        return track
+
     def _application(self):
-        return application.Application(self._library_db, self._player,
-                                       self._playlist)
+        return application.Application(
+            library_db=self._library_db,
+            pubsub_bus=self._pubsub,
+            player=self._player,
+            playlist_=self._playlist,
+        )
+
+    def _application_with_track(self, play_state):
+        track = self._insert_track()
+        duration = datetime.timedelta(
+            seconds=float(track.tags.one(tag.DURATION_SECONDS)))
+        app = self._application()
+        entry = self._playlist.append(track.token)
+        if play_state is audio.State.STOPPED:
+            self._pubsub.publish(
+                audio.PlayStatus(
+                    state=audio.State.STOPPED,
+                    playable_unit=None,
+                    duration=datetime.timedelta(0),
+                    position=datetime.timedelta(0),
+                ))
+        else:
+            self._pubsub.publish(
+                audio.PlayStatus(
+                    state=play_state,
+                    playable_unit=audio.PlayableUnit(track=track,
+                                                     playlist_entry=entry),
+                    duration=duration,
+                    position=duration / 3,
+                ))
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        return app
 
     def test_install_css_does_not_raise_exceptions(self):
         # The function is called twice since it has a separate code path if the
@@ -74,7 +135,30 @@ class ApplicationTest(unittest.TestCase):
         application.install_css()
 
     def test_blank(self):
-        _register_screenshot('test_blank', self._application().window)
+        app = self._application()
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        self.assertFalse(app.play_pause_button.get_sensitive())
+        self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
+        _register_screenshot('test_blank', app.window)
+
+    def test_stopped_with_nonempty_playlist(self):
+        app = self._application_with_track(audio.State.STOPPED)
+        self.assertTrue(app.play_pause_button.get_sensitive())
+        self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
+        _register_screenshot('test_stopped_with_nonempty_playlist', app.window)
+
+    def test_playing(self):
+        app = self._application_with_track(audio.State.PLAYING)
+        self.assertTrue(app.play_pause_button.get_sensitive())
+        self.assertEqual('pause', app.play_pause_stack.get_visible_child_name())
+        _register_screenshot('test_playing', app.window)
+
+    def test_paused(self):
+        app = self._application_with_track(audio.State.PAUSED)
+        self.assertTrue(app.play_pause_button.get_sensitive())
+        self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
+        _register_screenshot('test_paused', app.window)
 
     def test_exit_stops_main_loop(self):
         window = self._application().window
@@ -85,7 +169,15 @@ class ApplicationTest(unittest.TestCase):
         # still running after a short time.
         Gtk.main()
 
-    # TODO(dseomn): Add tests for the play and pause buttons.
+    def test_play_button_plays(self):
+        app = self._application_with_track(audio.State.PAUSED)
+        app.play_pause_button.clicked()
+        self._player.play.assert_called_once_with()
+
+    def test_pause_button_pauses(self):
+        app = self._application_with_track(audio.State.PLAYING)
+        app.play_pause_button.clicked()
+        self._player.pause.assert_called_once_with()
 
 
 if __name__ == '__main__':
