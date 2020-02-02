@@ -43,12 +43,6 @@ class PubSubTest(unittest.TestCase):
         self._pubsub.join()
         self._callback.assert_called_once_with(_Message('foo'))
 
-    def test_subscriber_receives_subclassed_message(self):
-        self._pubsub.subscribe(pubsub.Message, self._callback)
-        self._pubsub.publish(_Message('foo'))
-        self._pubsub.join()
-        self._callback.assert_called_once_with(_Message('foo'))
-
     def test_subscriber_does_not_receive_unwanted_message(self):
         self._pubsub.subscribe(_OtherMessage, self._callback)
         self._pubsub.publish(_Message('foo'))
@@ -67,7 +61,7 @@ class PubSubTest(unittest.TestCase):
 
     def test_callback_exception_is_logged(self):
         self._callback.side_effect = ValueError('kumquat')
-        self._pubsub.subscribe(pubsub.Message, self._callback)
+        self._pubsub.subscribe(_Message, self._callback)
         with self.assertLogs() as logs:
             self._pubsub.publish(_Message('cauliflower'))
             self._pubsub.join()

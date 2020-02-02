@@ -46,6 +46,11 @@ class PubSub:
     Each subscriber (identified by a call to the subscribe method) is guaranteed
     to receive messages in the order they were published. No guarantees are made
     about the order of message between subscribers.
+
+    Message types are matched exactly. I.e., a subscriber to a parent class will
+    not receive messages of a subclass type. While this is somewhat
+    non-pythonic, it should make it easier to port this to a real, distributed
+    pubsub system if/when needed.
     """
 
     def __init__(self) -> None:
@@ -69,7 +74,7 @@ class PubSub:
         """Publishes a message."""
         with self._subscribers_lock:
             for subscriber in self._subscribers:
-                if isinstance(message, subscriber.message_type):
+                if type(message) == subscriber.message_type:  # pylint: disable=unidiomatic-typecheck
                     subscriber.queue.put(message)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
