@@ -27,6 +27,23 @@ from pepper_music_player.library import database
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player.ui import application
+from pepper_music_player.ui import screenshot_testlib
+
+
+def _register_screenshot(screenshot_name, window, *, width=768, height=600):
+    # The default width and height are the minimum recommended sizes for
+    # portrait and landscape orientation, respectively, from
+    # https://developer.gnome.org/hig/stable/display-compatibility.html.en
+    titlebar = window.get_titlebar()
+    window.remove(titlebar)
+    main_widget = window.get_child()
+    window.remove(main_widget)
+    windowlike_box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 0)
+    windowlike_box.pack_start(titlebar, expand=False, fill=True, padding=0)
+    windowlike_box.pack_start(main_widget, expand=True, fill=True, padding=0)
+    windowlike_box.set_size_request(width=width, height=height)
+    screenshot_testlib.register_widget(__name__, screenshot_name,
+                                       windowlike_box)
 
 
 class ApplicationTest(unittest.TestCase):
@@ -48,6 +65,11 @@ class ApplicationTest(unittest.TestCase):
         # css is already installed.
         application.install_css()
         application.install_css()
+
+    def test_blank(self):
+        _register_screenshot(
+            'test_blank',
+            application.window(self._library_db, self._player, self._playlist))
 
     def test_exit_stops_main_loop(self):
         window = application.window(self._library_db, self._player,
