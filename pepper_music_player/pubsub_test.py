@@ -59,6 +59,19 @@ class PubSubTest(unittest.TestCase):
             self._callback.mock_calls,
         )
 
+    def test_subscriber_receives_last_message_if_wanted(self):
+        self._pubsub.publish(_Message('foo'))
+        self._pubsub.publish(_Message('bar'))
+        self._pubsub.subscribe(_Message, self._callback, want_last_message=True)
+        self._pubsub.join()
+        self._callback.assert_called_once_with(_Message('bar'))
+
+    def test_subscriber_does_not_receive_last_message_if_not_wanted(self):
+        self._pubsub.publish(_Message('foo'))
+        self._pubsub.subscribe(_Message, self._callback)
+        self._pubsub.join()
+        self._callback.assert_not_called()
+
     def test_callback_exception_is_logged(self):
         self._callback.side_effect = ValueError('kumquat')
         self._pubsub.subscribe(_Message, self._callback)

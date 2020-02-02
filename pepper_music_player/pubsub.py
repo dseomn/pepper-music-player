@@ -17,7 +17,7 @@ import dataclasses
 import logging
 import queue
 import threading
-from typing import Callable, Generic, List, NoReturn, Type, TypeVar
+from typing import Callable, Dict, Generic, List, NoReturn, Type, TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54,8 +54,9 @@ class PubSub:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._subscribers: List[_Subscriber] = []
-        self._subscribers_lock = threading.Lock()
+        self._last_message_by_type: Dict[Type[AnyMessage], AnyMessage] = {}
 
     def join(self) -> None:
         """Waits for all messages to be processed.
@@ -66,13 +67,14 @@ class PubSub:
         """
         # TODO(dseomn): This could deadlock if one of the subscriber callbacks
         # tries to publish (or subscribe). Does that matter?
-        with self._subscribers_lock:
+        with self._lock:
             for subscriber in self._subscribers:
                 subscriber.queue.join()
 
     def publish(self, message: Message) -> None:
         """Publishes a message."""
-        with self._subscribers_lock:
+        with self._lock:
+            self._last_message_by_type[type(message)] = message
             for subscriber in self._subscribers:
                 if type(message) == subscriber.message_type:  # pylint: disable=unidiomatic-typecheck
                     subscriber.queue.put(message)
@@ -98,6 +100,8 @@ class PubSub:
             self,
             message_type: Type[AnyMessage],
             callback: Callable[[AnyMessage], None],
+            *,
+            want_last_message: bool = False,
     ) -> None:
         """Subscribes to a message type.
 
@@ -105,6 +109,9 @@ class PubSub:
             message_type: What type of message to subscribe to.
             callback: Function that is called for every published message of the
                 appropriate type.
+            want_last_message: If True and any messages of the appropriate type
+                have been previously published, callback will be called with the
+                last of those messages, before receiving new messages.
         """
         subscriber = _Subscriber(message_type)
         threading.Thread(
@@ -112,5 +119,7 @@ class PubSub:
             args=(subscriber.queue, callback),
             daemon=True,
         ).start()
-        with self._subscribers_lock:
+        with self._lock:
+            if want_last_message and message_type in self._last_message_by_type:
+                subscriber.queue.put(self._last_message_by_type[message_type])
             self._subscribers.append(subscriber)
