@@ -22,13 +22,12 @@ from gi.repository import Gtk
 from pepper_music_player.ui import screenshot_testlib
 
 
-class ScreenshotTest(unittest.TestCase):
+class ScreenshotTest(screenshot_testlib.TestCase):
 
     def test_register_widget(self):
         widget = Gtk.Label()
         widget.set_text('The quick brown fox jumps over the lazy dog!')
-        screenshot_testlib.register_widget(__name__, 'test_register_widget',
-                                           widget)
+        self.register_widget_screenshot(widget)
 
 
 if __name__ == '__main__':

@@ -41,7 +41,7 @@ class _FakeLibraryToken(token.LibraryToken):
     pass
 
 
-class LibraryCardTest(unittest.TestCase):
+class LibraryCardTest(screenshot_testlib.TestCase):
 
     def setUp(self):
         super().setUp()
@@ -72,8 +72,7 @@ class LibraryCardTest(unittest.TestCase):
                 library_card.ListItem(_FakeLibraryToken('foo')))
 
     def test_empty_list(self):
-        screenshot_testlib.register_widget(__name__, 'test_empty_list',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _insert_track(
@@ -181,13 +180,11 @@ class LibraryCardTest(unittest.TestCase):
     def test_track_ltr(self):
         self._set_tokens(
             self._insert_track(title='Cool Song', artist='Pop Star').token)
-        screenshot_testlib.register_widget(__name__, 'test_track_ltr',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_track_rtl(self):
         self._set_tokens(self._insert_track(title='אבג', artist='ﺄﺒﺟﺪﻫﻭ').token)
-        screenshot_testlib.register_widget(__name__, 'test_track_rtl',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_track_long(self):
         self._set_tokens(
@@ -210,8 +207,7 @@ class LibraryCardTest(unittest.TestCase):
                 )),
                 duration_seconds='12345',
             ).token)
-        screenshot_testlib.register_widget(__name__, 'test_track_long',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_medium_header(self):
         # TODO(dseomn): Figure out an easy way to test the contents of the
@@ -276,15 +272,13 @@ class LibraryCardTest(unittest.TestCase):
 
     def test_medium_no_header(self):
         self._set_tokens(self._insert_medium(discnumber=None))
-        screenshot_testlib.register_widget(__name__, 'test_medium_no_header',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_medium_with_header(self):
         self._set_tokens(
             self._insert_medium(media='Digital Media',
                                 discsubtitle='Best Disc'))
-        screenshot_testlib.register_widget(__name__, 'test_medium_with_header',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_album(self):
         self._set_tokens(
@@ -294,8 +288,7 @@ class LibraryCardTest(unittest.TestCase):
                 artists=('Pop Star', 'Pop Star feat. Friend', 'Pop Star'),
                 date='2020-01-19',
             ))
-        screenshot_testlib.register_widget(__name__, 'test_album',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def test_alignment(self):
         self._set_tokens(
@@ -319,8 +312,7 @@ class LibraryCardTest(unittest.TestCase):
             self._insert_medium(album='Standalone Medium'),
             self._insert_album(album='Even Better Top Greatest Hits'),
         )
-        screenshot_testlib.register_widget(__name__, 'test_alignment',
-                                           self._library_card_list.widget)
+        self.register_widget_screenshot(self._library_card_list.widget)
 
     def _activate(self, library_token, widget=None):
         if widget is None:

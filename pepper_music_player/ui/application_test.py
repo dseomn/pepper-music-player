@@ -35,23 +35,7 @@ from pepper_music_player.ui import application
 from pepper_music_player.ui import screenshot_testlib
 
 
-def _register_screenshot(screenshot_name, window, *, width=768, height=600):
-    # The default width and height are the minimum recommended sizes for
-    # portrait and landscape orientation, respectively, from
-    # https://developer.gnome.org/hig/stable/display-compatibility.html.en
-    titlebar = window.get_titlebar()
-    window.remove(titlebar)
-    main_widget = window.get_child()
-    window.remove(main_widget)
-    windowlike_box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 0)
-    windowlike_box.pack_start(titlebar, expand=False, fill=True, padding=0)
-    windowlike_box.pack_start(main_widget, expand=True, fill=True, padding=0)
-    windowlike_box.set_size_request(width=width, height=height)
-    screenshot_testlib.register_widget(__name__, screenshot_name,
-                                       windowlike_box)
-
-
-class ApplicationTest(unittest.TestCase):
+class ApplicationTest(screenshot_testlib.TestCase):
 
     def setUp(self):
         super().setUp()
@@ -73,6 +57,23 @@ class ApplicationTest(unittest.TestCase):
             pubsub_bus=self._pubsub,
             database_dir=tempdir.name,
         )
+
+    def _register_window_screenshot(self, window, *, width=768, height=600):
+        # The default width and height are the minimum recommended sizes for
+        # portrait and landscape orientation, respectively, from
+        # https://developer.gnome.org/hig/stable/display-compatibility.html.en
+        titlebar = window.get_titlebar()
+        window.remove(titlebar)
+        main_widget = window.get_child()
+        window.remove(main_widget)
+        windowlike_box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 0)
+        windowlike_box.pack_start(titlebar, expand=False, fill=True, padding=0)
+        windowlike_box.pack_start(main_widget,
+                                  expand=True,
+                                  fill=True,
+                                  padding=0)
+        windowlike_box.set_size_request(width=width, height=height)
+        self.register_widget_screenshot(windowlike_box)
 
     def _insert_track(self):
         track = entity.Track(tags=tag.Tags({
@@ -140,25 +141,25 @@ class ApplicationTest(unittest.TestCase):
         Gtk.main()
         self.assertFalse(app.play_pause_button.get_sensitive())
         self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
-        _register_screenshot('test_blank', app.window)
+        self._register_window_screenshot(app.window)
 
     def test_stopped_with_nonempty_playlist(self):
         app = self._application_with_track(audio.State.STOPPED)
         self.assertTrue(app.play_pause_button.get_sensitive())
         self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
-        _register_screenshot('test_stopped_with_nonempty_playlist', app.window)
+        self._register_window_screenshot(app.window)
 
     def test_playing(self):
         app = self._application_with_track(audio.State.PLAYING)
         self.assertTrue(app.play_pause_button.get_sensitive())
         self.assertEqual('pause', app.play_pause_stack.get_visible_child_name())
-        _register_screenshot('test_playing', app.window)
+        self._register_window_screenshot(app.window)
 
     def test_paused(self):
         app = self._application_with_track(audio.State.PAUSED)
         self.assertTrue(app.play_pause_button.get_sensitive())
         self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
-        _register_screenshot('test_paused', app.window)
+        self._register_window_screenshot(app.window)
 
     def test_exit_stops_main_loop(self):
         window = self._application().window

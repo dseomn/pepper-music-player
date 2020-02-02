@@ -15,6 +15,7 @@
 
 import os
 import pathlib
+import unittest
 
 import gi
 gi.require_version('GLib', '2.0')
@@ -54,38 +55,35 @@ def _screenshot(
     settings.reset_property('gtk-enable-animations')
 
 
-def register_widget(
-        module_name: str,
-        screenshot_name: str,
-        widget: Gtk.Widget,
-) -> None:
-    """Registers a Widget for screenshot testing.
+class TestCase(unittest.TestCase):
+    """Base class for screenshot testing."""
 
-    If the TEST_ARTIFACT_DIR environment variable is set, this will save the
-    screenshot there for manual observation or external automated testing.
+    def register_widget_screenshot(self, widget: Gtk.Widget) -> None:
+        """Registers a Widget for screenshot testing.
 
-    Args:
-        module_name: Module that the test widget comes from, i.e., __name__.
-        screenshot_name: A unique name for the screenshot within the test
-            module.
-        widget: Widget to take a screenshot of.
-    """
-    application.install_css()
-    window = Gtk.OffscreenWindow()
-    window.add(widget)
-    window.show_all()
-    GLib.idle_add(Gtk.main_quit)
-    Gtk.main()
-    artifact_dir = os.getenv('TEST_ARTIFACT_DIR')
-    if artifact_dir is None:
-        return
-    screenshot_dir = pathlib.Path(artifact_dir).joinpath('screenshots')
-    screenshot_dir.mkdir(exist_ok=True)
-    _screenshot(
-        window,
-        screenshot_dir.joinpath(f'{module_name}.{screenshot_name}.light.png'),
-        dark_theme=False)
-    _screenshot(
-        window,
-        screenshot_dir.joinpath(f'{module_name}.{screenshot_name}.dark.png'),
-        dark_theme=True)
+        If the TEST_ARTIFACT_DIR environment variable is set, this will save the
+        screenshot there for manual observation or external automated testing.
+
+        This should not be called more than once from each test method, since it
+        names the screenshots after the test method.
+
+        Args:
+            widget: Widget to take a screenshot of.
+        """
+        application.install_css()
+        window = Gtk.OffscreenWindow()
+        window.add(widget)
+        window.show_all()
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        artifact_dir = os.getenv('TEST_ARTIFACT_DIR')
+        if artifact_dir is None:
+            return
+        screenshot_dir = pathlib.Path(artifact_dir).joinpath('screenshots')
+        screenshot_dir.mkdir(exist_ok=True)
+        _screenshot(window,
+                    screenshot_dir.joinpath(f'{self.id()}.light.png'),
+                    dark_theme=False)
+        _screenshot(window,
+                    screenshot_dir.joinpath(f'{self.id()}.dark.png'),
+                    dark_theme=True)
