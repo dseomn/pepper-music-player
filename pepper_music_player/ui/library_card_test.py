@@ -35,6 +35,21 @@ from pepper_music_player import pubsub
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import screenshot_testlib
 
+_LONG_STR_LTR = ' '.join((
+    'What sort of person has a favorite UUID‽',
+    'I do!',
+    'My favorite is bdec4e86-bc40-440f-971d-2464bfab37eba.',
+    "What's your favorite UUID?",
+))
+_LONG_STR_RTL = ' '.join((
+    'אלפבית עברי',
+    'أبجدية عربية',
+    'אלפבית עברי',
+    'أبجدية عربية',
+    'אלפבית עברי',
+    'أبجدية عربية',
+))
+
 
 @dataclasses.dataclass(frozen=True)
 class _FakeLibraryToken(token.LibraryToken):
@@ -191,20 +206,8 @@ class LibraryCardTest(screenshot_testlib.TestCase):
             self._insert_track(
                 discnumber='123456',
                 tracknumber='5000000',
-                title=' '.join((
-                    'What sort of person has a favorite UUID‽',
-                    'I do!',
-                    'My favorite is bdec4e86-bc40-440f-971d-2464bfab37eba.',
-                    "What's your favorite UUID?",
-                )),
-                artist=' '.join((
-                    'אלפבית עברי',
-                    'أبجدية عربية',
-                    'אלפבית עברי',
-                    'أبجدية عربية',
-                    'אלפבית עברי',
-                    'أبجدية عربية',
-                )),
+                title=_LONG_STR_LTR,
+                artist=_LONG_STR_RTL,
                 duration_seconds='12345',
             ).token)
         self.register_widget_screenshot(self._library_card_list.widget)
@@ -280,12 +283,29 @@ class LibraryCardTest(screenshot_testlib.TestCase):
                                 discsubtitle='Best Disc'))
         self.register_widget_screenshot(self._library_card_list.widget)
 
+    def test_medium_long(self):
+        self._set_tokens(
+            self._insert_medium(
+                media='Super Fancy Best Digital Platinum Edition Media',
+                discsubtitle=_LONG_STR_RTL))
+        self.register_widget_screenshot(self._library_card_list.widget)
+
     def test_album(self):
         self._set_tokens(
             self._insert_album(
                 albumartist='Pop Star',
                 track_count=3,
                 artists=('Pop Star', 'Pop Star feat. Friend', 'Pop Star'),
+                date='2020-01-19',
+            ))
+        self.register_widget_screenshot(self._library_card_list.widget)
+
+    def test_album_long(self):
+        self._set_tokens(
+            self._insert_album(
+                album=_LONG_STR_RTL,
+                albumartist=_LONG_STR_LTR,
+                track_count=3,
                 date='2020-01-19',
             ))
         self.register_widget_screenshot(self._library_card_list.widget)
