@@ -111,8 +111,6 @@ class PositionSlider:
         slider: Slider for seeking. This is public for use in tests only.
     """
 
-    # TODO(dseomn): Don't immediately seek on every slight drag of the slider.
-
     def __init__(
             self,
             *,
@@ -139,13 +137,45 @@ class PositionSlider:
         self._position: Gtk.Label = builder.get_object('position')
         self._duration: Gtk.Label = builder.get_object('duration')
         self.slider: Gtk.Scale = builder.get_object('slider')
+        self._slider_gesture = Gtk.GestureMultiPress.new(self.slider)
+        self._is_dragging = False
+        self._slider_value_ignoring_drag = None
         self._pubsub.subscribe(audio.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
         builder.connect_signals(self)
+        # TODO: test holding a drag across track boundaries
+        self._slider_gesture.connect('pressed', self._start_drag)
+        self._slider_gesture.connect('cancel', self._cancel_drag)
+        self._slider_gesture.connect('released', self._complete_drag)
+
+    def _seek_to_slider_value(self, value: float) -> None:
+        lower = self.slider.get_adjustment().get_lower()
+        upper = self.slider.get_adjustment().get_upper()
+        self._player.seek(
+            datetime.timedelta(seconds=min(max(value, lower), upper)))
+
+    def _start_drag(self, *args) -> None:
+        del args  # Unused
+        self._is_dragging = True
+        self._slider_value_ignoring_drag = self.slider.get_value()
+
+    def _cancel_drag(self, *args) -> None:
+        del args  # Unused
+        self.slider.set_value(self._slider_value_ignoring_drag)
+        self._is_dragging = False
+        self._slider_value_ignoring_drag = None
+
+    def _complete_drag(self, *args) -> None:
+        del args  # Unused.
+        self._seek_to_slider_value(self.slider.get_value())
+        self._is_dragging = False
+        self._slider_value_ignoring_drag = None
 
     @main_thread.run_in_main_thread
     def _handle_play_status(self, status: audio.PlayStatus) -> None:
+        # TODO: position label should show the slider value when dragging, not
+        # the player position
         # TODO(https://github.com/google/yapf/issues/805): Remove line break
         # comments.
         alignment.fill_aligned_numerical_label(
@@ -159,7 +189,10 @@ class PositionSlider:
                 None
                 if status.state is audio.State.STOPPED else status.duration))
         self.slider.set_range(0.0, status.duration.total_seconds())
-        self.slider.set_value(status.position.total_seconds())
+        if self._is_dragging:
+            self._slider_value_ignoring_drag = status.position.total_seconds()
+        else:
+            self.slider.set_value(status.position.total_seconds())
 
     def on_slider_change_value(
             self,
@@ -168,9 +201,9 @@ class PositionSlider:
             value: float,
     ) -> bool:
         """Handler for the slider's change-value signal."""
-        del slider, scroll  # Unused.
-        lower = self.slider.get_adjustment().get_lower()
-        upper = self.slider.get_adjustment().get_upper()
-        self._player.seek(
-            datetime.timedelta(seconds=min(max(value, lower), upper)))
+        del slider  # Unused.
+        if scroll is Gtk.ScrollType.JUMP:
+            # This is part of a drag, so the *_drag methods will handle it.
+            return False
+        self._seek_to_slider_value(value)
         return False
