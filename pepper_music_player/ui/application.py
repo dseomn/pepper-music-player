@@ -85,6 +85,11 @@ class Application:
                 player=self._player,
                 playlist_=self._playlist,
             ).widget)
+        builder.get_object('position_slider_placeholder').add(
+            player_status.PositionSlider(
+                pubsub_bus=self._pubsub,
+                player=self._player,
+            ).widget)
         library = library_card.List(library_db, playlist_)
         builder.get_object('library').add(library.widget)
         # TODO(dseomn): Show a more sensible slice of the library by default,

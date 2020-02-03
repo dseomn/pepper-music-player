@@ -143,5 +143,77 @@ class ButtonsTest(screenshot_testlib.TestCase):
         self._player.pause.assert_called_once_with()
 
 
+class PositionSliderTest(screenshot_testlib.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self._pubsub = pubsub.PubSub()
+        self._player = mock.create_autospec(audio.Player, instance=True)
+        self._slider = player_status.PositionSlider(
+            pubsub_bus=self._pubsub,
+            player=self._player,
+        )
+
+    def _publish_status(self, state, *, duration, position):
+        self._pubsub.publish(
+            audio.PlayStatus(
+                state=state,
+                # Using None here is wrong for PAUSED and PLAYING, but
+                # PositionSlider doesn't use this field.
+                playable_unit=None,
+                duration=duration,
+                position=position,
+            ))
+        self._pubsub.join()
+        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
+        Gtk.main()
+
+    def _scroll(self, scroll_type, position):
+        # TODO(dseomn): Figure out a better way to scroll the slider in tests
+        # than emitting signals directly.
+        self._slider.slider.emit('change-value', scroll_type,
+                                 position.total_seconds())
+        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
+        Gtk.main()
+
+    def test_stopped(self):
+        self._publish_status(audio.State.STOPPED,
+                             duration=datetime.timedelta(0),
+                             position=datetime.timedelta(0))
+        self.register_widget_screenshot(self._slider.widget)
+
+    def test_long(self):
+        self._publish_status(audio.State.PAUSED,
+                             duration=datetime.timedelta(hours=5,
+                                                         minutes=43,
+                                                         seconds=20.9),
+                             position=datetime.timedelta(hours=1,
+                                                         minutes=23,
+                                                         seconds=45.1))
+        self.register_widget_screenshot(self._slider.widget)
+
+    def test_seeks(self):
+        self._publish_status(audio.State.PAUSED,
+                             duration=datetime.timedelta(seconds=5),
+                             position=datetime.timedelta(0))
+        self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=1.23))
+        self._player.seek.assert_called_once_with(
+            datetime.timedelta(seconds=1.23))
+
+    def test_seek_clamps_to_start(self):
+        self._publish_status(audio.State.PAUSED,
+                             duration=datetime.timedelta(seconds=5),
+                             position=datetime.timedelta(0))
+        self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=-1))
+        self._player.seek.assert_called_once_with(datetime.timedelta(seconds=0))
+
+    def test_seek_clamps_to_end(self):
+        self._publish_status(audio.State.PAUSED,
+                             duration=datetime.timedelta(seconds=5),
+                             position=datetime.timedelta(0))
+        self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=6))
+        self._player.seek.assert_called_once_with(datetime.timedelta(seconds=5))
+
+
 if __name__ == '__main__':
     unittest.main()
