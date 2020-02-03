@@ -18,8 +18,6 @@ from importlib import resources
 from typing import Optional
 
 import gi
-gi.require_version('GLib', '2.0')
-from gi.repository import GLib
 gi.require_version('GObject', '2.0')
 from gi.repository import GObject
 gi.require_version('Gio', '2.0')
@@ -67,20 +65,6 @@ class ListBoxRow(Gtk.ListBoxRow):
 class _SignalSource(enum.Enum):
     TOP_LEVEL = enum.auto()
     NESTED = enum.auto()
-
-
-def _fill_aligned_numerical_label(
-        label: Gtk.Label,
-        text: str,
-) -> None:
-    """Fills in a numerical label that's aligned with others of its type.
-
-    Args:
-        label: Label to fill in.
-        text: Text to put in the label.
-    """
-    label.set_markup(
-        f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
 
 
 def _medium_header(tags: tag.Tags) -> Optional[str]:
@@ -170,14 +154,14 @@ class List:
         )
         discnumber_widget = builder.get_object('discnumber')
         if show_discnumber:
-            _fill_aligned_numerical_label(
+            text_alignment.fill_aligned_numerical_label(
                 discnumber_widget,
                 track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
             )
         else:
             discnumber_widget.set_no_show_all(True)
             discnumber_widget.hide()
-        _fill_aligned_numerical_label(
+        text_alignment.fill_aligned_numerical_label(
             builder.get_object('tracknumber'),
             track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '',
         )
@@ -192,7 +176,7 @@ class List:
         else:
             artist_widget.set_no_show_all(True)
             artist_widget.hide()
-        _fill_aligned_numerical_label(
+        text_alignment.fill_aligned_numerical_label(
             builder.get_object('duration'),
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
@@ -244,7 +228,7 @@ class List:
         builder.get_object('artist').set_text(artist)
         text_alignment.set_label_direction_from_text(
             builder.get_object('artist'))
-        _fill_aligned_numerical_label(
+        text_alignment.fill_aligned_numerical_label(
             builder.get_object('date'),
             album.tags.singular(tag.DATE, default=''),
         )

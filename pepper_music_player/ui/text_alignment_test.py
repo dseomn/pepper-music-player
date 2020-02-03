@@ -42,6 +42,12 @@ class TextAlignmentTest(unittest.TestCase):
         text_alignment.set_label_direction_from_text(label)
         self.assertEqual(Gtk.TextDirection.RTL, label.get_direction())
 
+    def test_aligned_numerical_label(self):
+        label = Gtk.Label()
+        text_alignment.fill_aligned_numerical_label(label, '1"23')
+        self.assertEqual('<span font_features="tnum">1&quot;23</span>',
+                         label.get_label())
+
 
 if __name__ == '__main__':
     unittest.main()

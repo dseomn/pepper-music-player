@@ -14,6 +14,8 @@
 """Helpers for text alignment."""
 
 import gi
+gi.require_version('GLib', '2.0')
+from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 gi.require_version('Pango', '1.0')
@@ -27,3 +29,14 @@ def set_label_direction_from_text(label: Gtk.Label) -> None:
         label.set_direction(Gtk.TextDirection.LTR)
     elif direction is Pango.Direction.RTL:
         label.set_direction(Gtk.TextDirection.RTL)
+
+
+def fill_aligned_numerical_label(label: Gtk.Label, text: str) -> None:
+    """Fills in a numerical label that's aligned with others of its type.
+
+    Args:
+        label: Label to fill in.
+        text: Text to put in the label.
+    """
+    label.set_markup(
+        f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
