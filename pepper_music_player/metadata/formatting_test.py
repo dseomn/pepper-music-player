@@ -21,6 +21,9 @@ from pepper_music_player.metadata import formatting
 
 class FormatTimedeltaTest(unittest.TestCase):
 
+    def test_none(self):
+        self.assertEqual('‒∶‒‒', formatting.format_timedelta(None))
+
     def test_negative(self):
         self.assertEqual('‒∶‒‒',
                          formatting.format_timedelta(datetime.timedelta(-1)))

@@ -14,22 +14,24 @@
 """Formatting utils for metadata."""
 
 import datetime
-from typing import TypeVar, Union
+from typing import Optional, TypeVar, Union
 
 T = TypeVar('T')
 
 
 def format_timedelta(
-        timedelta: datetime.timedelta,
+        timedelta: Optional[datetime.timedelta],
         *,
         default: T = '‒∶‒‒',
 ) -> Union[str, T]:
     """Returns a non-negative timedelta formatted for human consumption.
 
     Args:
-        timedelta: What to format.
-        default: What to return if timedelta is negative.
+        timedelta: What to format, or None to return the default placeholder.
+        default: What to return if timedelta is None or negative.
     """
+    if timedelta is None:
+        return default
     total_seconds = round(timedelta.total_seconds())
     if total_seconds < 0:
         return default
