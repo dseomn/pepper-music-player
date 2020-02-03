@@ -32,7 +32,7 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import playlist
-from pepper_music_player.ui import text_direction
+from pepper_music_player.ui import text_alignment
 
 
 class ListItem(GObject.Object):
@@ -182,13 +182,13 @@ class List:
             track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '',
         )
         builder.get_object('title').set_text(track.tags.singular(tag.TITLE))
-        text_direction.set_label_direction_from_text(
+        text_alignment.set_label_direction_from_text(
             builder.get_object('title'))
         artist = track.tags.singular(tag.ARTIST)
         artist_widget = builder.get_object('artist')
         if artist != albumartist:
             artist_widget.set_text(artist)
-            text_direction.set_label_direction_from_text(artist_widget)
+            text_alignment.set_label_direction_from_text(artist_widget)
         else:
             artist_widget.set_no_show_all(True)
             artist_widget.hide()
@@ -216,7 +216,7 @@ class List:
         header_widget = builder.get_object('header')
         if header:
             header_widget.set_text(header)
-            text_direction.set_label_direction_from_text(header_widget)
+            text_alignment.set_label_direction_from_text(header_widget)
         else:
             header_widget.set_no_show_all(True)
             header_widget.hide()
@@ -238,11 +238,11 @@ class List:
             length=-1,
         )
         builder.get_object('title').set_text(album.tags.singular(tag.ALBUM))
-        text_direction.set_label_direction_from_text(
+        text_alignment.set_label_direction_from_text(
             builder.get_object('title'))
         artist = album.tags.singular(tag.ALBUMARTIST, tag.ARTIST)
         builder.get_object('artist').set_text(artist)
-        text_direction.set_label_direction_from_text(
+        text_alignment.set_label_direction_from_text(
             builder.get_object('artist'))
         _fill_aligned_numerical_label(
             builder.get_object('date'),
