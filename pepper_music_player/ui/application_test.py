@@ -125,7 +125,8 @@ class ApplicationTest(screenshot_testlib.TestCase):
                     duration=duration,
                     position=duration / 3,
                 ))
-        GLib.idle_add(Gtk.main_quit)
+        self._pubsub.join()
+        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
         Gtk.main()
         return app
 
@@ -137,7 +138,7 @@ class ApplicationTest(screenshot_testlib.TestCase):
 
     def test_blank(self):
         app = self._application()
-        GLib.idle_add(Gtk.main_quit)
+        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
         Gtk.main()
         self.assertFalse(app.play_pause_button.get_sensitive())
         self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
@@ -164,7 +165,7 @@ class ApplicationTest(screenshot_testlib.TestCase):
     def test_exit_stops_main_loop(self):
         window = self._application().window
         window.show_all()
-        GLib.idle_add(window.destroy)
+        GLib.idle_add(window.destroy, priority=GLib.PRIORITY_LOW)
         # This just tests that Gtk.main doesn't run forever.
         # TODO(dseomn): Figure out how to end the test early if Gtk.main is
         # still running after a short time.
