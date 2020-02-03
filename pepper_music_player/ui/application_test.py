@@ -164,7 +164,6 @@ class ApplicationTest(screenshot_testlib.TestCase):
 
     def test_exit_stops_main_loop(self):
         window = self._application().window
-        window.show_all()
         GLib.idle_add(window.destroy, priority=GLib.PRIORITY_LOW)
         # This just tests that Gtk.main doesn't run forever.
         # TODO(dseomn): Figure out how to end the test early if Gtk.main is
