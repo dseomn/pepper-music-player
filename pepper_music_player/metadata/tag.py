@@ -16,6 +16,7 @@
 import abc
 import collections
 import dataclasses
+import datetime
 import functools
 import math
 import operator
@@ -23,6 +24,8 @@ import re
 from typing import ClassVar, Dict, Iterable, Mapping, Optional, Pattern, Tuple, Union
 
 import frozendict
+
+from pepper_music_player.metadata import formatting
 
 
 @dataclasses.dataclass(frozen=True)
@@ -95,17 +98,15 @@ class DurationHumanTag(DerivedTag):
         if seconds_str is None:
             return None
         try:
-            total_seconds = round(float(seconds_str))
+            total_seconds = float(seconds_str)
         except ValueError:
             return None
-        if total_seconds < 0:
+        formatted = formatting.format_timedelta(
+            datetime.timedelta(seconds=total_seconds), default=None)
+        if formatted is None:
             return None
-        hours, hours_remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(hours_remainder, 60)
-        if hours:
-            return (f'{hours}∶{minutes:02}∶{seconds:02}',)
         else:
-            return (f'{minutes}∶{seconds:02}',)
+            return (formatted,)
 
 
 @dataclasses.dataclass(frozen=True)

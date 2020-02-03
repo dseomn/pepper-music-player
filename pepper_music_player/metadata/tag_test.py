@@ -53,23 +53,6 @@ class DurationHumanTagTest(unittest.TestCase):
                 tag.Tags({'~duration_seconds': ('3723.4',)})),
         )
 
-    def test_minutes_seconds(self):
-        self.assertEqual(
-            ('1∶02',),
-            tag.DURATION_HUMAN.derive(
-                tag.Tags({
-                    '~duration_seconds': ('62.3',),
-                })),
-        )
-
-    def test_seconds(self):
-        self.assertEqual(
-            ('0∶01',),
-            tag.DURATION_HUMAN.derive(tag.Tags({
-                '~duration_seconds': ('1.2',),
-            })),
-        )
-
 
 class IndexOrTotalTagTest(unittest.TestCase):
 
