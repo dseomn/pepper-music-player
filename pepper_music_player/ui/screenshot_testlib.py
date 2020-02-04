@@ -31,6 +31,7 @@ def _screenshot(
         filepath: pathlib.Path,
         *,
         dark_theme: bool,
+        direction: Gtk.TextDirection,
 ) -> None:
     """Saves a screenshot of a window to a file.
 
@@ -38,7 +39,10 @@ def _screenshot(
         window: Window to take a screenshot of.
         filepath: Where to save the screenshot.
         dark_theme: Whether or not to use dark theme for the window.
+        direction: UI direction for the window.
     """
+    old_direction = Gtk.Window.get_default_direction()
+    Gtk.Window.set_default_direction(direction)
     settings = Gtk.Settings.get_default()
     # When running under Xvfb, gtk-application-prefer-dark-theme seems to have
     # no effect unless gtk-theme-name is set first.
@@ -53,6 +57,7 @@ def _screenshot(
     settings.reset_property('gtk-theme-name')
     settings.reset_property('gtk-application-prefer-dark-theme')
     settings.reset_property('gtk-enable-animations')
+    Gtk.Window.set_default_direction(old_direction)
 
 
 class TestCase(unittest.TestCase):
@@ -82,8 +87,14 @@ class TestCase(unittest.TestCase):
         screenshot_dir = pathlib.Path(artifact_dir).joinpath('screenshots')
         screenshot_dir.mkdir(exist_ok=True)
         _screenshot(window,
-                    screenshot_dir.joinpath(f'{self.id()}.light.png'),
-                    dark_theme=False)
+                    screenshot_dir.joinpath(f'{self.id()}.light-ltr.png'),
+                    dark_theme=False,
+                    direction=Gtk.TextDirection.LTR)
         _screenshot(window,
-                    screenshot_dir.joinpath(f'{self.id()}.dark.png'),
-                    dark_theme=True)
+                    screenshot_dir.joinpath(f'{self.id()}.light-rtl.png'),
+                    dark_theme=False,
+                    direction=Gtk.TextDirection.RTL)
+        _screenshot(window,
+                    screenshot_dir.joinpath(f'{self.id()}.dark-ltr.png'),
+                    dark_theme=True,
+                    direction=Gtk.TextDirection.LTR)
