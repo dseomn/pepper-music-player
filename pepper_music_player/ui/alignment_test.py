@@ -26,7 +26,7 @@ class TextAlignmentTest(unittest.TestCase):
 
     def test_set_direction_recursive(self):
         container = Gtk.Button()
-        child = Gtk.Label('foo')
+        child = Gtk.Label.new('foo')
         container.add(child)
         alignment.set_direction_recursive(container, Gtk.TextDirection.RTL)
         self.assertIs(Gtk.TextDirection.RTL, container.get_direction())
