@@ -30,6 +30,7 @@ from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
+from pepper_music_player.ui import alignment
 from pepper_music_player.ui import library_card
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
@@ -95,6 +96,10 @@ class Application:
             resources.read_text('pepper_music_player.ui', 'application.glade'),
             length=-1,
         )
+        # https://material.io/design/usability/bidirectionality.html#mirroring-elements
+        # "Media controls for playback are always LTR."
+        alignment.set_direction_recursive(
+            builder.get_object('playback_buttons'), Gtk.TextDirection.LTR)
         self.play_pause_button: Gtk.Button = builder.get_object(
             'play_pause_button')
         self.play_pause_stack: Gtk.Stack = builder.get_object(
