@@ -61,3 +61,6 @@ def fill_aligned_numerical_label(label: Gtk.Label, text: str) -> None:
     """
     label.set_markup(
         f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
+    # https://material.io/design/usability/bidirectionality.html says that
+    # numbers should be LTR.
+    label.set_direction(Gtk.TextDirection.LTR)
