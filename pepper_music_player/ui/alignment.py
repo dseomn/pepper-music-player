@@ -22,6 +22,27 @@ gi.require_version('Pango', '1.0')
 from gi.repository import Pango
 
 
+def set_direction_recursive(
+        widget: Gtk.Widget,
+        direction: Gtk.TextDirection,
+) -> None:
+    """Recursively sets the direction on the given widget and its children.
+
+    This should be used with care, since it's generally not a good idea to
+    override the user's chosen direction. However, it's needed sometimes for UI
+    elements that explicitly do not follow text direction. E.g.,
+    https://material.io/design/usability/bidirectionality.html#mirroring-elements
+    says that "media controls for playback are always LTR."
+
+    Args:
+        widget: Widget to set the direction on.
+        direction: Direction to set.
+    """
+    widget.set_direction(direction)
+    if isinstance(widget, Gtk.Container):
+        widget.foreach(set_direction_recursive, direction)
+
+
 def set_label_direction_from_text(label: Gtk.Label) -> None:
     """Sets the widget direction to match its text contents."""
     direction = Pango.find_base_dir(label.get_text(), length=-1)

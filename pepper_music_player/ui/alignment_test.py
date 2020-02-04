@@ -24,6 +24,14 @@ from pepper_music_player.ui import alignment
 
 class TextAlignmentTest(unittest.TestCase):
 
+    def test_set_direction_recursive(self):
+        container = Gtk.Button()
+        child = Gtk.Label('foo')
+        container.add(child)
+        alignment.set_direction_recursive(container, Gtk.TextDirection.RTL)
+        self.assertIs(Gtk.TextDirection.RTL, container.get_direction())
+        self.assertIs(Gtk.TextDirection.RTL, child.get_direction())
+
     def test_label_unknown(self):
         for initial_direction in (Gtk.TextDirection.LTR, Gtk.TextDirection.RTL):
             with self.subTest(initial_direction):
