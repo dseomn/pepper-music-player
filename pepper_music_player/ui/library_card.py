@@ -199,6 +199,8 @@ class List:
         header_widget = builder.get_object('header')
         if header:
             header_widget.set_text(header)
+            # TODO(dseomn): Should the alignment come from the discsubtitle
+            # only?
             alignment.set_label_direction_from_text(header_widget)
         else:
             header_widget.set_no_show_all(True)
