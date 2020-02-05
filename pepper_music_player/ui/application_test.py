@@ -95,12 +95,16 @@ class ApplicationTest(screenshot_testlib.TestCase):
         return track
 
     def _application(self):
-        return application.Application(
+        app = application.Application(
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
             player=self._player,
             playlist_=self._playlist,
         )
+        self._pubsub.join()
+        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
+        Gtk.main()
+        return app
 
     def _application_with_track(self, play_state):
         track = self._insert_track()
@@ -138,8 +142,6 @@ class ApplicationTest(screenshot_testlib.TestCase):
 
     def test_blank(self):
         app = self._application()
-        GLib.idle_add(Gtk.main_quit, priority=GLib.PRIORITY_LOW)
-        Gtk.main()
         self.assertFalse(app.play_pause_button.get_sensitive())
         self.assertEqual('play', app.play_pause_stack.get_visible_child_name())
         self._register_window_screenshot(app.window)
