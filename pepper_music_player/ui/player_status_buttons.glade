@@ -42,7 +42,6 @@ limitations under the License.
               </object>
               <packing>
                 <property name="name">play</property>
-                <property name="title" translatable="yes">page0</property>
               </packing>
             </child>
             <child>
@@ -53,7 +52,6 @@ limitations under the License.
               </object>
               <packing>
                 <property name="name">pause</property>
-                <property name="title" translatable="yes">page1</property>
                 <property name="position">1</property>
               </packing>
             </child>
