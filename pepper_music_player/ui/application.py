@@ -14,12 +14,9 @@
 """Main application window."""
 
 from importlib import resources
-import threading
 
 import frozendict
 import gi
-gi.require_version('GLib', '2.0')
-from gi.repository import GLib
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk
 gi.require_version('Gtk', '3.0')
@@ -32,6 +29,7 @@ from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import alignment
 from pepper_music_player.ui import library_card
+from pepper_music_player.ui import main_thread
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
 # this global variable ensures the application CSS is installed at most once.
@@ -90,8 +88,6 @@ class Application:
         self._pubsub = pubsub_bus
         self._player = player
         self._playlist = playlist_
-        self._lock = threading.Lock()
-        self._play_status = None
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui', 'application.glade'),
             length=-1,
@@ -118,24 +114,20 @@ class Application:
         self._pubsub.subscribe(audio.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
-        self._pubsub.subscribe(playlist.Update, self._handle_playlist_update)
+        self._pubsub.subscribe(playlist.Update,
+                               self._handle_playlist_update,
+                               want_last_message=True)
         builder.connect_signals(self)
 
-    def _update_status(self) -> None:
-        with self._lock:
-            status = self._play_status
-        self.play_pause_button.set_sensitive(bool(self._playlist))
+    @main_thread.run_in_main_thread
+    def _handle_play_status(self, status: audio.PlayStatus) -> None:
         self.play_pause_stack.set_visible_child_name(
             _STATE_TO_VISIBLE_BUTTON[status.state])
 
-    def _handle_play_status(self, status: audio.PlayStatus) -> None:
-        with self._lock:
-            self._play_status = status
-        GLib.idle_add(self._update_status)
-
+    @main_thread.run_in_main_thread
     def _handle_playlist_update(self, update: playlist.Update) -> None:
         del update  # Unused.
-        GLib.idle_add(self._update_status)
+        self.play_pause_button.set_sensitive(bool(self._playlist))
 
     def on_destroy(self, window: Gtk.ApplicationWindow) -> None:
         """Handler for the window being destroyed."""
