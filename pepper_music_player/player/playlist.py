@@ -117,6 +117,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         self._player.set_next_playable_unit_callback(self._next_playable_unit)
         self._library_db = library_db
         self._pubsub = pubsub_bus
+        self._pubsub.publish(Update())
 
     def _all_tracks(
             self,

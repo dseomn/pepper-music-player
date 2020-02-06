@@ -189,7 +189,13 @@ class PlaylistTest(unittest.TestCase):
         entry2 = self._playlist.append(self._album.mediums[1].token)
         self.assertSequenceEqual((entry1, entry2), tuple(self._playlist))
 
+    def test_sends_initial_update(self):
+        self._pubsub.join()
+        self._update_callback.assert_called_once_with(playlist.Update())
+
     def test_sends_update_on_append(self):
+        self._pubsub.join()
+        self._update_callback.reset_mock()
         self._playlist.append(self._album.token)
         self._pubsub.join()
         self._update_callback.assert_called_once_with(playlist.Update())
