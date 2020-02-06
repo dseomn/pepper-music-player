@@ -15,7 +15,6 @@
 
 from importlib import resources
 
-import frozendict
 import gi
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk
@@ -27,21 +26,14 @@ from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
-from pepper_music_player.ui import alignment
 from pepper_music_player.ui import library_card
-from pepper_music_player.ui import main_thread
+from pepper_music_player.ui import player_status
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
 # this global variable ensures the application CSS is installed at most once.
 # GTK already requires all calls to it to be in a single thread, so this
 # shouldn't make the thread-safety situation any worse at least.
 _css_installed = False
-
-_STATE_TO_VISIBLE_BUTTON = frozendict.frozendict({
-    audio.State.STOPPED: 'play',
-    audio.State.PAUSED: 'play',
-    audio.State.PLAYING: 'pause',
-})
 
 
 def install_css() -> None:
@@ -62,11 +54,6 @@ class Application:
 
     Attributes:
         window: Main window.
-        play_pause_button: Button for playing or pausing. This is public for use
-            in tests only.
-        play_pause_stack: Stack with two children, 'play' and 'pause', to
-            indicate which button is shown. This is public for use in tests
-            only.
     """
 
     def __init__(
@@ -92,14 +79,12 @@ class Application:
             resources.read_text('pepper_music_player.ui', 'application.glade'),
             length=-1,
         )
-        # https://material.io/design/usability/bidirectionality.html#mirroring-elements
-        # "Media controls for playback are always LTR."
-        alignment.set_direction_recursive(
-            builder.get_object('playback_buttons'), Gtk.TextDirection.LTR)
-        self.play_pause_button: Gtk.Button = builder.get_object(
-            'play_pause_button')
-        self.play_pause_stack: Gtk.Stack = builder.get_object(
-            'play_pause_stack')
+        builder.get_object('player_buttons_placeholder').add(
+            player_status.Buttons(
+                pubsub_bus=self._pubsub,
+                player=self._player,
+                playlist_=self._playlist,
+            ).widget)
         library = library_card.List(library_db, playlist_)
         builder.get_object('library').add(library.widget)
         # TODO(dseomn): Show a more sensible slice of the library by default,
@@ -111,33 +96,9 @@ class Application:
                 for library_token in library_db.search(limit=100)
                 if isinstance(library_token, token.Track)))
         self.window: Gtk.ApplicationWindow = builder.get_object('application')
-        self._pubsub.subscribe(audio.PlayStatus,
-                               self._handle_play_status,
-                               want_last_message=True)
-        self._pubsub.subscribe(playlist.Update,
-                               self._handle_playlist_update,
-                               want_last_message=True)
         builder.connect_signals(self)
-
-    @main_thread.run_in_main_thread
-    def _handle_play_status(self, status: audio.PlayStatus) -> None:
-        self.play_pause_stack.set_visible_child_name(
-            _STATE_TO_VISIBLE_BUTTON[status.state])
-
-    @main_thread.run_in_main_thread
-    def _handle_playlist_update(self, update: playlist.Update) -> None:
-        del update  # Unused.
-        self.play_pause_button.set_sensitive(bool(self._playlist))
 
     def on_destroy(self, window: Gtk.ApplicationWindow) -> None:
         """Handler for the window being destroyed."""
         del window  # Unused.
         Gtk.main_quit()
-
-    def on_play_pause(self, button: Gtk.Button) -> None:
-        """Handler for the play/pause button."""
-        del button  # Unused.
-        if self.play_pause_stack.get_visible_child_name() == 'play':
-            self._player.play()
-        else:
-            self._player.pause()
