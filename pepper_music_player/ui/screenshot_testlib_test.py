@@ -29,6 +29,10 @@ class ScreenshotTest(screenshot_testlib.TestCase):
         widget.set_text('The quick brown fox jumps over the lazy dog!')
         self.register_widget_screenshot(widget)
 
+    def test_register_narrow_widget(self):
+        self.register_narrow_widget_screenshot(
+            Gtk.Label.new('Line 1\nLine 2\nLine 3'))
+
 
 if __name__ == '__main__':
     unittest.main()

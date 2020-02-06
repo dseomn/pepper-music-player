@@ -98,3 +98,20 @@ class TestCase(unittest.TestCase):
                     screenshot_dir.joinpath(f'{self.id()}.dark-ltr.png'),
                     dark_theme=True,
                     direction=Gtk.TextDirection.LTR)
+
+    def register_narrow_widget_screenshot(self, widget: Gtk.Widget) -> None:
+        """Registers a Widget that's too narrow for percy.io.
+
+        Percy.io requires images to be between 120 and 2000 pixels wide. This
+        method adds extra space around the registered widget to make it at least
+        120px wide.
+
+        Args:
+            widget: Widget to take a screenshot of.
+        """
+        spacer = Gtk.Label.new('├─── This space intentionally left blank. ───┤')
+        spacer.set_direction(Gtk.TextDirection.LTR)
+        box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, spacing=0)
+        box.add(widget)
+        box.add(spacer)
+        self.register_widget_screenshot(box)
