@@ -170,6 +170,65 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             for track in tracks)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _previous_or_next_entry(
+            self,
+            entry_token: Optional[token.PlaylistEntry],
+            *,
+            return_previous: bool,
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> entity.PlaylistEntry:  # yapf: disable
+        """Returns the previous or next entry.
+
+        Args:
+            entry_token: Token of the entry adjacent to the one that will be
+                returned, or None to return the first or last entry.
+            return_previous: If True, this returns the entry before entry_token,
+                or the last entry; otherwise this returns the entry after
+                entry_token or the first entry.
+            snapshot: Snapshot to reuse instead of starting a new one.
+
+        Raises:
+            LookupError: There is no previous or next entry.
+        """
+        with self._db.snapshot(snapshot) as snapshot_:
+            if return_previous:
+                query = """
+                    SELECT token, library_token_type, library_token
+                    FROM Entry
+                    WHERE next_token IS ?
+                """
+            else:
+                query = """
+                    SELECT
+                        Entry.token,
+                        Entry.library_token_type,
+                        Entry.library_token
+                    FROM Entry
+                    LEFT JOIN Entry AS PreviousEntry
+                        ON PreviousEntry.next_token = Entry.token
+                    WHERE PreviousEntry.token IS ?
+                """
+            row = snapshot_.execute(
+                query,
+                (None if entry_token is None else str(entry_token),),
+            ).fetchone()
+            if row is None:
+                if entry_token is None:
+                    raise LookupError(
+                        f'There is no {"last" if return_previous else "first"} '
+                        'entry.')
+                else:
+                    raise LookupError(
+                        f"Either {entry_token} doesn't exist, or it's at the "
+                        f'{"beginning" if return_previous else "end"}.')
+            adjacent_entry_token, library_token_type, library_token = row
+            return entity.PlaylistEntry(
+                token=token.PlaylistEntry(adjacent_entry_token),
+                library_token=_STR_TO_TOKEN_TYPE[library_token_type](
+                    library_token),
+            )
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def next_entry(
             self,
             entry_token: Optional[token.PlaylistEntry],
@@ -186,33 +245,25 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         Raises:
             LookupError: There is no next entry.
         """
-        with self._db.snapshot(snapshot) as snapshot_:
-            row = snapshot_.execute(
-                """
-                SELECT
-                    Entry.token,
-                    Entry.library_token_type,
-                    Entry.library_token
-                FROM Entry
-                LEFT JOIN Entry AS PreviousEntry
-                    ON PreviousEntry.next_token = Entry.token
-                WHERE PreviousEntry.token IS ?
-                """,
-                (None if entry_token is None else str(entry_token),),
-            ).fetchone()
-            if row is None:
-                if entry_token is None:
-                    raise LookupError('There is no first entry.')
-                else:
-                    raise LookupError(
-                        f"Either {entry_token} doesn't exist, or it's at the "
-                        'end.')
-            next_entry_token, library_token_type, library_token = row
-            return entity.PlaylistEntry(
-                token=token.PlaylistEntry(next_entry_token),
-                library_token=_STR_TO_TOKEN_TYPE[library_token_type](
-                    library_token),
-            )
+        return self._previous_or_next_entry(entry_token,
+                                            return_previous=False,
+                                            snapshot=snapshot)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def previous_entry(
+            self,
+            entry_token: Optional[token.PlaylistEntry],
+    ) -> entity.PlaylistEntry:  # yapf: disable
+        """Returns the previous entry.
+
+        Args:
+            entry_token: Token of the entry after the one that will be returned,
+                or None to return the last entry.
+
+        Raises:
+            LookupError: There is no previous entry.
+        """
+        return self._previous_or_next_entry(entry_token, return_previous=True)
 
     def __iter__(self) -> Iterator[entity.PlaylistEntry]:
         """Yields all entries in the playlist, in order."""
