@@ -119,11 +119,11 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         self._pubsub = pubsub_bus
         self._pubsub.publish(Update())
 
-    def _all_tracks(
+    def _playable_units(
             self,
             entry: entity.PlaylistEntry,
-    ) -> Sequence[entity.Track]:
-        """Returns all tracks for the given entry, in order.
+    ) -> Sequence[entity.PlayableUnit]:
+        """Returns all playable units for the given entry, in order.
 
         Args:
             entry: Entry to get all the tracks of.
@@ -132,17 +132,20 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             KeyError: The library entity was not found.
         """
         if isinstance(entry.library_token, token.Track):
-            return (self._library_db.track(entry.library_token),)
+            tracks = (self._library_db.track(entry.library_token),)
         elif isinstance(entry.library_token, token.Medium):
-            return self._library_db.medium(entry.library_token).tracks
+            tracks = self._library_db.medium(entry.library_token).tracks
         elif isinstance(entry.library_token, token.Album):
             mediums = self._library_db.album(entry.library_token).mediums
-            return tuple(
+            tracks = tuple(
                 itertools.chain.from_iterable(
                     medium.tracks for medium in mediums))
         else:
             raise TypeError(
                 f'Unknown library token type: {entry.library_token}')
+        return tuple(
+            entity.PlayableUnit(playlist_entry=entry, track=track)
+            for track in tracks)
 
     def _next_entry(
             self,
@@ -214,30 +217,24 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             if playable_unit is None:
                 try:
                     entry = self._next_entry(None, snapshot=snapshot)
-                    return entity.PlayableUnit(
-                        track=self._all_tracks(entry)[0],
-                        playlist_entry=entry,
-                    )
+                    return self._playable_units(entry)[0]
                 except LookupError:
                     return None
             try:
-                all_tracks = self._all_tracks(playable_unit.playlist_entry)
-                track_index = {
-                    track.token: index for index, track in enumerate(all_tracks)
+                all_playable_units = self._playable_units(
+                    playable_unit.playlist_entry)
+                playable_unit_index = {
+                    unit.track.token: index
+                    for index, unit in enumerate(all_playable_units)
                 }[playable_unit.track.token]
             except LookupError:
                 return None
-            if track_index + 1 < len(all_tracks):
-                return entity.PlayableUnit(
-                    track=all_tracks[track_index + 1],
-                    playlist_entry=playable_unit.playlist_entry)
+            if playable_unit_index + 1 < len(all_playable_units):
+                return all_playable_units[playable_unit_index + 1]
             try:
                 entry = self._next_entry(playable_unit.playlist_entry.token,
                                          snapshot=snapshot)
-                return entity.PlayableUnit(
-                    track=self._all_tracks(entry)[0],
-                    playlist_entry=entry,
-                )
+                return self._playable_units(entry)[0]
             except LookupError:
                 return None
 
