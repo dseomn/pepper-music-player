@@ -169,51 +169,57 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             entity.PlayableUnit(playlist_entry=entry, track=track)
             for track in tracks)
 
-    def _next_entry(
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def next_entry(
             self,
             entry_token: Optional[token.PlaylistEntry],
             *,
-            snapshot: sqlite3_db.AbstractSnapshot,
-    ) -> entity.PlaylistEntry:
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> entity.PlaylistEntry:  # yapf: disable
         """Returns the next entry.
 
         Args:
             entry_token: Token of the entry before the one that will be
                 returned, or None to return the first entry.
-            snapshot: Database snapshot.
+            snapshot: Snapshot to reuse instead of starting a new one.
 
         Raises:
             LookupError: There is no next entry.
         """
-        row = snapshot.execute(
-            """
-            SELECT Entry.token, Entry.library_token_type, Entry.library_token
-            FROM Entry
-            LEFT JOIN Entry AS PreviousEntry
-                ON PreviousEntry.next_token = Entry.token
-            WHERE PreviousEntry.token IS ?
-            """,
-            (None if entry_token is None else str(entry_token),),
-        ).fetchone()
-        if row is None:
-            if entry_token is None:
-                raise LookupError('There is no first entry.')
-            else:
-                raise LookupError(
-                    f"Either {entry_token} doesn't exist, or it's at the end.")
-        next_entry_token, library_token_type, library_token = row
-        return entity.PlaylistEntry(
-            token=token.PlaylistEntry(next_entry_token),
-            library_token=_STR_TO_TOKEN_TYPE[library_token_type](library_token),
-        )
+        with self._db.snapshot(snapshot) as snapshot_:
+            row = snapshot_.execute(
+                """
+                SELECT
+                    Entry.token,
+                    Entry.library_token_type,
+                    Entry.library_token
+                FROM Entry
+                LEFT JOIN Entry AS PreviousEntry
+                    ON PreviousEntry.next_token = Entry.token
+                WHERE PreviousEntry.token IS ?
+                """,
+                (None if entry_token is None else str(entry_token),),
+            ).fetchone()
+            if row is None:
+                if entry_token is None:
+                    raise LookupError('There is no first entry.')
+                else:
+                    raise LookupError(
+                        f"Either {entry_token} doesn't exist, or it's at the "
+                        'end.')
+            next_entry_token, library_token_type, library_token = row
+            return entity.PlaylistEntry(
+                token=token.PlaylistEntry(next_entry_token),
+                library_token=_STR_TO_TOKEN_TYPE[library_token_type](
+                    library_token),
+            )
 
     def __iter__(self) -> Iterator[entity.PlaylistEntry]:
         """Yields all entries in the playlist, in order."""
         entry_token = None
         while True:
             try:
-                with self._db.snapshot() as snapshot:
-                    entry = self._next_entry(entry_token, snapshot=snapshot)
+                entry = self.next_entry(entry_token)
             except LookupError:
                 return
             yield entry
@@ -238,7 +244,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         with self._db.snapshot() as snapshot:
             if playable_unit is None:
                 try:
-                    entry = self._next_entry(None, snapshot=snapshot)
+                    entry = self.next_entry(None, snapshot=snapshot)
                     return self.playable_units(entry, snapshot=snapshot)[0]
                 except LookupError:
                     return None
@@ -254,8 +260,8 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             if playable_unit_index + 1 < len(all_playable_units):
                 return all_playable_units[playable_unit_index + 1]
             try:
-                entry = self._next_entry(playable_unit.playlist_entry.token,
-                                         snapshot=snapshot)
+                entry = self.next_entry(playable_unit.playlist_entry.token,
+                                        snapshot=snapshot)
                 return self.playable_units(entry, snapshot=snapshot)[0]
             except LookupError:
                 return None

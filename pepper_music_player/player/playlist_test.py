@@ -136,6 +136,24 @@ class PlaylistTest(unittest.TestCase):
             self._playlist.playable_units(entry),
         )
 
+    def test_next_entry_at_beginning(self):
+        entry = self._playlist.append(self._album.token)
+        self.assertEqual(entry, self._playlist.next_entry(None))
+
+    def test_next_entry(self):
+        entry1 = self._playlist.append(self._album.mediums[1].token)
+        entry2 = self._playlist.append(self._album.mediums[0].token)
+        self.assertEqual(entry2, self._playlist.next_entry(entry1.token))
+
+    def test_next_entry_no_first_entry(self):
+        with self.assertRaisesRegex(LookupError, 'no first entry'):
+            self._playlist.next_entry(None)
+
+    def test_next_entry_at_end(self):
+        entry = self._playlist.append(self._album.token)
+        with self.assertRaisesRegex(LookupError, 'at the end'):
+            self._playlist.next_entry(entry.token)
+
     def _next_playable_unit_callback(self):
         self._player.set_next_playable_unit_callback.assert_called()
         args, _ = self._player.set_next_playable_unit_callback.call_args
