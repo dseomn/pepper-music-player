@@ -143,8 +143,8 @@ class Playlist(Iterable[entity.PlaylistEntry]):
                     SELECT 1
                     FROM Entry
                     WHERE token = ?
-                      AND library_token_type = ?
-                      AND library_token = ?
+                        AND library_token_type = ?
+                        AND library_token = ?
                     """,
                     (
                         str(entry.token),
