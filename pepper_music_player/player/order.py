@@ -272,6 +272,33 @@ class Linear(LinearEntry):
                     index=-1))
 
 
+class RepeatOne(Order):
+    """Repeats a single playable unit indefinitely."""
+
+    # TODO(dseomn): Make sure the entry and track still exist, and update the
+    # track metadata if it's changed?
+
+    @handle_stop_error
+    def next(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:
+        """See base class."""
+        return current
+
+    @handle_stop_error
+    def previous(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:
+        """See base class."""
+        return current
+
+
 class Repeat(Linear):
     """Plays the playlist through in order, then repeats from the beginning."""
 
