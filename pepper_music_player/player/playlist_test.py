@@ -105,7 +105,7 @@ class PlaylistTest(unittest.TestCase):
 
     def test_stops_if_current_entry_not_found(self):
         self.assertIsNone(self._next_playable_unit_callback()(
-            audio.PlayableUnit(
+            entity.PlayableUnit(
                 track=self._album.mediums[0].tracks[0],
                 playlist_entry=entity.PlaylistEntry(
                     token.Track('invalid-token')),
@@ -114,7 +114,7 @@ class PlaylistTest(unittest.TestCase):
     def test_stops_if_current_track_not_in_current_entry(self):
         entry = self._playlist.append(self._album.mediums[0].tracks[0].token)
         self.assertIsNone(self._next_playable_unit_callback()(
-            audio.PlayableUnit(
+            entity.PlayableUnit(
                 track=self._album.mediums[0].tracks[1],
                 playlist_entry=entry,
             )))
@@ -123,13 +123,13 @@ class PlaylistTest(unittest.TestCase):
         track = self._album.mediums[0].tracks[0]
         entry = self._playlist.append(track.token)
         self.assertIsNone(self._next_playable_unit_callback()(
-            audio.PlayableUnit(track=track, playlist_entry=entry)))
+            entity.PlayableUnit(track=track, playlist_entry=entry)))
 
     def test_plays_first_entry_track(self):
         track = self._album.mediums[0].tracks[0]
         entry = self._playlist.append(track.token)
         self.assertEqual(
-            audio.PlayableUnit(track=track, playlist_entry=entry),
+            entity.PlayableUnit(track=track, playlist_entry=entry),
             self._next_playable_unit_callback()(None),
         )
 
@@ -137,24 +137,24 @@ class PlaylistTest(unittest.TestCase):
         medium = self._album.mediums[0]
         entry = self._playlist.append(medium.token)
         self.assertEqual(
-            audio.PlayableUnit(track=medium.tracks[0], playlist_entry=entry),
+            entity.PlayableUnit(track=medium.tracks[0], playlist_entry=entry),
             self._next_playable_unit_callback()(None),
         )
 
     def test_plays_first_entry_album(self):
         entry = self._playlist.append(self._album.token)
         self.assertEqual(
-            audio.PlayableUnit(track=self._album.mediums[0].tracks[0],
-                               playlist_entry=entry),
+            entity.PlayableUnit(track=self._album.mediums[0].tracks[0],
+                                playlist_entry=entry),
             self._next_playable_unit_callback()(None),
         )
 
     def test_plays_next_track_in_same_entry(self):
         entry = self._playlist.append(self._album.token)
         self.assertEqual(
-            audio.PlayableUnit(track=self._album.mediums[1].tracks[0],
-                               playlist_entry=entry),
-            self._next_playable_unit_callback()(audio.PlayableUnit(
+            entity.PlayableUnit(track=self._album.mediums[1].tracks[0],
+                                playlist_entry=entry),
+            self._next_playable_unit_callback()(entity.PlayableUnit(
                 track=self._album.mediums[0].tracks[1],
                 playlist_entry=entry,
             )),
@@ -169,8 +169,8 @@ class PlaylistTest(unittest.TestCase):
         track2 = self._album.mediums[0].tracks[0]
         entry2 = self._playlist.append(track2.token)
         self.assertEqual(
-            audio.PlayableUnit(track=track2, playlist_entry=entry2),
-            self._next_playable_unit_callback()(audio.PlayableUnit(
+            entity.PlayableUnit(track=track2, playlist_entry=entry2),
+            self._next_playable_unit_callback()(entity.PlayableUnit(
                 track=track1, playlist_entry=entry1)),
         )
 

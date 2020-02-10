@@ -205,8 +205,8 @@ class Playlist(Iterable[entity.PlaylistEntry]):
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _next_playable_unit(
             self,
-            playable_unit: Optional[audio.PlayableUnit],
-    ) -> Optional[audio.PlayableUnit]:  # yapf: disable
+            playable_unit: Optional[entity.PlayableUnit],
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
         """See audio.NextPlayableUnitCallback."""
         # TODO(dseomn): Support modes other than linear playback, e.g., shuffle,
         # repeat track, and repeat all.
@@ -214,7 +214,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             if playable_unit is None:
                 try:
                     entry = self._next_entry(None, snapshot=snapshot)
-                    return audio.PlayableUnit(
+                    return entity.PlayableUnit(
                         track=self._all_tracks(entry)[0],
                         playlist_entry=entry,
                     )
@@ -228,13 +228,13 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             except LookupError:
                 return None
             if track_index + 1 < len(all_tracks):
-                return audio.PlayableUnit(
+                return entity.PlayableUnit(
                     track=all_tracks[track_index + 1],
                     playlist_entry=playable_unit.playlist_entry)
             try:
                 entry = self._next_entry(playable_unit.playlist_entry.token,
                                          snapshot=snapshot)
-                return audio.PlayableUnit(
+                return entity.PlayableUnit(
                     track=self._all_tracks(entry)[0],
                     playlist_entry=entry,
                 )

@@ -88,7 +88,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
             track = self._insert_track()
             duration = datetime.timedelta(
                 seconds=float(track.tags.one(tag.DURATION_SECONDS)))
-            playable_unit = audio.PlayableUnit(
+            playable_unit = entity.PlayableUnit(
                 track=track, playlist_entry=self._playlist.append(track.token))
         else:
             duration = datetime.timedelta(0)

@@ -186,3 +186,15 @@ class PlaylistEntry:
     library_token: metadata_token.LibraryToken
     token: metadata_token.PlaylistEntry = dataclasses.field(
         default_factory=_playlist_entry_token)
+
+
+@dataclasses.dataclass(frozen=True)
+class PlayableUnit:
+    """The minimal unit that a player can play, i.e., a track.
+
+    Attributes:
+        playlist_entry: Where the track is in the playlist.
+        track: The track to play.
+    """
+    playlist_entry: PlaylistEntry
+    track: Track

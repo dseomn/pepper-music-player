@@ -32,25 +32,10 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player import pubsub
 
-
-@dataclasses.dataclass(frozen=True)
-class PlayableUnit:
-    """The minimal unit that a player can play, i.e., a track.
-
-    Attributes:
-        track: The track to play.
-        playlist_entry: Where the track is in a playlist. The Player doesn't use
-            this itself, but it can be useful for a playlist's
-            NextPlayableUnitCallback.
-    """
-    track: entity.Track
-    playlist_entry: entity.PlaylistEntry
-
-
 # Given the current playable unit (or None if nothing's playing), returns the
 # next playable unit (or None if playback should stop).
-NextPlayableUnitCallback = Callable[[Optional[PlayableUnit]],
-                                    Optional[PlayableUnit]]
+NextPlayableUnitCallback = Callable[[Optional[entity.PlayableUnit]],
+                                    Optional[entity.PlayableUnit]]
 
 
 class State(enum.Enum):
@@ -84,7 +69,7 @@ class PlayStatus(pubsub.Message):
         position: Position of the player within the current playable unit.
     """
     state: State
-    playable_unit: Optional[PlayableUnit]
+    playable_unit: Optional[entity.PlayableUnit]
     duration: datetime.timedelta
     position: datetime.timedelta
 
@@ -139,7 +124,7 @@ class Player:
         # Mutable attributes, protected by the lock.
         self._state = State.STOPPED  # Target state.
         self._state_has_stabilized = True  # If the target state is current.
-        self._playable_units: Deque[PlayableUnit] = collections.deque()
+        self._playable_units: Deque[entity.PlayableUnit] = collections.deque()
         self._next_playable_unit_callback: NextPlayableUnitCallback = (
             lambda _: None)
         self._next_stream_is_first_after_stop = True

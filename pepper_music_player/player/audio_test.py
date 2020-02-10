@@ -102,7 +102,7 @@ class PlayerTest(unittest.TestCase):
             wave_file.setsampwidth(_SAMPLE_WIDTH_BYTES)
             wave_file.setframerate(_SAMPLE_RATE)
             wave_file.writeframes(data)
-        return audio.PlayableUnit(
+        return entity.PlayableUnit(
             track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
             playlist_entry=entity.PlaylistEntry(
                 library_token=token.Track('ignore-this-token')),
@@ -247,7 +247,7 @@ class PlayerTest(unittest.TestCase):
         filename = os.path.join(tempdir.name, f'error.wav')
         with open(filename, 'wb') as fh:
             fh.write(b'This is probably not a valid wav file.')
-        self._next_playable_unit_callback.side_effect = (audio.PlayableUnit(
+        self._next_playable_unit_callback.side_effect = (entity.PlayableUnit(
             track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
             playlist_entry=entity.PlaylistEntry(
                 library_token=token.Track('ignore-this-token')),
