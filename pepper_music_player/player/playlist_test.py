@@ -90,6 +90,52 @@ class PlaylistTest(unittest.TestCase):
             reverse_unordered_selects=self.REVERSE_UNORDERED_SELECTS,
         )
 
+    def test_playable_units_entry_not_found(self):
+        with self.assertRaises(KeyError):
+            self._playlist.playable_units(
+                entity.PlaylistEntry(library_token=self._album.token))
+
+    def test_playable_units_library_entity_not_found(self):
+        entry = self._playlist.append(token.Track('invalid-token'))
+        with self.assertRaises(KeyError):
+            self._playlist.playable_units(entry)
+
+    def test_playable_units_for_track(self):
+        entry = self._playlist.append(self._album.mediums[0].tracks[0].token)
+        self.assertSequenceEqual(
+            (entity.PlayableUnit(playlist_entry=entry,
+                                 track=self._album.mediums[0].tracks[0]),),
+            self._playlist.playable_units(entry),
+        )
+
+    def test_playable_units_for_medium(self):
+        entry = self._playlist.append(self._album.mediums[0].token)
+        self.assertSequenceEqual(
+            (
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[0].tracks[0]),
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[0].tracks[1]),
+            ),
+            self._playlist.playable_units(entry),
+        )
+
+    def test_playable_units_for_album(self):
+        entry = self._playlist.append(self._album.token)
+        self.assertSequenceEqual(
+            (
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[0].tracks[0]),
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[0].tracks[1]),
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[1].tracks[0]),
+                entity.PlayableUnit(playlist_entry=entry,
+                                    track=self._album.mediums[1].tracks[1]),
+            ),
+            self._playlist.playable_units(entry),
+        )
+
     def _next_playable_unit_callback(self):
         self._player.set_next_playable_unit_callback.assert_called()
         args, _ = self._player.set_next_playable_unit_callback.call_args

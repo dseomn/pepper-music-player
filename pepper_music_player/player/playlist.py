@@ -119,18 +119,40 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         self._pubsub = pubsub_bus
         self._pubsub.publish(Update())
 
-    def _playable_units(
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def playable_units(
             self,
             entry: entity.PlaylistEntry,
-    ) -> Sequence[entity.PlayableUnit]:
+            *,
+            snapshot: Optional[sqlite3_db.AbstractSnapshot] = None,
+    ) -> Sequence[entity.PlayableUnit]:  # yapf: disable
         """Returns all playable units for the given entry, in order.
 
         Args:
             entry: Entry to get all the tracks of.
+            snapshot: Snapshot to reuse instead of starting a new one.
 
         Raises:
-            KeyError: The library entity was not found.
+            KeyError: The playlist entry or library entity was not found.
         """
+        with self._db.snapshot(snapshot) as snapshot_:
+            # TODO(https://github.com/google/yapf/issues/792): Remove yapf
+            # disable.
+            if snapshot_.execute(
+                    """
+                    SELECT 1
+                    FROM Entry
+                    WHERE token = ?
+                      AND library_token_type = ?
+                      AND library_token = ?
+                    """,
+                    (
+                        str(entry.token),
+                        _TOKEN_TYPE_TO_STR[type(entry.library_token)],
+                        str(entry.library_token),
+                    ),
+            ).fetchone() is None:  # yapf: disable
+                raise KeyError(entry)
         if isinstance(entry.library_token, token.Track):
             tracks = (self._library_db.track(entry.library_token),)
         elif isinstance(entry.library_token, token.Medium):
@@ -217,12 +239,12 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             if playable_unit is None:
                 try:
                     entry = self._next_entry(None, snapshot=snapshot)
-                    return self._playable_units(entry)[0]
+                    return self.playable_units(entry, snapshot=snapshot)[0]
                 except LookupError:
                     return None
             try:
-                all_playable_units = self._playable_units(
-                    playable_unit.playlist_entry)
+                all_playable_units = self.playable_units(
+                    playable_unit.playlist_entry, snapshot=snapshot)
                 playable_unit_index = {
                     unit.track.token: index
                     for index, unit in enumerate(all_playable_units)
@@ -234,7 +256,7 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             try:
                 entry = self._next_entry(playable_unit.playlist_entry.token,
                                          snapshot=snapshot)
-                return self._playable_units(entry)[0]
+                return self.playable_units(entry, snapshot=snapshot)[0]
             except LookupError:
                 return None
 
