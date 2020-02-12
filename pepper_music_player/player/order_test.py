@@ -17,6 +17,7 @@ import unittest
 from unittest import mock
 
 from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import token
 from pepper_music_player.player import order
 from pepper_music_player.player import order_testlib
 
@@ -146,6 +147,102 @@ class LinearEntryTest(order_testlib.TestCase):
 
 
 class LinearEntryRaiseErrorTest(LinearEntryTest):
+    ERROR_POLICY = order.ErrorPolicy.RAISE_STOP_ERROR
+
+
+class LinearTest(LinearEntryTest):
+    ERROR_POLICY = order.ErrorPolicy.RETURN_NONE
+
+    def setUp(self):
+        super().setUp()
+        self.order = order.Linear(self.playlist)
+
+    def test_next_stops_at_end_of_entry(self):
+        self.skipTest(
+            'This behavior of the parent class does not apply to the child')
+
+    def test_previous_stops_at_beginning_of_entry(self):
+        self.skipTest(
+            'This behavior of the parent class does not apply to the child')
+
+    def test_next_stops_at_end_of_playlist(self):
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.assertIsNone(
+            self.order.next(
+                entity.PlayableUnit(playlist_entry=entry, track=track)))
+
+    def test_previous_stops_at_beginning_of_playlist(self):
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.assertIsNone(
+            self.order.previous(
+                entity.PlayableUnit(playlist_entry=entry, track=track)))
+
+    def test_adjacent_entity_does_not_exist_next(self):
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.playlist.append(token.Track('invalid-token'))
+        self.assert_stops_with_error(
+            self.order.next,
+            entity.PlayableUnit(playlist_entry=entry, track=track),
+            r'invalid-token.* does not exist',
+        )
+
+    def test_adjacent_entity_does_not_exist_previous(self):
+        self.playlist.append(token.Track('invalid-token'))
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.assert_stops_with_error(
+            self.order.previous,
+            entity.PlayableUnit(playlist_entry=entry, track=track),
+            r'invalid-token.* does not exist',
+        )
+
+    def test_next_starts_playlist_at_beginning(self):
+        album = self.make_album(track_count=2)
+        entry = self.playlist.append(album.token)
+        self.playlist.append(self.make_album().token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry,
+                                track=album.mediums[0].tracks[0]),
+            self.order.next(None))
+
+    def test_previous_starts_playlist_at_end(self):
+        self.playlist.append(self.make_album().token)
+        album = self.make_album(track_count=2)
+        entry = self.playlist.append(album.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry,
+                                track=album.mediums[-1].tracks[-1]),
+            self.order.previous(None))
+
+    def test_next_across_entries(self):
+        album1 = self.make_album(track_count=2)
+        entry1 = self.playlist.append(album1.token)
+        album2 = self.make_album(track_count=2)
+        entry2 = self.playlist.append(album2.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry2,
+                                track=album2.mediums[0].tracks[0]),
+            self.order.next(
+                entity.PlayableUnit(playlist_entry=entry1,
+                                    track=album1.mediums[-1].tracks[-1])))
+
+    def test_previous_across_entries(self):
+        album1 = self.make_album(track_count=2)
+        entry1 = self.playlist.append(album1.token)
+        album2 = self.make_album(track_count=2)
+        entry2 = self.playlist.append(album2.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry1,
+                                track=album1.mediums[-1].tracks[-1]),
+            self.order.previous(
+                entity.PlayableUnit(playlist_entry=entry2,
+                                    track=album2.mediums[0].tracks[0])))
+
+
+class LinearRaisesErrorTest(LinearTest):
     ERROR_POLICY = order.ErrorPolicy.RAISE_STOP_ERROR
 
 

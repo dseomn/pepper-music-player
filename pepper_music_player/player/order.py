@@ -20,6 +20,7 @@ import logging
 from typing import Any, Callable, Optional, TypeVar
 
 from pepper_music_player.metadata import entity
+from pepper_music_player.metadata import token
 from pepper_music_player.player import playlist
 
 T = TypeVar('T')
@@ -201,3 +202,71 @@ class LinearEntry(Order):
         """See base class."""
         del error_policy  # Unused.
         return self._unit_in_same_entry(current, offset=-1)
+
+
+class Linear(LinearEntry):
+    """Plays the playlist through in order, then stops."""
+
+    def _unit_in_adjacent_entry(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            adjacent_callback: Callable[[Optional[token.PlaylistEntry]],
+                                        entity.PlaylistEntry],
+            index: int,
+    ) -> Optional[entity.PlayableUnit]:
+        """Returns a playable unit in an adjacent entry, or None.
+
+        Args:
+            current: The currently playing unit, or None if nothing is playing.
+            adjacent_callback: self.playlist.next_entry or
+                self.playlist.previous_entry.
+            index: Index of the playable unit to return within the adjacent
+                entry.
+
+        Raises:
+            StopError: Playback should stop because of an error.
+        """
+        try:
+            entry = adjacent_callback(
+                None if current is None else current.playlist_entry.token)
+        except LookupError:
+            return None
+        try:
+            return self.playlist.playable_units(entry)[index]
+        except LookupError:
+            raise StopError(
+                f'{entry} does not exist, or does not have a playable unit at '
+                f'index {index}.')
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    @handle_stop_error
+    def next(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del error_policy  # Unused.
+        return (
+            super().next(current, error_policy=ErrorPolicy.RAISE_STOP_ERROR) or
+            self._unit_in_adjacent_entry(
+                current, adjacent_callback=self.playlist.next_entry, index=0))
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    @handle_stop_error
+    def previous(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del error_policy  # Unused.
+        return (super().previous(current,
+                                 error_policy=ErrorPolicy.RAISE_STOP_ERROR) or
+                self._unit_in_adjacent_entry(
+                    current,
+                    adjacent_callback=self.playlist.previous_entry,
+                    index=-1))
