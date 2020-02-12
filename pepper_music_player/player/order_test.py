@@ -113,23 +113,15 @@ class LinearEntryTest(order_testlib.TestCase):
             r'track .* does not exist in .* library entity',
         )
 
-    def test_next(self):
+    def test_adjacent_within_entry(self):
         album = self.make_album(track_count=2)
         tracks = album.mediums[0].tracks
         entry = self.playlist.append(album.token)
-        self.assertEqual(
-            entity.PlayableUnit(playlist_entry=entry, track=tracks[1]),
-            self.order.next(
-                entity.PlayableUnit(playlist_entry=entry, track=tracks[0])))
-
-    def test_previous(self):
-        album = self.make_album(track_count=2)
-        tracks = album.mediums[0].tracks
-        entry = self.playlist.append(album.token)
-        self.assertEqual(
+        self.assert_symmetrically_adjacent(
+            self.order,
             entity.PlayableUnit(playlist_entry=entry, track=tracks[0]),
-            self.order.previous(
-                entity.PlayableUnit(playlist_entry=entry, track=tracks[1])))
+            entity.PlayableUnit(playlist_entry=entry, track=tracks[1]),
+        )
 
     def test_next_stops_at_end_of_entry(self):
         track = self.make_album().mediums[0].tracks[0]
@@ -217,29 +209,18 @@ class LinearTest(LinearEntryTest):
                                 track=album.mediums[-1].tracks[-1]),
             self.order.previous(None))
 
-    def test_next_across_entries(self):
+    def test_adjacent_across_entries(self):
         album1 = self.make_album(track_count=2)
         entry1 = self.playlist.append(album1.token)
         album2 = self.make_album(track_count=2)
         entry2 = self.playlist.append(album2.token)
-        self.assertEqual(
-            entity.PlayableUnit(playlist_entry=entry2,
-                                track=album2.mediums[0].tracks[0]),
-            self.order.next(
-                entity.PlayableUnit(playlist_entry=entry1,
-                                    track=album1.mediums[-1].tracks[-1])))
-
-    def test_previous_across_entries(self):
-        album1 = self.make_album(track_count=2)
-        entry1 = self.playlist.append(album1.token)
-        album2 = self.make_album(track_count=2)
-        entry2 = self.playlist.append(album2.token)
-        self.assertEqual(
+        self.assert_symmetrically_adjacent(
+            self.order,
             entity.PlayableUnit(playlist_entry=entry1,
                                 track=album1.mediums[-1].tracks[-1]),
-            self.order.previous(
-                entity.PlayableUnit(playlist_entry=entry2,
-                                    track=album2.mediums[0].tracks[0])))
+            entity.PlayableUnit(playlist_entry=entry2,
+                                track=album2.mediums[0].tracks[0]),
+        )
 
 
 class LinearRaisesErrorTest(LinearTest):
@@ -261,29 +242,18 @@ class RepeatTest(LinearTest):
         self.skipTest(
             'This behavior of the parent class does not apply to the child.')
 
-    def test_next_wraps_at_end_of_playlist(self):
+    def test_wraps_around_playlist(self):
         album1 = self.make_album(track_count=2)
         entry1 = self.playlist.append(album1.token)
         album2 = self.make_album(track_count=2)
         entry2 = self.playlist.append(album2.token)
-        self.assertEqual(
-            entity.PlayableUnit(playlist_entry=entry1,
-                                track=album1.mediums[0].tracks[0]),
-            self.order.next(
-                entity.PlayableUnit(playlist_entry=entry2,
-                                    track=album2.mediums[-1].tracks[-1])))
-
-    def test_previous_wraps_at_beginning_of_playlist(self):
-        album1 = self.make_album(track_count=2)
-        entry1 = self.playlist.append(album1.token)
-        album2 = self.make_album(track_count=2)
-        entry2 = self.playlist.append(album2.token)
-        self.assertEqual(
+        self.assert_symmetrically_adjacent(
+            self.order,
             entity.PlayableUnit(playlist_entry=entry2,
                                 track=album2.mediums[-1].tracks[-1]),
-            self.order.previous(
-                entity.PlayableUnit(playlist_entry=entry1,
-                                    track=album1.mediums[0].tracks[0])))
+            entity.PlayableUnit(playlist_entry=entry1,
+                                track=album1.mediums[0].tracks[0]),
+        )
 
 
 class RepeatRaisesErrorTest(RepeatTest):

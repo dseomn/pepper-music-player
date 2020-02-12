@@ -90,3 +90,16 @@ class TestCase(unittest.TestCase):
             assert self.ERROR_POLICY is order.ErrorPolicy.RAISE_STOP_ERROR
             with self.assertRaisesRegex(order.StopError, error_regex):
                 method(current, error_policy=self.ERROR_POLICY)
+
+    def assert_symmetrically_adjacent(self, order_, first, second):
+        """Asserts that two playable units are adjacent in both directions.
+
+        Args:
+            order_: Order being tested.
+            first: First playable unit, or None. This should equal
+                order_.previous(second).
+            second: Second playable unit, or None. This should equal
+                order_.next(first).
+        """
+        self.assertEqual(second, order_.next(first))
+        self.assertEqual(first, order_.previous(second))
