@@ -246,5 +246,49 @@ class LinearRaisesErrorTest(LinearTest):
     ERROR_POLICY = order.ErrorPolicy.RAISE_STOP_ERROR
 
 
+class RepeatTest(LinearTest):
+    ERROR_POLICY = order.ErrorPolicy.RETURN_NONE
+
+    def setUp(self):
+        super().setUp()
+        self.order = order.Repeat(self.playlist)
+
+    def test_next_stops_at_end_of_playlist(self):
+        self.skipTest(
+            'This behavior of the parent class does not apply to the child.')
+
+    def test_previous_stops_at_beginning_of_playlist(self):
+        self.skipTest(
+            'This behavior of the parent class does not apply to the child.')
+
+    def test_next_wraps_at_end_of_playlist(self):
+        album1 = self.make_album(track_count=2)
+        entry1 = self.playlist.append(album1.token)
+        album2 = self.make_album(track_count=2)
+        entry2 = self.playlist.append(album2.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry1,
+                                track=album1.mediums[0].tracks[0]),
+            self.order.next(
+                entity.PlayableUnit(playlist_entry=entry2,
+                                    track=album2.mediums[-1].tracks[-1])))
+
+    def test_previous_wraps_at_beginning_of_playlist(self):
+        album1 = self.make_album(track_count=2)
+        entry1 = self.playlist.append(album1.token)
+        album2 = self.make_album(track_count=2)
+        entry2 = self.playlist.append(album2.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry2,
+                                track=album2.mediums[-1].tracks[-1]),
+            self.order.previous(
+                entity.PlayableUnit(playlist_entry=entry1,
+                                    track=album1.mediums[0].tracks[0])))
+
+
+class RepeatRaisesErrorTest(RepeatTest):
+    ERROR_POLICY = order.ErrorPolicy.RAISE_STOP_ERROR
+
+
 if __name__ == '__main__':
     unittest.main()

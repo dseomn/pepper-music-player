@@ -270,3 +270,36 @@ class Linear(LinearEntry):
                     current,
                     adjacent_callback=self.playlist.previous_entry,
                     index=-1))
+
+
+class Repeat(Linear):
+    """Plays the playlist through in order, then repeats from the beginning."""
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    @handle_stop_error
+    def next(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del error_policy  # Unused.
+        return (super().next(current,
+                             error_policy=ErrorPolicy.RAISE_STOP_ERROR) or
+                super().next(None, error_policy=ErrorPolicy.RAISE_STOP_ERROR))
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    @handle_stop_error
+    def previous(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del error_policy  # Unused.
+        return (super().previous(current,
+                                 error_policy=ErrorPolicy.RAISE_STOP_ERROR) or
+                super().previous(None,
+                                 error_policy=ErrorPolicy.RAISE_STOP_ERROR))
