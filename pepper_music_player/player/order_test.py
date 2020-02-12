@@ -16,7 +16,9 @@
 import unittest
 from unittest import mock
 
+from pepper_music_player.metadata import entity
 from pepper_music_player.player import order
+from pepper_music_player.player import order_testlib
 
 
 class StopErrorTest(unittest.TestCase):
@@ -52,6 +54,94 @@ class StopErrorTest(unittest.TestCase):
         self._undecorated.side_effect = order.StopError('foo')
         with self.assertRaisesRegex(order.StopError, 'foo'):
             self._decorated(error_policy=order.ErrorPolicy.RAISE_STOP_ERROR)
+
+
+class LinearEntryTest(order_testlib.TestCase):
+    ERROR_POLICY = order.ErrorPolicy.RETURN_NONE
+
+    def setUp(self):
+        super().setUp()
+        self._order = order.LinearEntry(self.playlist)
+
+    def test_no_current_entry_next(self):
+        self.assertIsNone(self._order.next(None))
+
+    def test_no_current_entry_previous(self):
+        self.assertIsNone(self._order.previous(None))
+
+    def test_current_entry_not_found_next(self):
+        album = self.make_album()
+        self.assert_stops_with_error(
+            self._order.next,
+            entity.PlayableUnit(
+                playlist_entry=entity.PlaylistEntry(library_token=album.token),
+                track=album.mediums[0].tracks[0]),
+            r'playlist entry not found',
+        )
+
+    def test_current_entry_not_found_previous(self):
+        album = self.make_album()
+        self.assert_stops_with_error(
+            self._order.previous,
+            entity.PlayableUnit(
+                playlist_entry=entity.PlaylistEntry(library_token=album.token),
+                track=album.mediums[0].tracks[0]),
+            r'playlist entry not found',
+        )
+
+    def test_current_entry_does_not_contain_track_next(self):
+        entry = self.playlist.append(self.make_album().token)
+        track = self.make_album().mediums[0].tracks[0]
+        self.assert_stops_with_error(
+            self._order.next,
+            entity.PlayableUnit(playlist_entry=entry, track=track),
+            r'track .* does not exist in .* library entity',
+        )
+
+    def test_current_entry_does_not_contain_track_previous(self):
+        entry = self.playlist.append(self.make_album().token)
+        track = self.make_album().mediums[0].tracks[0]
+        self.assert_stops_with_error(
+            self._order.previous,
+            entity.PlayableUnit(playlist_entry=entry, track=track),
+            r'track .* does not exist in .* library entity',
+        )
+
+    def test_next(self):
+        album = self.make_album(track_count=2)
+        tracks = album.mediums[0].tracks
+        entry = self.playlist.append(album.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry, track=tracks[1]),
+            self._order.next(
+                entity.PlayableUnit(playlist_entry=entry, track=tracks[0])))
+
+    def test_previous(self):
+        album = self.make_album(track_count=2)
+        tracks = album.mediums[0].tracks
+        entry = self.playlist.append(album.token)
+        self.assertEqual(
+            entity.PlayableUnit(playlist_entry=entry, track=tracks[0]),
+            self._order.previous(
+                entity.PlayableUnit(playlist_entry=entry, track=tracks[1])))
+
+    def test_next_stops_at_end_of_entry(self):
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.assertIsNone(
+            self._order.next(
+                entity.PlayableUnit(playlist_entry=entry, track=track)))
+
+    def test_previous_stops_at_beginning_of_entry(self):
+        track = self.make_album().mediums[0].tracks[0]
+        entry = self.playlist.append(track.token)
+        self.assertIsNone(
+            self._order.previous(
+                entity.PlayableUnit(playlist_entry=entry, track=track)))
+
+
+class LinearEntryRaiseErrorTest(LinearEntryTest):
+    ERROR_POLICY = order.ErrorPolicy.RAISE_STOP_ERROR
 
 
 if __name__ == '__main__':
