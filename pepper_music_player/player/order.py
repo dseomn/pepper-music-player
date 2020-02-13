@@ -139,6 +139,32 @@ class Order(abc.ABC):
         raise NotImplementedError()
 
 
+class Null(Order):
+    """Always stops."""
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def next(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del current, error_policy  # Unused.
+        return None
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def previous(
+            self,
+            current: Optional[entity.PlayableUnit],
+            *,
+            error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
+    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
+        """See base class."""
+        del current, error_policy  # Unused.
+        return None
+
+
 class LinearEntry(Order):
     """Plays a single entry through in order, then stops."""
 
