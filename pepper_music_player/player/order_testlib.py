@@ -91,6 +91,18 @@ class TestCase(unittest.TestCase):
             with self.assertRaisesRegex(order.StopError, error_regex):
                 method(current, error_policy=self.ERROR_POLICY)
 
+    def assert_stops_with_error_symmetric(self, order_, current, error_regex):
+        """Asserts that current causes an error in either direction.
+
+        Args:
+            order_: Order being tested.
+            current: Playable unit (or None) that causes an error in either the
+                previous() or next() direction.
+            error_regex: Regular expression matching the error.
+        """
+        self.assert_stops_with_error(order_.next, current, error_regex)
+        self.assert_stops_with_error(order_.previous, current, error_regex)
+
     def assert_symmetrically_adjacent(self, order_, first, second):
         """Asserts that two playable units are adjacent in both directions.
 

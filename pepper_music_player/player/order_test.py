@@ -75,40 +75,21 @@ class LinearEntryTest(order_testlib.TestCase):
     def test_no_current_entry_previous(self):
         self.assertIsNone(self.order.previous(None))
 
-    def test_current_entry_not_found_next(self):
+    def test_current_entry_not_found(self):
         album = self.make_album()
-        self.assert_stops_with_error(
-            self.order.next,
+        self.assert_stops_with_error_symmetric(
+            self.order,
             entity.PlayableUnit(
                 playlist_entry=entity.PlaylistEntry(library_token=album.token),
                 track=album.mediums[0].tracks[0]),
             r'playlist entry not found',
         )
 
-    def test_current_entry_not_found_previous(self):
-        album = self.make_album()
-        self.assert_stops_with_error(
-            self.order.previous,
-            entity.PlayableUnit(
-                playlist_entry=entity.PlaylistEntry(library_token=album.token),
-                track=album.mediums[0].tracks[0]),
-            r'playlist entry not found',
-        )
-
-    def test_current_entry_does_not_contain_track_next(self):
+    def test_current_entry_does_not_contain_track(self):
         entry = self.playlist.append(self.make_album().token)
         track = self.make_album().mediums[0].tracks[0]
-        self.assert_stops_with_error(
-            self.order.next,
-            entity.PlayableUnit(playlist_entry=entry, track=track),
-            r'track .* does not exist in .* library entity',
-        )
-
-    def test_current_entry_does_not_contain_track_previous(self):
-        entry = self.playlist.append(self.make_album().token)
-        track = self.make_album().mediums[0].tracks[0]
-        self.assert_stops_with_error(
-            self.order.previous,
+        self.assert_stops_with_error_symmetric(
+            self.order,
             entity.PlayableUnit(playlist_entry=entry, track=track),
             r'track .* does not exist in .* library entity',
         )
@@ -171,22 +152,13 @@ class LinearTest(LinearEntryTest):
             self.order.previous(
                 entity.PlayableUnit(playlist_entry=entry, track=track)))
 
-    def test_adjacent_entity_does_not_exist_next(self):
-        track = self.make_album().mediums[0].tracks[0]
-        entry = self.playlist.append(track.token)
-        self.playlist.append(token.Track('invalid-token'))
-        self.assert_stops_with_error(
-            self.order.next,
-            entity.PlayableUnit(playlist_entry=entry, track=track),
-            r'invalid-token.* does not exist',
-        )
-
-    def test_adjacent_entity_does_not_exist_previous(self):
+    def test_adjacent_entity_does_not_exist(self):
         self.playlist.append(token.Track('invalid-token'))
         track = self.make_album().mediums[0].tracks[0]
         entry = self.playlist.append(track.token)
-        self.assert_stops_with_error(
-            self.order.previous,
+        self.playlist.append(token.Track('invalid-token'))
+        self.assert_stops_with_error_symmetric(
+            self.order,
             entity.PlayableUnit(playlist_entry=entry, track=track),
             r'invalid-token.* does not exist',
         )
