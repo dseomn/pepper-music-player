@@ -132,11 +132,11 @@ class LinearTest(LinearEntryTest):
 
     def test_next_stops_at_end_of_entry(self):
         self.skipTest(
-            'This behavior of the parent class does not apply to the child')
+            'This behavior of the parent class does not apply to the child.')
 
     def test_previous_stops_at_beginning_of_entry(self):
         self.skipTest(
-            'This behavior of the parent class does not apply to the child')
+            'This behavior of the parent class does not apply to the child.')
 
     def test_next_stops_at_end_of_playlist(self):
         track = self.make_album().mediums[0].tracks[0]
