@@ -30,6 +30,7 @@ disable =
   too-many-instance-attributes,
   too-many-locals,
   too-many-public-methods,  # Complains on test methods.
+  useless-return,  # TODO(dseomn): Figure out if/how to use this.
   wrong-import-position  # Gets confused by gi.require_version().
 
 [FORMAT]
