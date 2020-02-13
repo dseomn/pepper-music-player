@@ -127,7 +127,7 @@ class Player:
         self._playable_units: Deque[entity.PlayableUnit] = collections.deque()
         self._next_playable_unit_callback: NextPlayableUnitCallback = (
             lambda _: None)
-        self._next_stream_is_first_after_stop = True
+        self._next_stream_is_first = True
         self._current_duration: Optional[datetime.timedelta] = (
             datetime.timedelta(0))
 
@@ -287,7 +287,7 @@ class Player:
             self._playbin.set_state(Gst.State.NULL)
             self._state = State.STOPPED
             self._state_has_stabilized = True
-            self._next_stream_is_first_after_stop = True
+            self._next_stream_is_first = True
             self._current_duration = datetime.timedelta(0)
         self._status_change_counter.release()
 
@@ -338,9 +338,9 @@ class Player:
         del message  # Unused.
         with self._lock:
             self._state_has_stabilized = True
-            if not self._next_stream_is_first_after_stop:
+            if not self._next_stream_is_first:
                 self._playable_units.popleft()
-            self._next_stream_is_first_after_stop = False
+            self._next_stream_is_first = False
             self._current_duration = None  # Unknown.
             self._try_set_current_duration()
 
