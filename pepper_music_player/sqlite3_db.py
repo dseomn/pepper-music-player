@@ -101,6 +101,7 @@ class Database:
 
     @property
     def _connection(self) -> sqlite3.Connection:
+        """Connection to the database."""
         # https://docs.python.org/3.8/library/sqlite3.html#multithreading says
         # that sqlite3 connections shouldn't be shared between threads.
         if not hasattr(self._local, 'connection'):

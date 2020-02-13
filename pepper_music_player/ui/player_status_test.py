@@ -57,6 +57,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
         )
 
     def _insert_track(self):
+        """Returns a newly added Track."""
         track = entity.Track(tags=tag.Tags({
             '~basename': ('b',),
             '~dirname': ('/a',),
@@ -155,6 +156,7 @@ class PositionSliderTest(screenshot_testlib.TestCase):
         )
 
     def _publish_status(self, state, *, duration, position):
+        """Publishes a PlayStatus and waits for it to propagate."""
         self._pubsub.publish(
             audio.PlayStatus(
                 state=state,

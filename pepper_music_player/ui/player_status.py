@@ -146,6 +146,7 @@ class PositionSlider:
 
     @main_thread.run_in_main_thread
     def _handle_play_status(self, status: audio.PlayStatus) -> None:
+        """Handler for PlayStatus updates."""
         # TODO(https://github.com/google/yapf/issues/805): Remove line break
         # comments.
         alignment.fill_aligned_numerical_label(

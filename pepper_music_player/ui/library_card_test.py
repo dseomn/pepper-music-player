@@ -335,6 +335,13 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         self.register_widget_screenshot(self._library_card_list.widget)
 
     def _activate(self, library_token, widget=None):
+        """Simulates the activate signal.
+
+        Args:
+            library_token: Which row to activate.
+            widget: Widget for the library_token row, an ancestor container, or
+                None to use self._library_card_list.
+        """
         if widget is None:
             widget = self._library_card_list.widget
         if (isinstance(widget, library_card.ListBoxRow) and

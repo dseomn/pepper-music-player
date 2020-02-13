@@ -56,6 +56,19 @@ class ApplicationTest(screenshot_testlib.TestCase):
         )
 
     def _register_window_screenshot(self, window, *, width=768, height=600):
+        """Registers a window for screenshots.
+
+        https://lazka.github.io/pgi-docs/Gtk-3.0/classes/OffscreenWindow.html
+        says "Since Gtk.OffscreenWindow is a toplevel widget you cannot obtain
+        snapshots of a full window with it since you cannot pack a toplevel
+        widget in another toplevel." To work around that, this creates a Gtk.Box
+        to look like a window.
+
+        Args:
+            window: Window to take screenshots of.
+            width: Width of the window.
+            height: Height of the window.
+        """
         # The default width and height are the minimum recommended sizes for
         # portrait and landscape orientation, respectively, from
         # https://developer.gnome.org/hig/stable/display-compatibility.html.en
@@ -73,6 +86,7 @@ class ApplicationTest(screenshot_testlib.TestCase):
         self.register_widget_screenshot(windowlike_box)
 
     def _application(self):
+        """Returns an Application after its initial events have propagated."""
         app = application.Application(
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
