@@ -56,7 +56,8 @@ class PseudoTag(Tag):
     Attributes:
         PREFIX: Prefix that all pseudo-tags must start with.
     """
-    PREFIX: ClassVar[str] = '~'
+    # TODO(https://github.com/PyCQA/pylint/issues/3405): Remove pylint disable.
+    PREFIX: ClassVar[str] = '~'  # pylint: disable=invalid-name
 
     def __post_init__(self) -> None:
         """See base class."""
@@ -122,7 +123,8 @@ class IndexOrTotalTag(DerivedTag):
         composite_tag: Tag of the form 'index' or 'index/total' to parse.
         plain_tags: Tags that contain only the intended values.
     """
-    _COMPOSITE_REGEX: ClassVar[Pattern[str]] = re.compile(
+    # TODO(https://github.com/PyCQA/pylint/issues/3405): Remove pylint disable.
+    _COMPOSITE_REGEX: ClassVar[Pattern[str]] = re.compile(  # pylint: disable=invalid-name
         r'(?P<index>\d+)(?:/(?P<total>\d+))?')
     is_index: bool
     composite_tag: Tag
