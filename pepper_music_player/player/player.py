@@ -21,7 +21,7 @@ import functools
 import logging
 import operator
 import threading
-from typing import Deque, Optional
+from typing import Deque, Optional, Union
 
 import frozendict
 import gi
@@ -31,6 +31,7 @@ from gi.repository import Gst
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.player import order
+from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 
 
@@ -54,20 +55,43 @@ _GST_STATE_TO_STATE = frozendict.frozendict({
 })
 
 
+class Capabilities(enum.Flag):
+    """Capabilities of the player.
+
+    Attributes:
+        NONE: No capabilities.
+        PLAY_OR_PAUSE: There is a currently playing or paused track, or a call
+            to play() or pause() would start a new track. This flag would
+            generally be unset when the playlist is empty.
+    """
+    NONE = 0
+    PLAY_OR_PAUSE = enum.auto()
+
+
 @dataclasses.dataclass(frozen=True)
 class PlayStatus(pubsub.Message):
     """Status update on what is currently playing.
 
     Attributes:
         state: Current state of playback.
+        capabilities: Player's capabilities.
         playable_unit: The current playable unit, or None if state is STOPPED.
         duration: Duration of the current playable unit.
         position: Position of the player within the current playable unit.
     """
     state: State
+    capabilities: Capabilities
     playable_unit: Optional[entity.PlayableUnit]
     duration: datetime.timedelta
     position: datetime.timedelta
+
+
+class _Recalculate(enum.Enum):
+    token = enum.auto()
+
+
+# Placeholder for stale values.
+_RECALCULATE = _Recalculate.token
 
 
 def _parse_pipeline(pipeline_description: str) -> Gst.Element:
@@ -97,7 +121,7 @@ class Player:
         """Initializer.
 
         Args:
-            pubsub_bus: Where to send status updates.
+            pubsub_bus: PubSub bus.
             audio_sink: Audio sink to use, or None to use the default. This is
                 primarily intended for testing.
         """
@@ -116,6 +140,7 @@ class Player:
         # Mutable attributes, protected by the lock.
         self._state = State.STOPPED  # Target state.
         self._state_has_stabilized = True  # If the target state is current.
+        self._capabilities: Union[Capabilities, _Recalculate] = _RECALCULATE
         self._playable_units: Deque[entity.PlayableUnit] = collections.deque()
         self._order: order.Order = order.Null()
         self._next_stream_is_first = True
@@ -130,12 +155,16 @@ class Player:
         self._playbin.connect('about-to-finish',
                               self._prepare_next_playable_unit)
 
+        self._pubsub.subscribe(playlist.Update, self._handle_playlist_update)
+
         threading.Thread(target=self._poll_status, daemon=True).start()
 
     def set_order(self, order_: order.Order) -> None:
         """Sets the play order."""
         with self._lock:
             self._order = order_
+            self._capabilities = _RECALCULATE
+        self._status_change_counter.release()
 
     def _prepare_next_playable_unit(
             self,
@@ -181,6 +210,18 @@ class Player:
             self._current_duration = _gst_clock_time_to_timedelta(
                 duration_gst_time)
 
+    def _update_capabilities(self) -> None:
+        """Updates self._capabilities if needed."""
+        with self._lock:
+            if self._capabilities is not _RECALCULATE:
+                return
+            current_unit = (self._playable_units[0]
+                            if self._playable_units else None)
+            next_unit = self._order.next(current_unit)
+            self._capabilities = Capabilities.NONE
+            if self._state is not State.STOPPED or next_unit is not None:
+                self._capabilities |= Capabilities.PLAY_OR_PAUSE
+
     def _poll_status(
             self,
             *,
@@ -194,8 +235,10 @@ class Player:
         """
         while True:
             with self._lock:
+                self._update_capabilities()
                 state = self._state
                 state_has_stabilized = self._state_has_stabilized
+                capabilities = self._capabilities
                 playable_unit = (self._playable_units[0]
                                  if self._playable_units else None)
                 self._try_set_current_duration()
@@ -221,6 +264,7 @@ class Player:
                 self._pubsub.publish(
                     PlayStatus(
                         state=state,
+                        capabilities=capabilities,
                         playable_unit=playable_unit,
                         duration=duration,
                         position=position,
@@ -239,6 +283,7 @@ class Player:
             self._state = state
             self._state_has_stabilized = (state_change is
                                           Gst.StateChangeReturn.SUCCESS)
+            self._capabilities = _RECALCULATE
         self._status_change_counter.release()
 
     def play(self) -> None:
@@ -268,6 +313,7 @@ class Player:
             self._playbin.set_state(Gst.State.NULL)
             self._state = State.STOPPED
             self._state_has_stabilized = True
+            self._capabilities = _RECALCULATE
             self._next_stream_is_first = True
             self._current_duration = datetime.timedelta(0)
         self._status_change_counter.release()
@@ -316,14 +362,17 @@ class Player:
         self._status_change_counter.release()
 
     def _on_stream_start(self, message: Gst.Message) -> None:
+        """Handles STREAM_START."""
         del message  # Unused.
         with self._lock:
             self._state_has_stabilized = True
             if not self._next_stream_is_first:
                 self._playable_units.popleft()
+                self._capabilities = _RECALCULATE
             self._next_stream_is_first = False
             self._current_duration = None  # Unknown.
             self._try_set_current_duration()
+        self._status_change_counter.release()
 
     def _handle_messages(self, bus: Gst.Bus) -> None:
         """Handles messages from gstreamer in a daemon thread."""
@@ -343,3 +392,9 @@ class Player:
             except Exception:  # pylint: disable=broad-except
                 logging.exception('Error handling gstreamer message of type %s',
                                   message.type)
+
+    def _handle_playlist_update(self, update: playlist.Update) -> None:
+        del update  # Unused.
+        with self._lock:
+            self._capabilities = _RECALCULATE
+        self._status_change_counter.release()

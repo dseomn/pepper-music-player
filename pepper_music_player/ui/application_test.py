@@ -44,6 +44,7 @@ class ApplicationTest(screenshot_testlib.TestCase):
         self._pubsub.publish(
             player.PlayStatus(
                 state=player.State.STOPPED,
+                capabilities=player.Capabilities.NONE,
                 playable_unit=None,
                 duration=datetime.timedelta(0),
                 position=datetime.timedelta(0),

@@ -96,6 +96,8 @@ class ButtonsTest(screenshot_testlib.TestCase):
         self._pubsub.publish(
             player.PlayStatus(
                 state=play_state,
+                # TODO(dseomn): Set this correctly.
+                capabilities=player.Capabilities.NONE,
                 playable_unit=playable_unit,
                 duration=duration,
                 position=duration / 3,
@@ -159,8 +161,10 @@ class PositionSliderTest(screenshot_testlib.TestCase):
         self._pubsub.publish(
             player.PlayStatus(
                 state=state,
-                # Using None here is wrong for PAUSED and PLAYING, but
-                # PositionSlider doesn't use this field.
+                # Using NONE and None in the below two fields is wrong for
+                # PAUSED and PLAYING, but PositionSlider doesn't use these
+                # fields.
+                capabilities=player.Capabilities.NONE,
                 playable_unit=None,
                 duration=duration,
                 position=position,

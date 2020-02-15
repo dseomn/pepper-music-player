@@ -33,6 +33,7 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import order
 from pepper_music_player.player import player
+from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 
 _CHANNEL_COUNT = 1
@@ -71,7 +72,10 @@ class _FakeOrder(order.Order):
             offset: Offset in self.playable_units to return normally.
         """
         if current is None:
-            return self.playable_units[index_if_none]
+            try:
+                return self.playable_units[index_if_none]
+            except IndexError:
+                return None
         try:
             index = self.playable_units.index(current)
         except ValueError:
@@ -279,8 +283,10 @@ class PlayerTest(unittest.TestCase):
                                      _audio_data(b'\x00', duration_seconds=1.0))
         ones = self._playable_unit('ones',
                                    _audio_data(b'\xff', duration_seconds=1.1))
-        self._order.playable_units = (zeroes, ones)
         time.sleep(1)  # Wait for the initial STOPPED status.
+        self._order.playable_units = (zeroes, ones)
+        self._pubsub.publish(playlist.Update())
+        time.sleep(1)  # Wait for the updated STOPPED status.
         self._player.play()
         self._all_audio()
         time.sleep(1)  # Wait for the final STOPPED status.
@@ -288,36 +294,49 @@ class PlayerTest(unittest.TestCase):
             (
                 player.PlayStatus(
                     state=player.State.STOPPED,
+                    capabilities=player.Capabilities.NONE,
+                    playable_unit=None,
+                    duration=datetime.timedelta(0),
+                    position=datetime.timedelta(0),
+                ),
+                player.PlayStatus(
+                    state=player.State.STOPPED,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
                 ),
                 player.PlayStatus(
                     state=player.State.PLAYING,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the beginning.
                 ),
                 player.PlayStatus(
                     state=player.State.PLAYING,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the end.
                 ),
                 player.PlayStatus(
                     state=player.State.PLAYING,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the beginning.
                 ),
                 player.PlayStatus(
                     state=player.State.PLAYING,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the end.
                 ),
                 player.PlayStatus(
                     state=player.State.STOPPED,
+                    capabilities=player.Capabilities.PLAY_OR_PAUSE,
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
@@ -334,6 +353,7 @@ class PlayerTest(unittest.TestCase):
         self.assertIn(
             player.PlayStatus(
                 state=player.State.PAUSED,
+                capabilities=player.Capabilities.PLAY_OR_PAUSE,
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=datetime.timedelta(0),
@@ -351,6 +371,7 @@ class PlayerTest(unittest.TestCase):
         self.assertIn(
             player.PlayStatus(
                 state=player.State.PAUSED,
+                capabilities=player.Capabilities.PLAY_OR_PAUSE,
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=position,
@@ -373,12 +394,14 @@ class PlayerTest(unittest.TestCase):
         statuses = self._deduplicated_status_updates()
         sync_pause_status = player.PlayStatus(
             state=player.State.PAUSED,
+            capabilities=player.Capabilities.PLAY_OR_PAUSE,
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.
         )
         sync_play_status = player.PlayStatus(
             state=player.State.PLAYING,
+            capabilities=player.Capabilities.PLAY_OR_PAUSE,
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.
