@@ -22,7 +22,6 @@ from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
-from pepper_music_player.player import audio
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 
@@ -81,9 +80,7 @@ class PlaylistTest(unittest.TestCase):
         self._update_callback = mock.Mock(spec=())
         self._pubsub.subscribe(playlist.Update, self._update_callback)
         self._album = _insert_album(library_db, 'album')
-        self._player = mock.create_autospec(audio.Player, instance=True)
         self._playlist = playlist.Playlist(
-            player=self._player,
             library_db=library_db,
             pubsub_bus=self._pubsub,
             database_dir=tempdir.name,
@@ -171,90 +168,6 @@ class PlaylistTest(unittest.TestCase):
         entry = self._playlist.append(self._album.token)
         with self.assertRaisesRegex(LookupError, 'at the beginning'):
             self._playlist.previous_entry(entry.token)
-
-    def _next_playable_unit_callback(self):
-        self._player.set_next_playable_unit_callback.assert_called()
-        args, _ = self._player.set_next_playable_unit_callback.call_args
-        (callback,) = args
-        return callback
-
-    def test_stops_if_no_first_entry(self):
-        self.assertIsNone(self._next_playable_unit_callback()(None))
-
-    def test_stops_if_first_entry_not_found(self):
-        self._playlist.append(token.Track('invalid-token'))
-        self.assertIsNone(self._next_playable_unit_callback()(None))
-
-    def test_stops_if_current_entry_not_found(self):
-        self.assertIsNone(self._next_playable_unit_callback()(
-            entity.PlayableUnit(
-                track=self._album.mediums[0].tracks[0],
-                playlist_entry=entity.PlaylistEntry(
-                    token.Track('invalid-token')),
-            )))
-
-    def test_stops_if_current_track_not_in_current_entry(self):
-        entry = self._playlist.append(self._album.mediums[0].tracks[0].token)
-        self.assertIsNone(self._next_playable_unit_callback()(
-            entity.PlayableUnit(
-                track=self._album.mediums[0].tracks[1],
-                playlist_entry=entry,
-            )))
-
-    def test_stops_if_no_next_entry(self):
-        track = self._album.mediums[0].tracks[0]
-        entry = self._playlist.append(track.token)
-        self.assertIsNone(self._next_playable_unit_callback()(
-            entity.PlayableUnit(track=track, playlist_entry=entry)))
-
-    def test_plays_first_entry_track(self):
-        track = self._album.mediums[0].tracks[0]
-        entry = self._playlist.append(track.token)
-        self.assertEqual(
-            entity.PlayableUnit(track=track, playlist_entry=entry),
-            self._next_playable_unit_callback()(None),
-        )
-
-    def test_plays_first_entry_medium(self):
-        medium = self._album.mediums[0]
-        entry = self._playlist.append(medium.token)
-        self.assertEqual(
-            entity.PlayableUnit(track=medium.tracks[0], playlist_entry=entry),
-            self._next_playable_unit_callback()(None),
-        )
-
-    def test_plays_first_entry_album(self):
-        entry = self._playlist.append(self._album.token)
-        self.assertEqual(
-            entity.PlayableUnit(track=self._album.mediums[0].tracks[0],
-                                playlist_entry=entry),
-            self._next_playable_unit_callback()(None),
-        )
-
-    def test_plays_next_track_in_same_entry(self):
-        entry = self._playlist.append(self._album.token)
-        self.assertEqual(
-            entity.PlayableUnit(track=self._album.mediums[1].tracks[0],
-                                playlist_entry=entry),
-            self._next_playable_unit_callback()(entity.PlayableUnit(
-                track=self._album.mediums[0].tracks[1],
-                playlist_entry=entry,
-            )),
-        )
-
-    def test_plays_next_entry(self):
-        # These tracks are appended in a different order from how they appear on
-        # the album to make sure the code plays the next entry instead of the
-        # next track on the album.
-        track1 = self._album.mediums[0].tracks[1]
-        entry1 = self._playlist.append(track1.token)
-        track2 = self._album.mediums[0].tracks[0]
-        entry2 = self._playlist.append(track2.token)
-        self.assertEqual(
-            entity.PlayableUnit(track=track2, playlist_entry=entry2),
-            self._next_playable_unit_callback()(entity.PlayableUnit(
-                track=track1, playlist_entry=entry1)),
-        )
 
     def test_bool_empty(self):
         self.assertFalse(self._playlist)

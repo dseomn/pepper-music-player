@@ -21,7 +21,7 @@ import functools
 import logging
 import operator
 import threading
-from typing import Callable, Deque, Optional
+from typing import Deque, Optional
 
 import frozendict
 import gi
@@ -30,12 +30,8 @@ from gi.repository import Gst
 
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
+from pepper_music_player.player import order
 from pepper_music_player import pubsub
-
-# Given the current playable unit (or None if nothing's playing), returns the
-# next playable unit (or None if playback should stop).
-NextPlayableUnitCallback = Callable[[Optional[entity.PlayableUnit]],
-                                    Optional[entity.PlayableUnit]]
 
 
 class State(enum.Enum):
@@ -90,11 +86,7 @@ def _gst_clock_time_to_timedelta(gst_clock_time: int) -> datetime.timedelta:
 
 
 class Player:
-    """Audio player.
-
-    This handles actually playing audio, but does not do any playlist
-    management.
-    """
+    """Audio player."""
 
     def __init__(
             self,
@@ -125,8 +117,7 @@ class Player:
         self._state = State.STOPPED  # Target state.
         self._state_has_stabilized = True  # If the target state is current.
         self._playable_units: Deque[entity.PlayableUnit] = collections.deque()
-        self._next_playable_unit_callback: NextPlayableUnitCallback = (
-            lambda _: None)
+        self._order: order.Order = order.Null()
         self._next_stream_is_first = True
         self._current_duration: Optional[datetime.timedelta] = (
             datetime.timedelta(0))
@@ -141,20 +132,10 @@ class Player:
 
         threading.Thread(target=self._poll_status, daemon=True).start()
 
-    def set_next_playable_unit_callback(
-            self,
-            callback: NextPlayableUnitCallback,
-    ) -> None:
-        """Sets the callback that returns the next thing to play.
-
-        Args:
-            callback: Callback that returns the next thing to play, or None if
-                playback should stop after the current playable unit. Its only
-                argument is the current playable unit, or None if nothing is
-                currently playing or paused.
-        """
+    def set_order(self, order_: order.Order) -> None:
+        """Sets the play order."""
         with self._lock:
-            self._next_playable_unit_callback = callback
+            self._order = order_
 
     def _prepare_next_playable_unit(
             self,
@@ -178,7 +159,7 @@ class Player:
                 # Something is already prepared, and we're only supposed to
                 # prepare something if nothing is ready.
                 return
-            next_playable_unit = self._next_playable_unit_callback(
+            next_playable_unit = self._order.next(
                 self._playable_units[-1] if self._playable_units else None)
             if next_playable_unit is None:
                 return

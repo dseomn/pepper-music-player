@@ -31,7 +31,6 @@ def main() -> None:
     pubsub_bus = pubsub.PubSub()
     player = audio.Player(pubsub_bus=pubsub_bus)
     playlist_ = playlist.Playlist(
-        player=player,
         library_db=library_db,
         pubsub_bus=pubsub_bus,
         database_dir=database_dir,

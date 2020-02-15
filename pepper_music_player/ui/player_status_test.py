@@ -45,7 +45,6 @@ class ButtonsTest(screenshot_testlib.TestCase):
         self._pubsub = pubsub.PubSub()
         self._player = mock.create_autospec(audio.Player, instance=True)
         self._playlist = playlist.Playlist(
-            player=self._player,
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
             database_dir=tempdir.name,

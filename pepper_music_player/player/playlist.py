@@ -23,7 +23,6 @@ import frozendict
 from pepper_music_player.library import database
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import token
-from pepper_music_player.player import audio
 from pepper_music_player import pubsub
 from pepper_music_player import sqlite3_db
 
@@ -73,7 +72,8 @@ _SCHEMA = sqlite3_db.Schema(
             )
         """),
 
-        # TODO(dseomn): Keep track of the position in the playlist.
+        # TODO(dseomn): Keep track of the position in the playlist, either here
+        # or somewhere else.
     ),
 )
 
@@ -88,12 +88,11 @@ class Update(pubsub.Message):
 
 
 class Playlist(Iterable[entity.PlaylistEntry]):
-    """A list of things to play, along with the state of what's playing."""
+    """A list of things to play."""
 
     def __init__(
             self,
             *,
-            player: audio.Player,
             library_db: database.Database,
             pubsub_bus: pubsub.PubSub,
             database_dir: str,
@@ -102,7 +101,6 @@ class Playlist(Iterable[entity.PlaylistEntry]):
         """Initializer.
 
         Args:
-            player: Audio player to use for playing this playlist.
             library_db: Library database.
             pubsub_bus: PubSub bus.
             database_dir: Directory containing databases.
@@ -113,8 +111,6 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             database_dir=database_dir,
             reverse_unordered_selects=reverse_unordered_selects,
         )
-        self._player = player
-        self._player.set_next_playable_unit_callback(self._next_playable_unit)
         self._library_db = library_db
         self._pubsub = pubsub_bus
         self._pubsub.publish(Update())
@@ -283,39 +279,6 @@ class Playlist(Iterable[entity.PlaylistEntry]):
             return False
         else:
             return True
-
-    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
-    def _next_playable_unit(
-            self,
-            playable_unit: Optional[entity.PlayableUnit],
-    ) -> Optional[entity.PlayableUnit]:  # yapf: disable
-        """See audio.NextPlayableUnitCallback."""
-        # TODO(dseomn): Support modes other than linear playback, e.g., shuffle,
-        # repeat track, and repeat all.
-        with self._db.snapshot() as snapshot:
-            if playable_unit is None:
-                try:
-                    entry = self.next_entry(None, snapshot=snapshot)
-                    return self.playable_units(entry, snapshot=snapshot)[0]
-                except LookupError:
-                    return None
-            try:
-                all_playable_units = self.playable_units(
-                    playable_unit.playlist_entry, snapshot=snapshot)
-                playable_unit_index = {
-                    unit.track.token: index
-                    for index, unit in enumerate(all_playable_units)
-                }[playable_unit.track.token]
-            except LookupError:
-                return None
-            if playable_unit_index + 1 < len(all_playable_units):
-                return all_playable_units[playable_unit_index + 1]
-            try:
-                entry = self.next_entry(playable_unit.playlist_entry.token,
-                                        snapshot=snapshot)
-                return self.playable_units(entry, snapshot=snapshot)[0]
-            except LookupError:
-                return None
 
     def append(self, library_token: token.LibraryToken) -> entity.PlaylistEntry:
         """Appends the given token to the playlist.

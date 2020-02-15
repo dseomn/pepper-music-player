@@ -32,6 +32,7 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
+from pepper_music_player.player import order
 from pepper_music_player import pubsub
 
 _CHANNEL_COUNT = 1
@@ -88,9 +89,8 @@ class PlayerTest(unittest.TestCase):
             audio_sink=self._audio_sink,
         )
         self.addCleanup(self._player.stop)
-        self._next_playable_unit_callback = mock.Mock(spec=())
-        self._player.set_next_playable_unit_callback(
-            self._next_playable_unit_callback)
+        self._order = mock.create_autospec(order.Order, instance=True)
+        self._player.set_order(self._order)
 
     def _playable_unit(self, basename, data):
         """Returns a playable unit with the given audio data."""
@@ -164,7 +164,7 @@ class PlayerTest(unittest.TestCase):
                 statuses.append(status)
         return statuses
 
-    def test_default_next_playable_unit_is_none(self):
+    def test_default_order_is_null(self):
         default_player = audio.Player(
             pubsub_bus=self._pubsub,
             audio_sink=self._audio_sink,
@@ -172,10 +172,10 @@ class PlayerTest(unittest.TestCase):
         default_player.play()
         self.assertEqual(b'', self._all_audio())
 
-    def test_next_playable_unit_callback_is_called_with_previous_unit(self):
+    def test_order_next_is_called_with_previous_unit(self):
         zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
         ones = self._playable_unit('ones', _AUDIO_ONES)
-        self._next_playable_unit_callback.side_effect = (zeroes, ones, None)
+        self._order.next.side_effect = (zeroes, ones, None)
         self._player.play()
         self._all_audio()  # Wait for the player to finish.
         self.assertSequenceEqual(
@@ -184,11 +184,11 @@ class PlayerTest(unittest.TestCase):
                 mock.call(zeroes),
                 mock.call(ones),
             ),
-            self._next_playable_unit_callback.mock_calls,
+            self._order.next.mock_calls,
         )
 
     def test_play_is_gapless(self):
-        self._next_playable_unit_callback.side_effect = (
+        self._order.next.side_effect = (
             self._playable_unit('zeroes', _AUDIO_ZEROES),
             self._playable_unit('ones', _AUDIO_ONES),
             None,
@@ -198,7 +198,7 @@ class PlayerTest(unittest.TestCase):
 
     def test_play_can_repeat_a_unit(self):
         playable_unit = self._playable_unit('zeroes', _AUDIO_ZEROES)
-        self._next_playable_unit_callback.side_effect = (
+        self._order.next.side_effect = (
             playable_unit,
             playable_unit,
             None,
@@ -207,7 +207,7 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(_AUDIO_ZEROES * 2, self._all_audio())
 
     def test_play_resumes_from_pause_and_pause_while_paused_is_noop(self):
-        self._next_playable_unit_callback.side_effect = _args_then_none(
+        self._order.next.side_effect = _args_then_none(
             self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.play()
         self._player.pause()
@@ -216,23 +216,23 @@ class PlayerTest(unittest.TestCase):
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
     def test_play_while_already_playing_is_noop(self):
-        self._next_playable_unit_callback.side_effect = _args_then_none(
+        self._order.next.side_effect = _args_then_none(
             self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.play()
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
     def test_pause_prepares_next_playable_unit(self):
-        self._next_playable_unit_callback.side_effect = (self._playable_unit(
+        self._order.next.side_effect = (self._playable_unit(
             'zeroes', _AUDIO_ZEROES),)
         self._player.pause()
-        self._next_playable_unit_callback.side_effect = None
-        self._next_playable_unit_callback.return_value = None
+        self._order.next.side_effect = None
+        self._order.next.return_value = None
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
     def test_seek(self):
-        self._next_playable_unit_callback.side_effect = _args_then_none(
+        self._order.next.side_effect = _args_then_none(
             self._playable_unit('zeroes', _AUDIO_ZEROES))
         self._player.pause()
         self._player.seek(
@@ -247,7 +247,7 @@ class PlayerTest(unittest.TestCase):
         filename = os.path.join(tempdir.name, f'error.wav')
         with open(filename, 'wb') as fh:
             fh.write(b'This is probably not a valid wav file.')
-        self._next_playable_unit_callback.side_effect = (entity.PlayableUnit(
+        self._order.next.side_effect = (entity.PlayableUnit(
             track=entity.Track(tags=tag.Tags({tag.FILENAME: (filename,)})),
             playlist_entry=entity.PlaylistEntry(
                 library_token=token.Track('ignore-this-token')),
@@ -267,7 +267,7 @@ class PlayerTest(unittest.TestCase):
                                      _audio_data(b'\x00', duration_seconds=1.0))
         ones = self._playable_unit('ones',
                                    _audio_data(b'\xff', duration_seconds=1.1))
-        self._next_playable_unit_callback.side_effect = (zeroes, ones, None)
+        self._order.next.side_effect = (zeroes, ones, None)
         time.sleep(1)  # Wait for the initial STOPPED status.
         self._player.play()
         self._all_audio()
@@ -316,7 +316,7 @@ class PlayerTest(unittest.TestCase):
 
     def test_publishes_play_status_on_initial_pause(self):
         zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
-        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._order.next.side_effect = _args_then_none(zeroes)
         self._player.pause()
         time.sleep(1)
         self.assertIn(
@@ -331,7 +331,7 @@ class PlayerTest(unittest.TestCase):
 
     def test_publishes_play_status_after_seek_while_paused(self):
         zeroes = self._playable_unit('zeroes', _AUDIO_ZEROES)
-        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._order.next.side_effect = _args_then_none(zeroes)
         self._player.pause()
         position = datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS) / 2
         self._player.seek(position)
@@ -351,7 +351,7 @@ class PlayerTest(unittest.TestCase):
         self._audio_sink.set_property('async', async_state_change)
         zeroes = self._playable_unit('zeroes',
                                      _audio_data(b'\x00', duration_seconds=1.0))
-        self._next_playable_unit_callback.side_effect = _args_then_none(zeroes)
+        self._order.next.side_effect = _args_then_none(zeroes)
         self._player.play()
         time.sleep(0.2)  # Wait for play to start.
         self._player.pause()

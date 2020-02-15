@@ -49,7 +49,6 @@ class ApplicationTest(screenshot_testlib.TestCase):
                 position=datetime.timedelta(0),
             ))
         self._playlist = playlist.Playlist(
-            player=self._player,
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
             database_dir=tempdir.name,

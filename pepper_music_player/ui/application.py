@@ -24,6 +24,7 @@ from gi.repository import Gtk
 from pepper_music_player.library import database
 from pepper_music_player.metadata import token
 from pepper_music_player.player import audio
+from pepper_music_player.player import order
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import library_card
@@ -75,6 +76,8 @@ class Application:
         self._pubsub = pubsub_bus
         self._player = player
         self._playlist = playlist_
+        # TODO(dseomn): Make the order configurable.
+        self._player.set_order(order.Linear(self._playlist))
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui', 'application.glade'),
             length=-1,
