@@ -131,7 +131,7 @@ class Null(Order):
     """Always stops."""
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
-    def next(
+    def next(  # pylint: disable=useless-return
             self,
             current: Optional[entity.PlayableUnit],
             *,
@@ -142,7 +142,7 @@ class Null(Order):
         return None
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
-    def previous(
+    def previous(  # pylint: disable=useless-return
             self,
             current: Optional[entity.PlayableUnit],
             *,
