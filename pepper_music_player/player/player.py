@@ -139,21 +139,21 @@ class Player:
 
     def _prepare_next_playable_unit(
             self,
-            _element: Optional[Gst.Element] = None,
+            element: Optional[Gst.Element] = None,
             *,
             initial: bool = False,
     ) -> None:
         """Prepares the player to start playing whatever is next.
 
         Args:
-            _element: GObject signal handlers must take the signaling object as
-                a parameter. This parameter is for compatibility with that; do
-                not use it for anything.
+            element: GObject signal handlers must take the signaling object as a
+                parameter. This parameter is for compatibility with that; do not
+                use it for anything.
             initial: Whether this method is being called to prepare the initial
                 playable unit from a stop, or the next unit regardless of the
                 current state.
         """
-        del _element  # See docstring.
+        del element  # See docstring.
         with self._lock:
             if initial and self._playable_units:
                 # Something is already prepared, and we're only supposed to
