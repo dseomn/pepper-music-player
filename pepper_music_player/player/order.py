@@ -78,19 +78,7 @@ def handle_stop_error(function: Callable[..., T]) -> Callable[..., Optional[T]]:
 
 
 class Order(abc.ABC):
-    """Interface for play orders.
-
-    Attributes:
-        playlist: Playlist the order is following.
-    """
-
-    def __init__(self, playlist_: playlist.Playlist) -> None:
-        """Initializer.
-
-        Args:
-            playlist_: Playlist.
-        """
-        self.playlist = playlist_
+    """Interface for play orders."""
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     @abc.abstractmethod
@@ -165,7 +153,24 @@ class Null(Order):
         return None
 
 
-class LinearEntry(Order):
+# TODO(https://github.com/PyCQA/pylint/issues/179): Remove pylint disable.
+class Base(Order):  # pylint: disable=abstract-method
+    """Base class for most Order implementations.
+
+    Attributes:
+        playlist: Playlist the order is following.
+    """
+
+    def __init__(self, playlist_: playlist.Playlist) -> None:
+        """Initializer.
+
+        Args:
+            playlist_: Playlist.
+        """
+        self.playlist = playlist_
+
+
+class LinearEntry(Base):
     """Plays a single entry through in order, then stops."""
 
     def _unit_in_same_entry(

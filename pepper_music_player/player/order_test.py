@@ -57,17 +57,13 @@ class StopErrorTest(unittest.TestCase):
             self._decorated(error_policy=order.ErrorPolicy.RAISE_STOP_ERROR)
 
 
-class NullTest(order_testlib.TestCase):
-
-    def setUp(self):
-        super().setUp()
-        self._order = order.Null(self.playlist)
+class NullTest(unittest.TestCase):
 
     def test_next_returns_none(self):
-        self.assertIsNone(self._order.next(mock.Mock(spec=())))
+        self.assertIsNone(order.Null().next(mock.Mock(spec=())))
 
     def test_previous_returns_none(self):
-        self.assertIsNone(self._order.previous(mock.Mock(spec=())))
+        self.assertIsNone(order.Null().previous(mock.Mock(spec=())))
 
 
 class LinearEntryTest(order_testlib.TestCase):
