@@ -25,7 +25,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
-from pepper_music_player.player import audio
+from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import application
@@ -40,10 +40,10 @@ class ApplicationTest(screenshot_testlib.TestCase):
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
         self._pubsub = pubsub.PubSub()
-        self._player = mock.create_autospec(audio.Player, instance=True)
+        self._player = mock.create_autospec(player.Player, instance=True)
         self._pubsub.publish(
-            audio.PlayStatus(
-                state=audio.State.STOPPED,
+            player.PlayStatus(
+                state=player.State.STOPPED,
                 playable_unit=None,
                 duration=datetime.timedelta(0),
                 position=datetime.timedelta(0),
@@ -89,7 +89,7 @@ class ApplicationTest(screenshot_testlib.TestCase):
         app = application.Application(
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
-            player=self._player,
+            player_=self._player,
             playlist_=self._playlist,
         )
         self._pubsub.join()

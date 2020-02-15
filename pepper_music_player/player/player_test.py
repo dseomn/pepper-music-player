@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pepper_music_player.player.audio."""
+"""Tests for pepper_music_player.player.player."""
 
 import datetime
 import operator
@@ -31,8 +31,8 @@ from gi.repository import GstApp
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
-from pepper_music_player.player import audio
 from pepper_music_player.player import order
+from pepper_music_player.player import player
 from pepper_music_player import pubsub
 
 _CHANNEL_COUNT = 1
@@ -69,7 +69,7 @@ def _args_then_none(*args):
 
 
 class PlayerTest(unittest.TestCase):
-    """Tests for audio.Player.
+    """Tests for player.Player.
 
     Attributes:
         maxDiff: See base class.
@@ -80,11 +80,11 @@ class PlayerTest(unittest.TestCase):
         super().setUp()
         self._pubsub = pubsub.PubSub()
         self._play_status_callback = mock.Mock(spec=())
-        self._pubsub.subscribe(audio.PlayStatus, self._play_status_callback)
+        self._pubsub.subscribe(player.PlayStatus, self._play_status_callback)
         Gst.init(argv=None)
         self._audio_sink = Gst.parse_launch_full('appsink', None,
                                                  Gst.ParseFlags.FATAL_ERRORS)
-        self._player = audio.Player(
+        self._player = player.Player(
             pubsub_bus=self._pubsub,
             audio_sink=self._audio_sink,
         )
@@ -165,7 +165,7 @@ class PlayerTest(unittest.TestCase):
         return statuses
 
     def test_default_order_is_null(self):
-        default_player = audio.Player(
+        default_player = player.Player(
             pubsub_bus=self._pubsub,
             audio_sink=self._audio_sink,
         )
@@ -274,38 +274,38 @@ class PlayerTest(unittest.TestCase):
         time.sleep(1)  # Wait for the final STOPPED status.
         self.assertSequenceEqual(
             (
-                audio.PlayStatus(
-                    state=audio.State.STOPPED,
+                player.PlayStatus(
+                    state=player.State.STOPPED,
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
                 ),
-                audio.PlayStatus(
-                    state=audio.State.PLAYING,
+                player.PlayStatus(
+                    state=player.State.PLAYING,
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the beginning.
                 ),
-                audio.PlayStatus(
-                    state=audio.State.PLAYING,
+                player.PlayStatus(
+                    state=player.State.PLAYING,
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the end.
                 ),
-                audio.PlayStatus(
-                    state=audio.State.PLAYING,
+                player.PlayStatus(
+                    state=player.State.PLAYING,
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the beginning.
                 ),
-                audio.PlayStatus(
-                    state=audio.State.PLAYING,
+                player.PlayStatus(
+                    state=player.State.PLAYING,
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the end.
                 ),
-                audio.PlayStatus(
-                    state=audio.State.STOPPED,
+                player.PlayStatus(
+                    state=player.State.STOPPED,
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
@@ -320,8 +320,8 @@ class PlayerTest(unittest.TestCase):
         self._player.pause()
         time.sleep(1)
         self.assertIn(
-            audio.PlayStatus(
-                state=audio.State.PAUSED,
+            player.PlayStatus(
+                state=player.State.PAUSED,
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=datetime.timedelta(0),
@@ -337,8 +337,8 @@ class PlayerTest(unittest.TestCase):
         self._player.seek(position)
         time.sleep(1)
         self.assertIn(
-            audio.PlayStatus(
-                state=audio.State.PAUSED,
+            player.PlayStatus(
+                state=player.State.PAUSED,
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=position,
@@ -359,14 +359,14 @@ class PlayerTest(unittest.TestCase):
         self._player.play()
         self._all_audio()
         statuses = self._deduplicated_status_updates()
-        sync_pause_status = audio.PlayStatus(
-            state=audio.State.PAUSED,
+        sync_pause_status = player.PlayStatus(
+            state=player.State.PAUSED,
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.
         )
-        sync_play_status = audio.PlayStatus(
-            state=audio.State.PLAYING,
+        sync_play_status = player.PlayStatus(
+            state=player.State.PLAYING,
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.

@@ -22,7 +22,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.metadata import formatting
-from pepper_music_player.player import audio
+from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import alignment
@@ -41,27 +41,27 @@ class Buttons:
             only.
     """
     _STATE_TO_VISIBLE_BUTTON = frozendict.frozendict({
-        audio.State.STOPPED: 'play',
-        audio.State.PAUSED: 'play',
-        audio.State.PLAYING: 'pause',
+        player.State.STOPPED: 'play',
+        player.State.PAUSED: 'play',
+        player.State.PLAYING: 'pause',
     })
 
     def __init__(
             self,
             *,
             pubsub_bus: pubsub.PubSub,
-            player: audio.Player,
+            player_: player.Player,
             playlist_: playlist.Playlist,
     ) -> None:
         """Initializer.
 
         Args:
             pubsub_bus: PubSub message bus.
-            player: Player.
+            player_: Player.
             playlist_: Playlist.
         """
         self._pubsub = pubsub_bus
-        self._player = player
+        self._player = player_
         self._playlist = playlist_
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
@@ -76,7 +76,7 @@ class Buttons:
             'play_pause_button')
         self.play_pause_stack: Gtk.Stack = builder.get_object(
             'play_pause_stack')
-        self._pubsub.subscribe(audio.PlayStatus,
+        self._pubsub.subscribe(player.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
         self._pubsub.subscribe(playlist.Update,
@@ -85,7 +85,7 @@ class Buttons:
         builder.connect_signals(self)
 
     @main_thread.run_in_main_thread
-    def _handle_play_status(self, status: audio.PlayStatus) -> None:
+    def _handle_play_status(self, status: player.PlayStatus) -> None:
         self.play_pause_stack.set_visible_child_name(
             self._STATE_TO_VISIBLE_BUTTON[status.state])
 
@@ -117,16 +117,16 @@ class PositionSlider:
             self,
             *,
             pubsub_bus: pubsub.PubSub,
-            player: audio.Player,
+            player_: player.Player,
     ) -> None:
         """Initializer.
 
         Args:
             pubsub_bus: PubSub message bus.
-            player: Player.
+            player_: Player.
         """
         self._pubsub = pubsub_bus
-        self._player = player
+        self._player = player_
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
                                 'player_status_position_slider.glade'),
@@ -139,13 +139,13 @@ class PositionSlider:
         self._position: Gtk.Label = builder.get_object('position')
         self._duration: Gtk.Label = builder.get_object('duration')
         self.slider: Gtk.Scale = builder.get_object('slider')
-        self._pubsub.subscribe(audio.PlayStatus,
+        self._pubsub.subscribe(player.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
         builder.connect_signals(self)
 
     @main_thread.run_in_main_thread
-    def _handle_play_status(self, status: audio.PlayStatus) -> None:
+    def _handle_play_status(self, status: player.PlayStatus) -> None:
         """Handler for PlayStatus updates."""
         # TODO(https://github.com/google/yapf/issues/805): Remove line break
         # comments.
@@ -153,12 +153,12 @@ class PositionSlider:
             self._position,
             formatting.format_timedelta(  # Force a line break.
                 None
-                if status.state is audio.State.STOPPED else status.position))
+                if status.state is player.State.STOPPED else status.position))
         alignment.fill_aligned_numerical_label(
             self._duration,
             formatting.format_timedelta(  # Force a line break.
                 None
-                if status.state is audio.State.STOPPED else status.duration))
+                if status.state is player.State.STOPPED else status.duration))
         self.slider.set_range(0.0, status.duration.total_seconds())
         self.slider.set_value(status.position.total_seconds())
 

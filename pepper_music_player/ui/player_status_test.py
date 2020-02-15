@@ -28,7 +28,7 @@ from pepper_music_player.library import database
 from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
-from pepper_music_player.player import audio
+from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import player_status
@@ -43,7 +43,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
         self._pubsub = pubsub.PubSub()
-        self._player = mock.create_autospec(audio.Player, instance=True)
+        self._player = mock.create_autospec(player.Player, instance=True)
         self._playlist = playlist.Playlist(
             library_db=self._library_db,
             pubsub_bus=self._pubsub,
@@ -51,7 +51,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
         )
         self._buttons = player_status.Buttons(
             pubsub_bus=self._pubsub,
-            player=self._player,
+            player_=self._player,
             playlist_=self._playlist,
         )
 
@@ -76,7 +76,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
         return track
 
     def _publish_status(self, play_state, *, add_track=True):
-        """Publishes an audio.PlayStatus.
+        """Publishes an player.PlayStatus.
 
         Args:
             play_state: State for the published status.
@@ -94,7 +94,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
             duration = datetime.timedelta(0)
             playable_unit = None
         self._pubsub.publish(
-            audio.PlayStatus(
+            player.PlayStatus(
                 state=play_state,
                 playable_unit=playable_unit,
                 duration=duration,
@@ -105,40 +105,40 @@ class ButtonsTest(screenshot_testlib.TestCase):
         Gtk.main()
 
     def test_stopped_with_empty_playlist(self):
-        self._publish_status(audio.State.STOPPED, add_track=False)
+        self._publish_status(player.State.STOPPED, add_track=False)
         self.assertFalse(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_stopped_with_nonempty_playlist(self):
-        self._publish_status(audio.State.STOPPED, add_track=True)
+        self._publish_status(player.State.STOPPED, add_track=True)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_playing(self):
-        self._publish_status(audio.State.PLAYING)
+        self._publish_status(player.State.PLAYING)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'pause', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_paused(self):
-        self._publish_status(audio.State.PAUSED)
+        self._publish_status(player.State.PAUSED)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_play_button_plays(self):
-        self._publish_status(audio.State.PAUSED)
+        self._publish_status(player.State.PAUSED)
         self._buttons.play_pause_button.clicked()
         self._player.play.assert_called_once_with()
 
     def test_pause_button_pauses(self):
-        self._publish_status(audio.State.PLAYING)
+        self._publish_status(player.State.PLAYING)
         self._buttons.play_pause_button.clicked()
         self._player.pause.assert_called_once_with()
 
@@ -148,16 +148,16 @@ class PositionSliderTest(screenshot_testlib.TestCase):
     def setUp(self):
         super().setUp()
         self._pubsub = pubsub.PubSub()
-        self._player = mock.create_autospec(audio.Player, instance=True)
+        self._player = mock.create_autospec(player.Player, instance=True)
         self._slider = player_status.PositionSlider(
             pubsub_bus=self._pubsub,
-            player=self._player,
+            player_=self._player,
         )
 
     def _publish_status(self, state, *, duration, position):
         """Publishes a PlayStatus and waits for it to propagate."""
         self._pubsub.publish(
-            audio.PlayStatus(
+            player.PlayStatus(
                 state=state,
                 # Using None here is wrong for PAUSED and PLAYING, but
                 # PositionSlider doesn't use this field.
@@ -178,13 +178,13 @@ class PositionSliderTest(screenshot_testlib.TestCase):
         Gtk.main()
 
     def test_stopped(self):
-        self._publish_status(audio.State.STOPPED,
+        self._publish_status(player.State.STOPPED,
                              duration=datetime.timedelta(0),
                              position=datetime.timedelta(0))
         self.register_widget_screenshot(self._slider.widget)
 
     def test_long(self):
-        self._publish_status(audio.State.PAUSED,
+        self._publish_status(player.State.PAUSED,
                              duration=datetime.timedelta(hours=5,
                                                          minutes=43,
                                                          seconds=20.9),
@@ -194,7 +194,7 @@ class PositionSliderTest(screenshot_testlib.TestCase):
         self.register_widget_screenshot(self._slider.widget)
 
     def test_seeks(self):
-        self._publish_status(audio.State.PAUSED,
+        self._publish_status(player.State.PAUSED,
                              duration=datetime.timedelta(seconds=5),
                              position=datetime.timedelta(0))
         self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=1.23))
@@ -202,14 +202,14 @@ class PositionSliderTest(screenshot_testlib.TestCase):
             datetime.timedelta(seconds=1.23))
 
     def test_seek_clamps_to_start(self):
-        self._publish_status(audio.State.PAUSED,
+        self._publish_status(player.State.PAUSED,
                              duration=datetime.timedelta(seconds=5),
                              position=datetime.timedelta(0))
         self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=-1))
         self._player.seek.assert_called_once_with(datetime.timedelta(seconds=0))
 
     def test_seek_clamps_to_end(self):
-        self._publish_status(audio.State.PAUSED,
+        self._publish_status(player.State.PAUSED,
                              duration=datetime.timedelta(seconds=5),
                              position=datetime.timedelta(0))
         self._scroll(Gtk.ScrollType.JUMP, datetime.timedelta(seconds=6))

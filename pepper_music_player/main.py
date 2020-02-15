@@ -18,7 +18,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
-from pepper_music_player.player import audio
+from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import application
@@ -29,7 +29,7 @@ def main() -> None:
     database_dir = '.'
     library_db = database.Database(database_dir=database_dir)
     pubsub_bus = pubsub.PubSub()
-    player = audio.Player(pubsub_bus=pubsub_bus)
+    player_ = player.Player(pubsub_bus=pubsub_bus)
     playlist_ = playlist.Playlist(
         library_db=library_db,
         pubsub_bus=pubsub_bus,
@@ -39,7 +39,7 @@ def main() -> None:
     application.Application(
         library_db,
         pubsub_bus,
-        player,
+        player_,
         playlist_,
     ).window.show_all()
     Gtk.main()

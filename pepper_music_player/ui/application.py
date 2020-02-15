@@ -23,8 +23,8 @@ from gi.repository import Gtk
 
 from pepper_music_player.library import database
 from pepper_music_player.metadata import token
-from pepper_music_player.player import audio
 from pepper_music_player.player import order
+from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import library_card
@@ -61,7 +61,7 @@ class Application:
             self,
             library_db: database.Database,
             pubsub_bus: pubsub.PubSub,
-            player: audio.Player,
+            player_: player.Player,
             playlist_: playlist.Playlist,
     ) -> None:
         """Initializer.
@@ -69,12 +69,12 @@ class Application:
         Args:
             library_db: Library database.
             pubsub_bus: PubSub message bus.
-            player: Player.
+            player_: Player.
             playlist_: Playlist.
         """
         self._library_db = library_db
         self._pubsub = pubsub_bus
-        self._player = player
+        self._player = player_
         self._playlist = playlist_
         # TODO(dseomn): Make the order configurable.
         self._player.set_order(order.Linear(self._playlist))
@@ -85,13 +85,13 @@ class Application:
         builder.get_object('player_buttons_placeholder').add(
             player_status.Buttons(
                 pubsub_bus=self._pubsub,
-                player=self._player,
+                player_=self._player,
                 playlist_=self._playlist,
             ).widget)
         builder.get_object('position_slider_placeholder').add(
             player_status.PositionSlider(
                 pubsub_bus=self._pubsub,
-                player=self._player,
+                player_=self._player,
             ).widget)
         library = library_card.List(library_db, playlist_)
         builder.get_object('library').add(library.widget)
