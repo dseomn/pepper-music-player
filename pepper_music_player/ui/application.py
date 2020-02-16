@@ -86,7 +86,6 @@ class Application:
             player_status.Buttons(
                 pubsub_bus=self._pubsub,
                 player_=self._player,
-                playlist_=self._playlist,
             ).widget)
         builder.get_object('position_slider_placeholder').add(
             player_status.PositionSlider(

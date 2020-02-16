@@ -14,7 +14,6 @@
 """Tests for pepper_music_player.ui.player_status."""
 
 import datetime
-import tempfile
 import unittest
 from unittest import mock
 
@@ -24,12 +23,9 @@ from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
-from pepper_music_player.library import database
-from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.player import player
-from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import player_status
 from pepper_music_player.ui import screenshot_testlib
@@ -39,65 +35,43 @@ class ButtonsTest(screenshot_testlib.TestCase):
 
     def setUp(self):
         super().setUp()
-        tempdir = tempfile.TemporaryDirectory()
-        self.addCleanup(tempdir.cleanup)
-        self._library_db = database.Database(database_dir=tempdir.name)
         self._pubsub = pubsub.PubSub()
         self._player = mock.create_autospec(player.Player, instance=True)
-        self._playlist = playlist.Playlist(
-            library_db=self._library_db,
-            pubsub_bus=self._pubsub,
-            database_dir=tempdir.name,
-        )
         self._buttons = player_status.Buttons(
             pubsub_bus=self._pubsub,
             player_=self._player,
-            playlist_=self._playlist,
         )
 
-    def _insert_track(self):
-        """Returns a newly added Track."""
-        track = entity.Track(tags=tag.Tags({
-            '~basename': ('b',),
-            '~dirname': ('/a',),
-            '~filename': ('/a/b',),
-            'discnumber': ('1',),
-            'tracknumber': ('1',),
-            'title': ('Cool Song',),
-            'artist': ('Pop Star',),
-            '~duration_seconds': ('123',),
-        }).derive())
-        self._library_db.insert_files((scan.AudioFile(
-            filename='/a/b',
-            dirname='/a',
-            basename='b',
-            track=track,
-        ),))
-        return track
-
-    def _publish_status(self, play_state, *, add_track=True):
+    def _publish_status(self, play_state, capabilities):
         """Publishes an player.PlayStatus.
 
         Args:
             play_state: State for the published status.
-            add_track: Whether to add a track to the DB and playlist before
-                publishing the status. If true, the new track will be in the
-                published status.
+            capabilities: Capabilities for the published status.
         """
-        if add_track:
-            track = self._insert_track()
+        if play_state is player.State.STOPPED:
+            duration = datetime.timedelta(0)
+            playable_unit = None
+        else:
+            track = entity.Track(tags=tag.Tags({
+                '~basename': ('b',),
+                '~dirname': ('/a',),
+                '~filename': ('/a/b',),
+                'discnumber': ('1',),
+                'tracknumber': ('1',),
+                'title': ('Cool Song',),
+                'artist': ('Pop Star',),
+                '~duration_seconds': ('123',),
+            }).derive())
             duration = datetime.timedelta(
                 seconds=float(track.tags.one(tag.DURATION_SECONDS)))
             playable_unit = entity.PlayableUnit(
-                track=track, playlist_entry=self._playlist.append(track.token))
-        else:
-            duration = datetime.timedelta(0)
-            playable_unit = None
+                track=track,
+                playlist_entry=entity.PlaylistEntry(library_token=track.token))
         self._pubsub.publish(
             player.PlayStatus(
                 state=play_state,
-                # TODO(dseomn): Set this correctly.
-                capabilities=player.Capabilities.NONE,
+                capabilities=capabilities,
                 playable_unit=playable_unit,
                 duration=duration,
                 position=duration / 3,
@@ -107,40 +81,45 @@ class ButtonsTest(screenshot_testlib.TestCase):
         Gtk.main()
 
     def test_stopped_with_empty_playlist(self):
-        self._publish_status(player.State.STOPPED, add_track=False)
+        self._publish_status(player.State.STOPPED, player.Capabilities.NONE)
         self.assertFalse(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_stopped_with_nonempty_playlist(self):
-        self._publish_status(player.State.STOPPED, add_track=True)
+        self._publish_status(player.State.STOPPED,
+                             player.Capabilities.PLAY_OR_PAUSE)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_playing(self):
-        self._publish_status(player.State.PLAYING)
+        self._publish_status(player.State.PLAYING,
+                             player.Capabilities.PLAY_OR_PAUSE)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'pause', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_paused(self):
-        self._publish_status(player.State.PAUSED)
+        self._publish_status(player.State.PAUSED,
+                             player.Capabilities.PLAY_OR_PAUSE)
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.register_narrow_widget_screenshot(self._buttons.widget)
 
     def test_play_button_plays(self):
-        self._publish_status(player.State.PAUSED)
+        self._publish_status(player.State.PAUSED,
+                             player.Capabilities.PLAY_OR_PAUSE)
         self._buttons.play_pause_button.clicked()
         self._player.play.assert_called_once_with()
 
     def test_pause_button_pauses(self):
-        self._publish_status(player.State.PLAYING)
+        self._publish_status(player.State.PLAYING,
+                             player.Capabilities.PLAY_OR_PAUSE)
         self._buttons.play_pause_button.clicked()
         self._player.pause.assert_called_once_with()
 

@@ -23,7 +23,6 @@ from gi.repository import Gtk
 
 from pepper_music_player.metadata import formatting
 from pepper_music_player.player import player
-from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
 from pepper_music_player.ui import alignment
 from pepper_music_player.ui import main_thread
@@ -51,18 +50,15 @@ class Buttons:
             *,
             pubsub_bus: pubsub.PubSub,
             player_: player.Player,
-            playlist_: playlist.Playlist,
     ) -> None:
         """Initializer.
 
         Args:
             pubsub_bus: PubSub message bus.
             player_: Player.
-            playlist_: Playlist.
         """
         self._pubsub = pubsub_bus
         self._player = player_
-        self._playlist = playlist_
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
                                 'player_status_buttons.glade'),
@@ -79,20 +75,14 @@ class Buttons:
         self._pubsub.subscribe(player.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
-        self._pubsub.subscribe(playlist.Update,
-                               self._handle_playlist_update,
-                               want_last_message=True)
         builder.connect_signals(self)
 
     @main_thread.run_in_main_thread
     def _handle_play_status(self, status: player.PlayStatus) -> None:
+        self.play_pause_button.set_sensitive(
+            bool(status.capabilities & player.Capabilities.PLAY_OR_PAUSE))
         self.play_pause_stack.set_visible_child_name(
             self._STATE_TO_VISIBLE_BUTTON[status.state])
-
-    @main_thread.run_in_main_thread
-    def _handle_playlist_update(self, update: playlist.Update) -> None:
-        del update  # Unused.
-        self.play_pause_button.set_sensitive(bool(self._playlist))
 
     def on_play_pause(self, button: Gtk.Button) -> None:
         """Handler for the play/pause button."""
