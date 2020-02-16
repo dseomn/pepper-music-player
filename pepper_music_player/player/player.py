@@ -158,8 +158,15 @@ class Player:
             args=(self._playbin.get_bus(),),
             daemon=True,
         ).start()
-        self._playbin.connect('about-to-finish',
-                              self._prepare_next_playable_unit)
+        self._playbin.connect(
+            'about-to-finish',
+            # The about-to-finish signal is called from a gstreamer streaming
+            # thread, which means it can deadlock with state changes from other
+            # threads. The timeout prevents that deadlock, at the expense of
+            # some risk that playback will stop unexpectedly when the next unit
+            # isn't prepared due to a timeout.
+            functools.partial(self._prepare_next_playable_unit,
+                              lock_timeout_seconds=0.1))
 
         self._pubsub.subscribe(playlist.Update, self._handle_playlist_update)
 
@@ -176,6 +183,7 @@ class Player:
             self,
             element: Optional[Gst.Element] = None,
             *,
+            lock_timeout_seconds: float = -1,
             initial: bool = False,
             playable_unit: Optional[entity.PlayableUnit] = None,
     ) -> None:
@@ -185,13 +193,22 @@ class Player:
             element: GObject signal handlers must take the signaling object as a
                 parameter. This parameter is for compatibility with that; do not
                 use it for anything.
+            lock_timeout_seconds: How long to wait for the lock before giving
+                up, or a negative number to wait indefinitely.
             initial: Whether this method is being called to prepare the initial
                 playable unit from a stop, or the next unit regardless of the
                 current state.
             playable_unit: Unit to prepare, or None to use self._order.
         """
         del element  # See docstring.
-        with self._lock:
+        if not self._lock.acquire(timeout=lock_timeout_seconds):
+            logging.error(
+                'Unable to acquire lock to prepare next playable unit after %s '
+                'seconds.',
+                lock_timeout_seconds,
+            )
+            return
+        try:
             if initial and self._playable_units:
                 # Something is already prepared, and we're only supposed to
                 # prepare something if nothing is ready.
@@ -205,6 +222,8 @@ class Player:
                 'uri',
                 Gst.filename_to_uri(
                     next_playable_unit.track.tags.one(tag.FILENAME)))
+        finally:
+            self._lock.release()
 
     def _try_set_current_duration(self) -> None:
         """Attempts to set the current duration if it's None."""
