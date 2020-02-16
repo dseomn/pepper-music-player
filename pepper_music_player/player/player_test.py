@@ -247,6 +247,25 @@ class PlayerTest(unittest.TestCase):
         self._player.play()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio())
 
+    def test_play_specific_unit(self):
+        ones = self._playable_unit('ones', _AUDIO_ONES)
+        self._order.playable_units = (
+            self._playable_unit('zeroes', _AUDIO_ZEROES),
+            ones,
+        )
+        self._player.play(ones)
+        self.assertEqual(_AUDIO_ONES, self._all_audio())
+
+    def test_pause_specific_unit(self):
+        ones = self._playable_unit('ones', _AUDIO_ONES)
+        self._order.playable_units = (
+            self._playable_unit('zeroes', _AUDIO_ZEROES),
+            ones,
+        )
+        self._player.pause(ones)
+        self._player.play()
+        self.assertEqual(_AUDIO_ONES, self._all_audio())
+
     def test_seek(self):
         self._order.playable_units = (self._playable_unit(
             'zeroes', _AUDIO_ZEROES),)

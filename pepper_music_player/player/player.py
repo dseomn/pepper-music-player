@@ -171,6 +171,7 @@ class Player:
             element: Optional[Gst.Element] = None,
             *,
             initial: bool = False,
+            playable_unit: Optional[entity.PlayableUnit] = None,
     ) -> None:
         """Prepares the player to start playing whatever is next.
 
@@ -181,6 +182,7 @@ class Player:
             initial: Whether this method is being called to prepare the initial
                 playable unit from a stop, or the next unit regardless of the
                 current state.
+            playable_unit: Unit to prepare, or None to use self._order.
         """
         del element  # See docstring.
         with self._lock:
@@ -188,7 +190,7 @@ class Player:
                 # Something is already prepared, and we're only supposed to
                 # prepare something if nothing is ready.
                 return
-            next_playable_unit = self._order.next(
+            next_playable_unit = playable_unit or self._order.next(
                 self._playable_units[-1] if self._playable_units else None)
             if next_playable_unit is None:
                 return
@@ -275,10 +277,18 @@ class Player:
             else:
                 self._status_change_counter.acquire()
 
-    def _play_or_pause(self, gst_state: Gst.State, state: State) -> None:
+    def _play_or_pause(
+            self,
+            gst_state: Gst.State,
+            state: State,
+            playable_unit: Optional[entity.PlayableUnit],
+    ) -> None:
         """Implementation for both play() and pause()."""
         with self._lock:
-            self._prepare_next_playable_unit(initial=True)
+            if playable_unit is not None:
+                self.stop()
+            self._prepare_next_playable_unit(initial=True,
+                                             playable_unit=playable_unit)
             state_change = self._playbin.set_state(gst_state)
             self._state = state
             self._state_has_stabilized = (state_change is
@@ -286,25 +296,36 @@ class Player:
             self._capabilities = _RECALCULATE
         self._status_change_counter.release()
 
-    def play(self) -> None:
+    def play(self, playable_unit: Optional[entity.PlayableUnit] = None) -> None:
         """Starts playing, if possible.
 
         If something is already playing, this is a no-op. If something is
         paused, this resumes playing. If nothing is playing or paused, this
         tries playing whatever is next. If nothing is playing, paused, or next,
         it's a no-op.
-        """
-        self._play_or_pause(Gst.State.PLAYING, State.PLAYING)
 
-    def pause(self) -> None:
+        Args:
+            playable_unit: If specified, start playing the given unit from the
+                beginning instead of the behavior described above.
+        """
+        self._play_or_pause(Gst.State.PLAYING, State.PLAYING, playable_unit)
+
+    def pause(
+            self,
+            playable_unit: Optional[entity.PlayableUnit] = None,
+    ) -> None:
         """Pauses playing, if possible.
 
         If something is already playing, this pauses that. If something is
         paused, this is a no-op. If nothing is playing or paused, this tries
         preparing whatever is next in a paused state. If nothing is playing,
         paused, or next, it's a no-op.
+
+        Args:
+            playable_unit: If specified, pause at the beginning of the given
+                unit instead of the behavior described above.
         """
-        self._play_or_pause(Gst.State.PAUSED, State.PAUSED)
+        self._play_or_pause(Gst.State.PAUSED, State.PAUSED, playable_unit)
 
     def stop(self) -> None:
         """Stops playing."""
