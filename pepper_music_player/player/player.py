@@ -356,13 +356,15 @@ class Player:
         Args:
             position: Offset from the beginning of the playable unit to seek to.
             state_change_timeout: How long to wait for the player to settle
-                before attempting to seek.
+                before and after attempting to seek.
         """
-        self._playbin.get_state(
-            _timedelta_to_gst_clock_time(state_change_timeout))
+        state_change_timeout_gst_clock_time = _timedelta_to_gst_clock_time(
+            state_change_timeout)
+        self._playbin.get_state(state_change_timeout_gst_clock_time)
         self._playbin.seek_simple(Gst.Format.TIME,
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
+        self._playbin.get_state(state_change_timeout_gst_clock_time)
 
     def next(self) -> None:
         """Advances to the next playable unit, or stops if there isn't one."""
