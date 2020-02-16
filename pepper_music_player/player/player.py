@@ -21,7 +21,7 @@ import functools
 import logging
 import operator
 import threading
-from typing import Deque, Optional, Union
+from typing import Callable, Deque, Optional, Tuple, Union
 
 import frozendict
 import gi
@@ -113,6 +113,24 @@ def _timedelta_to_gst_clock_time(timedelta: datetime.timedelta) -> int:
 
 def _gst_clock_time_to_timedelta(gst_clock_time: int) -> datetime.timedelta:
     return datetime.timedelta(microseconds=gst_clock_time / 1000)
+
+
+def _gst_query_to_timedelta_or_zero(
+        query: Callable[[Gst.Format], Tuple[bool, int]]) -> datetime.timedelta:
+    """Runs a gstreamer time query.
+
+    Args:
+        query: A bound Gst.Element.query_duration or Gst.Element.query_position
+            method.
+
+    Returns:
+        The query result on success, or datetime.timedelta(0) on failure.
+    """
+    ok, gst_time = query(Gst.Format.TIME)
+    if ok:
+        return _gst_clock_time_to_timedelta(gst_time)
+    else:
+        return datetime.timedelta(0)
 
 
 class Player:
@@ -274,10 +292,8 @@ class Player:
                                  if self._playable_units else None)
                 self._try_set_current_duration()
                 duration = self._current_duration
-            position_ok, position_gst_time = self._playbin.query_position(
-                Gst.Format.TIME)
-            position = (_gst_clock_time_to_timedelta(position_gst_time)
-                        if position_ok else datetime.timedelta(0))
+            position = _gst_query_to_timedelta_or_zero(
+                self._playbin.query_position)
             fully_stabilized = all((
                 state_has_stabilized,
                 duration is not None,
@@ -417,10 +433,8 @@ class Player:
                 previous unit; otherwise, restart the current unit.
         """
         with self._lock:
-            position_ok, position_gst_time = self._playbin.query_position(
-                Gst.Format.TIME)
-            position = (_gst_clock_time_to_timedelta(position_gst_time)
-                        if position_ok else datetime.timedelta(0))
+            position = _gst_query_to_timedelta_or_zero(
+                self._playbin.query_position)
             current_unit = (self._playable_units[0]
                             if self._playable_units else None)
             if position > grace_period:
