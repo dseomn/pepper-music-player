@@ -302,6 +302,51 @@ class PlayerTest(unittest.TestCase):
         self._player.play()
         self.assertEqual(_AUDIO_ONES, self._all_audio())
 
+    def test_previous_restarts_current_if_after_grace_period(self):
+        duration = datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS)
+        ones = self._playable_unit('ones', _AUDIO_ONES)
+        self._order.playable_units = (
+            self._playable_unit('zeroes', _AUDIO_ZEROES),
+            ones,
+        )
+        self._player.pause(ones)
+        self._player.seek(duration / 2)
+        self._player.previous(grace_period=duration / 4)
+        self._player.play()
+        self.assertEqual(_AUDIO_ONES, self._all_audio())
+
+    def test_previous_restarts_current_if_no_previous(self):
+        self._player.set_order(order.Null())
+        self._player.pause(self._playable_unit('zeroes', _AUDIO_ZEROES))
+        self._player.previous()
+        self._player.play()
+        self.assertEqual(_AUDIO_ZEROES, self._all_audio())
+
+    def test_previous_goes_to_previous(self):
+        duration = datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS)
+        ones = self._playable_unit('ones', _AUDIO_ONES)
+        self._order.playable_units = (
+            self._playable_unit('zeroes', _AUDIO_ZEROES),
+            ones,
+        )
+        self._player.pause(ones)
+        self._player.seek(duration / 2)
+        self._player.previous(grace_period=duration)
+        self._player.play()
+        self.assertEqual(_AUDIO_ZEROES + _AUDIO_ONES, self._all_audio())
+
+    def test_previous_noop_if_stopped_with_no_previous(self):
+        self._player.previous()
+        self._player.play()
+        self.assertEqual(b'', self._all_audio())
+
+    def test_previous_while_playing(self):
+        self._order.playable_units = (self._playable_unit(
+            'zeroes', _AUDIO_ZEROES),)
+        self._player.play()
+        self._player.previous()
+        self.assertEqual(_AUDIO_ZEROES, self._all_audio()[-len(_AUDIO_ZEROES):])
+
     def test_logs_and_stops_on_error(self):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
@@ -347,7 +392,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.STOPPED,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
@@ -355,7 +401,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.PLAYING,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the beginning.
@@ -363,7 +410,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.PLAYING,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=zeroes,
                     duration=datetime.timedelta(seconds=1.0),
                     position=mock.ANY,  # Near the end.
@@ -371,7 +419,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.PLAYING,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the beginning.
@@ -379,7 +428,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.PLAYING,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=ones,
                     duration=datetime.timedelta(seconds=1.1),
                     position=mock.ANY,  # Near the end.
@@ -387,7 +437,8 @@ class PlayerTest(unittest.TestCase):
                 player.PlayStatus(
                     state=player.State.STOPPED,
                     capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                                  player.Capabilities.NEXT),
+                                  player.Capabilities.NEXT |
+                                  player.Capabilities.PREVIOUS),
                     playable_unit=None,
                     duration=datetime.timedelta(0),
                     position=datetime.timedelta(0),
@@ -405,7 +456,8 @@ class PlayerTest(unittest.TestCase):
             player.PlayStatus(
                 state=player.State.PAUSED,
                 capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                              player.Capabilities.NEXT),
+                              player.Capabilities.NEXT |
+                              player.Capabilities.PREVIOUS),
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=datetime.timedelta(0),
@@ -424,7 +476,8 @@ class PlayerTest(unittest.TestCase):
             player.PlayStatus(
                 state=player.State.PAUSED,
                 capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                              player.Capabilities.NEXT),
+                              player.Capabilities.NEXT |
+                              player.Capabilities.PREVIOUS),
                 playable_unit=zeroes,
                 duration=datetime.timedelta(seconds=_DEFAULT_DURATION_SECONDS),
                 position=position,
@@ -448,7 +501,8 @@ class PlayerTest(unittest.TestCase):
         sync_pause_status = player.PlayStatus(
             state=player.State.PAUSED,
             capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                          player.Capabilities.NEXT),
+                          player.Capabilities.NEXT |
+                          player.Capabilities.PREVIOUS),
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.
@@ -456,7 +510,8 @@ class PlayerTest(unittest.TestCase):
         sync_play_status = player.PlayStatus(
             state=player.State.PLAYING,
             capabilities=(player.Capabilities.PLAY_OR_PAUSE |
-                          player.Capabilities.NEXT),
+                          player.Capabilities.NEXT |
+                          player.Capabilities.PREVIOUS),
             playable_unit=zeroes,
             duration=datetime.timedelta(seconds=1.0),
             position=mock.ANY,  # Near 0.2.

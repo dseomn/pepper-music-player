@@ -65,10 +65,13 @@ class Capabilities(enum.Flag):
             generally be unset when the playlist is empty.
         NEXT: Calling next() would have some effect. I.e., the player is not
             stopped with nothing to play next.
+        PREVIOUS: Calling previous() would have some effect. I.e., the player is
+            not stopped with no previous playable unit.
     """
     NONE = 0
     PLAY_OR_PAUSE = enum.auto()
     NEXT = enum.auto()
+    PREVIOUS = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -223,10 +226,13 @@ class Player:
             current_unit = (self._playable_units[0]
                             if self._playable_units else None)
             next_unit = self._order.next(current_unit)
+            previous_unit = self._order.previous(current_unit)
             self._capabilities = Capabilities.NONE
             if self._state is not State.STOPPED or next_unit is not None:
                 self._capabilities |= Capabilities.PLAY_OR_PAUSE
                 self._capabilities |= Capabilities.NEXT
+            if self._state is not State.STOPPED or previous_unit is not None:
+                self._capabilities |= Capabilities.PREVIOUS
 
     def _poll_status(
             self,
@@ -377,6 +383,38 @@ class Player:
                 self.play(next_unit)
             else:
                 self.pause(next_unit)
+
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def previous(
+            self,
+            *,
+            grace_period: datetime.timedelta = datetime.timedelta(seconds=2),
+    ) -> None:  # yapf: disable
+        """Restarts the current playable unit, or goes to the previous one.
+
+        Args:
+            grace_period: If the current position is within this distance from
+                the beginning of the current playable unit, try going to the
+                previous unit; otherwise, restart the current unit.
+        """
+        with self._lock:
+            position_ok, position_gst_time = self._playbin.query_position(
+                Gst.Format.TIME)
+            position = (_gst_clock_time_to_timedelta(position_gst_time)
+                        if position_ok else datetime.timedelta(0))
+            current_unit = (self._playable_units[0]
+                            if self._playable_units else None)
+            if position > grace_period:
+                unit_to_start = current_unit
+            else:
+                unit_to_start = (self._order.previous(current_unit) or
+                                 current_unit)
+            if unit_to_start is None:
+                self.stop()
+            elif self._state is State.PLAYING:
+                self.play(unit_to_start)
+            else:
+                self.pause(unit_to_start)
 
     def _on_end_of_stream(self, message: Gst.Message) -> None:
         del message  # Unused.
