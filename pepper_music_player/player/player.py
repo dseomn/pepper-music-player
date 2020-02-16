@@ -63,9 +63,12 @@ class Capabilities(enum.Flag):
         PLAY_OR_PAUSE: There is a currently playing or paused track, or a call
             to play() or pause() would start a new track. This flag would
             generally be unset when the playlist is empty.
+        NEXT: Calling next() would have some effect. I.e., the player is not
+            stopped with nothing to play next.
     """
     NONE = 0
     PLAY_OR_PAUSE = enum.auto()
+    NEXT = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -223,6 +226,7 @@ class Player:
             self._capabilities = Capabilities.NONE
             if self._state is not State.STOPPED or next_unit is not None:
                 self._capabilities |= Capabilities.PLAY_OR_PAUSE
+                self._capabilities |= Capabilities.NEXT
 
     def _poll_status(
             self,
@@ -359,6 +363,18 @@ class Player:
         self._playbin.seek_simple(Gst.Format.TIME,
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
+
+    def next(self) -> None:
+        """Advances to the next playable unit, or stops if there isn't one."""
+        with self._lock:
+            next_unit = self._order.next(
+                self._playable_units[0] if self._playable_units else None)
+            if next_unit is None:
+                self.stop()
+            elif self._state is State.PLAYING:
+                self.play(next_unit)
+            else:
+                self.pause(next_unit)
 
     def _on_end_of_stream(self, message: Gst.Message) -> None:
         del message  # Unused.
