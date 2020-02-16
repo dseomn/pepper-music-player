@@ -21,7 +21,7 @@ import functools
 import logging
 import operator
 import threading
-from typing import Callable, Deque, Optional, Tuple, Union
+from typing import Callable, Deque, Optional, Sequence, Tuple, TypeVar, Union
 
 import frozendict
 import gi
@@ -33,6 +33,8 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.player import order
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
+
+T = TypeVar('T')
 
 
 class State(enum.Enum):
@@ -131,6 +133,10 @@ def _gst_query_to_timedelta_or_zero(
         return _gst_clock_time_to_timedelta(gst_time)
     else:
         return datetime.timedelta(0)
+
+
+def _first_or_none(sequence: Sequence[T]) -> Optional[T]:
+    return sequence[0] if sequence else None
 
 
 class Player:
@@ -260,8 +266,7 @@ class Player:
         with self._lock:
             if self._capabilities is not _RECALCULATE:
                 return
-            current_unit = (self._playable_units[0]
-                            if self._playable_units else None)
+            current_unit = _first_or_none(self._playable_units)
             next_unit = self._order.next(current_unit)
             previous_unit = self._order.previous(current_unit)
             self._capabilities = Capabilities.NONE
@@ -288,8 +293,7 @@ class Player:
                 state = self._state
                 state_has_stabilized = self._state_has_stabilized
                 capabilities = self._capabilities
-                playable_unit = (self._playable_units[0]
-                                 if self._playable_units else None)
+                playable_unit = _first_or_none(self._playable_units)
                 self._try_set_current_duration()
                 duration = self._current_duration
             position = _gst_query_to_timedelta_or_zero(
@@ -410,8 +414,7 @@ class Player:
     def next(self) -> None:
         """Advances to the next playable unit, or stops if there isn't one."""
         with self._lock:
-            next_unit = self._order.next(
-                self._playable_units[0] if self._playable_units else None)
+            next_unit = self._order.next(_first_or_none(self._playable_units))
             if next_unit is None:
                 self.stop()
             elif self._state is State.PLAYING:
@@ -435,8 +438,7 @@ class Player:
         with self._lock:
             position = _gst_query_to_timedelta_or_zero(
                 self._playbin.query_position)
-            current_unit = (self._playable_units[0]
-                            if self._playable_units else None)
+            current_unit = _first_or_none(self._playable_units)
             if position > grace_period:
                 unit_to_start = current_unit
             else:
