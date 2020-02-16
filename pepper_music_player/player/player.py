@@ -174,8 +174,8 @@ class Player:
         self._playable_units: Deque[entity.PlayableUnit] = collections.deque()
         self._order: order.Order = order.Null()
         self._next_stream_is_first = True
-        self._current_duration: Optional[datetime.timedelta] = (
-            datetime.timedelta(0))
+        self._current_duration: Union[datetime.timedelta,
+                                      _Recalculate] = (datetime.timedelta(0))
 
         threading.Thread(
             target=self._handle_messages,
@@ -252,7 +252,7 @@ class Player:
     def _try_set_current_duration(self) -> None:
         """Attempts to set the current duration if it's None."""
         with self._lock:
-            if self._current_duration is not None:
+            if self._current_duration is not _RECALCULATE:
                 return
             duration_ok, duration_gst_time = self._playbin.query_duration(
                 Gst.Format.TIME)
@@ -482,7 +482,7 @@ class Player:
                 self._playable_units.popleft()
                 self._capabilities = _RECALCULATE
             self._next_stream_is_first = False
-            self._current_duration = None  # Unknown.
+            self._current_duration = _RECALCULATE
             self._try_set_current_duration()
         self._status_change_counter.release()
 
