@@ -38,6 +38,8 @@ class Buttons:
         play_pause_stack: Stack with two children, 'play' and 'pause', to
             indicate which button is shown. This is public for use in tests
             only.
+        next_button: Button for skipping to the next playable unit. This is
+            public for use in tests only.
     """
     _STATE_TO_VISIBLE_BUTTON = frozendict.frozendict({
         player.State.STOPPED: 'play',
@@ -72,6 +74,7 @@ class Buttons:
             'play_pause_button')
         self.play_pause_stack: Gtk.Stack = builder.get_object(
             'play_pause_stack')
+        self.next_button: Gtk.Button = builder.get_object('next_button')
         self._pubsub.subscribe(player.PlayStatus,
                                self._handle_play_status,
                                want_last_message=True)
@@ -83,6 +86,8 @@ class Buttons:
             bool(status.capabilities & player.Capabilities.PLAY_OR_PAUSE))
         self.play_pause_stack.set_visible_child_name(
             self._STATE_TO_VISIBLE_BUTTON[status.state])
+        self.next_button.set_sensitive(
+            bool(status.capabilities & player.Capabilities.NEXT))
 
     def on_play_pause(self, button: Gtk.Button) -> None:
         """Handler for the play/pause button."""
@@ -91,6 +96,11 @@ class Buttons:
             self._player.play()
         else:
             self._player.pause()
+
+    def on_next(self, button: Gtk.Button) -> None:
+        """Handler for the next button."""
+        del button  # Unused.
+        self._player.next()
 
 
 class PositionSlider:
