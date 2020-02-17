@@ -326,6 +326,14 @@ class Player:
             else:
                 self._status_change_counter.acquire()
 
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def _wait_for_state_change(
+            self,
+            timeout: datetime.timedelta = datetime.timedelta(milliseconds=100),
+    ) -> None:  # yapf: disable
+        """Hacky workaround for a bunch of race conditions."""
+        self._playbin.get_state(_timedelta_to_gst_clock_time(timeout))
+
     def _play_or_pause(
             self,
             gst_state: Gst.State,
@@ -338,6 +346,7 @@ class Player:
                 self.stop()
             self._prepare_next_playable_unit(initial=True,
                                              playable_unit=playable_unit)
+            self._wait_for_state_change()
             state_change = self._playbin.set_state(gst_state)
             self._state = state
             self._state_has_stabilized = (state_change is
@@ -380,6 +389,7 @@ class Player:
         """Stops playing."""
         with self._lock:
             self._playable_units.clear()
+            self._wait_for_state_change()
             self._playbin.set_state(Gst.State.NULL)
             self._state = State.STOPPED
             self._state_has_stabilized = True
@@ -388,28 +398,17 @@ class Player:
             self._current_duration = datetime.timedelta(0)
         self._status_change_counter.release()
 
-    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
-    def seek(
-            self,
-            position: datetime.timedelta,
-            *,
-            state_change_timeout: datetime.timedelta = datetime.timedelta(
-                milliseconds=100),
-    ) -> None:  # yapf: disable
+    def seek(self, position: datetime.timedelta) -> None:
         """Seeks to the given position.
 
         Args:
             position: Offset from the beginning of the playable unit to seek to.
-            state_change_timeout: How long to wait for the player to settle
-                before and after attempting to seek.
         """
-        state_change_timeout_gst_clock_time = _timedelta_to_gst_clock_time(
-            state_change_timeout)
-        self._playbin.get_state(state_change_timeout_gst_clock_time)
+        self._wait_for_state_change()
         self._playbin.seek_simple(Gst.Format.TIME,
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
-        self._playbin.get_state(state_change_timeout_gst_clock_time)
+        self._wait_for_state_change()
 
     def next(self) -> None:
         """Advances to the next playable unit, or stops if there isn't one."""
