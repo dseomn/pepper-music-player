@@ -198,6 +198,7 @@ class Player:
 
     def set_order(self, order_: order.Order) -> None:
         """Sets the play order."""
+        logging.debug('Player.set_order(%r)', order_)
         with self._lock:
             self._order = order_
             self._capabilities = _RECALCULATE
@@ -234,13 +235,16 @@ class Player:
             return
         try:
             if initial and self._playable_units:
-                # Something is already prepared, and we're only supposed to
-                # prepare something if nothing is ready.
+                logging.debug(
+                    'Not preparing anything, because something is already '
+                    'prepared.')
                 return
             next_playable_unit = playable_unit or self._order.next(
                 self._playable_units[-1] if self._playable_units else None)
             if next_playable_unit is None:
+                logging.debug('Nothing to prepare.')
                 return
+            logging.debug('Preparing %r', next_playable_unit)
             self._playable_units.append(next_playable_unit)
             self._playbin.set_property(
                 'uri',
@@ -260,6 +264,7 @@ class Player:
                 return
             self._current_duration = _gst_clock_time_to_timedelta(
                 duration_gst_time)
+            logging.debug('Current duration: %r', self._current_duration)
 
     def _update_capabilities(self) -> None:
         """Updates self._capabilities if needed."""
@@ -275,6 +280,7 @@ class Player:
                 self._capabilities |= Capabilities.NEXT
             if self._state is not State.STOPPED or previous_unit is not None:
                 self._capabilities |= Capabilities.PREVIOUS
+            logging.debug('Current capabilities: %r', self._capabilities)
 
     def _poll_status(
             self,
@@ -312,6 +318,7 @@ class Player:
                  position > datetime.timedelta(milliseconds=200)),
             ))
             if fully_stabilized:
+                logging.debug('Publishing PlayStatus.')
                 self._pubsub.publish(
                     PlayStatus(
                         state=state,
@@ -320,6 +327,9 @@ class Player:
                         duration=duration,
                         position=position,
                     ))
+            else:
+                logging.debug(
+                    'Not publishing PlayStatus, because it is not stabilized.')
             if state is State.PLAYING or not fully_stabilized:
                 self._status_change_counter.acquire(
                     timeout=inter_update_delay_seconds)
@@ -332,7 +342,8 @@ class Player:
             timeout: datetime.timedelta = datetime.timedelta(milliseconds=100),
     ) -> None:  # yapf: disable
         """Hacky workaround for a bunch of race conditions."""
-        self._playbin.get_state(_timedelta_to_gst_clock_time(timeout))
+        result = self._playbin.get_state(_timedelta_to_gst_clock_time(timeout))
+        logging.debug('get_state() result: %r', result)
 
     def _play_or_pause(
             self,
@@ -343,11 +354,18 @@ class Player:
         """Implementation for both play() and pause()."""
         with self._lock:
             if playable_unit is not None:
+                logging.debug(
+                    'Stopping before play/pause of a specific playable unit.')
                 self.stop()
+                logging.debug(
+                    'Done stopping before play/pause of a specific playable '
+                    'unit.')
             self._prepare_next_playable_unit(initial=True,
                                              playable_unit=playable_unit)
             self._wait_for_state_change()
+            logging.debug('Setting state to %r', gst_state)
             state_change = self._playbin.set_state(gst_state)
+            logging.debug('set_state() result: %r', state_change)
             self._state = state
             self._state_has_stabilized = (state_change is
                                           Gst.StateChangeReturn.SUCCESS)
@@ -390,7 +408,9 @@ class Player:
         with self._lock:
             self._playable_units.clear()
             self._wait_for_state_change()
-            self._playbin.set_state(Gst.State.NULL)
+            logging.debug('Setting state to NULL.')
+            state_change = self._playbin.set_state(Gst.State.NULL)
+            logging.debug('set_state() result: %r', state_change)
             self._state = State.STOPPED
             self._state_has_stabilized = True
             self._capabilities = _RECALCULATE
@@ -405,21 +425,25 @@ class Player:
             position: Offset from the beginning of the playable unit to seek to.
         """
         self._wait_for_state_change()
+        logging.debug('Seeking to %r', position)
         self._playbin.seek_simple(Gst.Format.TIME,
                                   Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                                   _timedelta_to_gst_clock_time(position))
+        logging.debug('Done seeking.')
         self._wait_for_state_change()
 
     def next(self) -> None:
         """Advances to the next playable unit, or stops if there isn't one."""
         with self._lock:
             next_unit = self._order.next(_first_or_none(self._playable_units))
+            logging.debug('Going to next playable unit: %r', next_unit)
             if next_unit is None:
                 self.stop()
             elif self._state is State.PLAYING:
                 self.play(next_unit)
             else:
                 self.pause(next_unit)
+            logging.debug('Done going to next playable unit.')
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def previous(
@@ -443,15 +467,23 @@ class Player:
             else:
                 unit_to_start = (self._order.previous(current_unit) or
                                  current_unit)
+            logging.debug(
+                'Going to (potentially) previous playable unit: '
+                'current=%r, going_to=%r',
+                current_unit,
+                unit_to_start,
+            )
             if unit_to_start is None:
                 self.stop()
             elif self._state is State.PLAYING:
                 self.play(unit_to_start)
             else:
                 self.pause(unit_to_start)
+            logging.debug('Done going to (potentially) previous playable unit.')
 
     def _on_end_of_stream(self, message: Gst.Message) -> None:
         del message  # Unused.
+        logging.debug('End of stream.')
         self.stop()
 
     def _on_error(self, message: Gst.Message) -> None:
@@ -465,9 +497,14 @@ class Player:
         self.stop()
 
     def _on_async_done(self, message: Gst.Message) -> None:
+        """Handles ASYNC_DONE."""
         del message  # Unused.
         with self._lock:
-            _, gst_state, _ = self._playbin.get_state(timeout=0)
+            result = self._playbin.get_state(timeout=0)
+            logging.debug(
+                'Async operation done: desired state = %r, current state = %r',
+                self._state, result)
+            _, gst_state, _ = result
             if _GST_STATE_TO_STATE.get(gst_state) is self._state:
                 self._state_has_stabilized = True
         self._status_change_counter.release()
@@ -476,8 +513,10 @@ class Player:
         """Handles STREAM_START."""
         del message  # Unused.
         with self._lock:
+            logging.debug('Stream started.')
             self._state_has_stabilized = True
             if not self._next_stream_is_first:
+                logging.debug('Removing stale playable unit from old stream.')
                 self._playable_units.popleft()
                 self._capabilities = _RECALCULATE
             self._next_stream_is_first = False
