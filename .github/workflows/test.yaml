@@ -101,14 +101,14 @@ jobs:
       run: |
         sudo apt-get install xvfb
         pip install pytest pytest-cov
-        xvfb-run pytest --cov=. --cov-branch --cov-report=term-missing --cov-report=xml -s -v
+        xvfb-run pytest --cov=. --cov-branch --cov-report=term-missing --cov-report=xml -s -v -o log_cli=true
     - name: Test (native graphics)
       if: runner.os != 'Linux'
       env:
         G_DEBUG: fatal-criticals
       run: |
         pip install pytest pytest-cov
-        pytest --cov=. --cov-branch --cov-report=term-missing --cov-report=xml -s -v
+        pytest --cov=. --cov-branch --cov-report=term-missing --cov-report=xml -s -v -o log_cli=true
     - uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
