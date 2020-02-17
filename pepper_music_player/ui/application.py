@@ -30,6 +30,7 @@ from pepper_music_player import pubsub
 from pepper_music_player.ui import library
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import player_status
+from pepper_music_player.ui import playlist_view
 
 # Unfortunately, GTK doesn't seem to support dependency injection very well, so
 # this global variable ensures the application CSS is installed at most once.
@@ -93,6 +94,10 @@ class Application:
                 pubsub_bus=self._pubsub,
                 player_=self._player,
             ).widget)
+        # TODO(https://gitlab.gnome.org/GNOME/gtk/issues/2463): Change the
+        # vscrollbar_policy on the library and playlist to 'automatic'.
+        # TODO(dseomn): Make the position of the main Gtk.Paned persist across
+        # application restarts, probably using gsettings.
         library_list = library.List(library_db, playlist_)
         builder.get_object('library').add(library_list.widget)
         # TODO(dseomn): Show a more sensible slice of the library by default,
@@ -103,6 +108,13 @@ class Application:
                 library_card.ListItem(library_token)
                 for library_token in library_db.search(limit=100)
                 if isinstance(library_token, token.Track)))
+        builder.get_object('playlist').add(
+            playlist_view.List(
+                library_db=library_db,
+                playlist_=self._playlist,
+                player_=self._player,
+                pubsub_bus=self._pubsub,
+            ).widget)
         self.window: Gtk.ApplicationWindow = builder.get_object('application')
         builder.connect_signals(self)
 
