@@ -52,6 +52,8 @@ jobs:
           gir1.2-gtk-3.0 \
           gstreamer1.0-plugins-good \
           libgirepository1.0-dev
+        # For tests only.
+        sudo apt-get install xvfb
     - uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
@@ -92,24 +94,13 @@ jobs:
       run: |
         pip install pytype
         pytype
-    - name: Test (xvfb graphics)
-      if: runner.os == 'Linux'
+    - name: Test
       env:
         G_DEBUG: fatal-criticals
         # See pepper_music_player/ui/screenshot_testlib.py
         TEST_FORCE_GTK_THEME: Adwaita
       run: |
-        sudo apt-get install xvfb
-        pip install pytest pytest-cov
-        xvfb-run pytest \
-          --cov=. --cov-branch --cov-report=term-missing --cov-report=xml \
-          -s -v -o log_cli=true --log-cli-level=DEBUG
-    - name: Test (native graphics)
-      if: runner.os != 'Linux'
-      env:
-        G_DEBUG: fatal-criticals
-      run: |
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-xvfb
         pytest \
           --cov=. --cov-branch --cov-report=term-missing --cov-report=xml \
           -s -v -o log_cli=true --log-cli-level=DEBUG
