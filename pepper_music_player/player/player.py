@@ -102,6 +102,14 @@ class _Recalculate(enum.Enum):
 _RECALCULATE = _Recalculate.token
 
 
+class _Unspecified(enum.Enum):
+    token = enum.auto()
+
+
+# Singleton to indicate that an argument was not specified.
+_UNSPECIFIED = _Unspecified.token
+
+
 def _parse_pipeline(pipeline_description: str) -> Gst.Element:
     """Returns an Element from a pipeline string."""
     return Gst.parse_launch_full(pipeline_description,
@@ -218,14 +226,16 @@ class Player:
             self._capabilities = _RECALCULATE
         self._status_change_counter.release()
 
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _prepare_next_playable_unit(
             self,
             element: Optional[Gst.Element] = None,
             *,
             lock_timeout_seconds: float = -1,
             initial: bool = False,
-            playable_unit: Optional[entity.PlayableUnit] = None,
-    ) -> None:
+            playable_unit: Union[entity.PlayableUnit, _Unspecified] = (
+                _UNSPECIFIED),
+    ) -> None:  # yapf: disable
         """Prepares the player to start playing whatever is next.
 
         Args:
@@ -237,7 +247,7 @@ class Player:
             initial: Whether this method is being called to prepare the initial
                 playable unit from a stop, or the next unit regardless of the
                 current state.
-            playable_unit: Unit to prepare, or None to use self._order.
+            playable_unit: Unit to prepare, or unspecified to use self._order.
         """
         del element  # See docstring.
         if not self._lock.acquire(timeout=lock_timeout_seconds):
@@ -253,8 +263,11 @@ class Player:
                     'Not preparing anything, because something is already '
                     'prepared.')
                 return
-            next_playable_unit = playable_unit or self._order.next(
-                self._playable_units[-1] if self._playable_units else None)
+            if playable_unit is _UNSPECIFIED:
+                next_playable_unit = self._order.next(
+                    self._playable_units[-1] if self._playable_units else None)
+            else:
+                next_playable_unit = playable_unit
             if next_playable_unit is None:
                 logging.debug('Nothing to prepare.')
                 return
@@ -363,11 +376,11 @@ class Player:
             self,
             gst_state: Gst.State,
             state: State,
-            playable_unit: Optional[entity.PlayableUnit],
+            playable_unit: Union[entity.PlayableUnit, _Unspecified],
     ) -> None:
         """Implementation for both play() and pause()."""
         with self._lock:
-            if playable_unit is not None:
+            if playable_unit is not _UNSPECIFIED:
                 logging.debug(
                     'Stopping before play/pause of a specific playable unit.')
                 self.stop()
@@ -386,7 +399,12 @@ class Player:
             self._capabilities = _RECALCULATE
         self._status_change_counter.release()
 
-    def play(self, playable_unit: Optional[entity.PlayableUnit] = None) -> None:
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    def play(
+            self,
+            playable_unit: Union[entity.PlayableUnit, _Unspecified] = (
+                _UNSPECIFIED),
+    ) -> None:  # yapf: disable
         """Starts playing, if possible.
 
         If something is already playing, this is a no-op. If something is
@@ -400,10 +418,12 @@ class Player:
         """
         self._play_or_pause(Gst.State.PLAYING, State.PLAYING, playable_unit)
 
+    # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def pause(
             self,
-            playable_unit: Optional[entity.PlayableUnit] = None,
-    ) -> None:
+            playable_unit: Union[entity.PlayableUnit, _Unspecified] = (
+                _UNSPECIFIED),
+    ) -> None:  # yapf: disable
         """Pauses playing, if possible.
 
         If something is already playing, this pauses that. If something is
