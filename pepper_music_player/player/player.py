@@ -560,11 +560,12 @@ class Player:
                         'Ignoring old message of type %r with seqnum %r',
                         message.type, message.seqnum)
                     continue
-            try:
-                handlers[message.type](message)
-            except Exception:  # pylint: disable=broad-except
-                logging.exception('Error handling gstreamer message of type %s',
-                                  message.type)
+                try:
+                    handlers[message.type](message)
+                except Exception:  # pylint: disable=broad-except
+                    logging.exception(
+                        'Error handling gstreamer message of type %s',
+                        message.type)
 
     def _handle_playlist_update(self, update: playlist.Update) -> None:
         del update  # Unused.
