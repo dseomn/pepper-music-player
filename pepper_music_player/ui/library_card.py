@@ -15,7 +15,7 @@
 
 import enum
 from importlib import resources
-from typing import Optional
+from typing import Generic, Optional, Type, TypeVar
 
 import gi
 gi.require_version('GObject', '2.0')
@@ -29,7 +29,6 @@ from pepper_music_player.library import database
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
-from pepper_music_player.player import playlist
 from pepper_music_player.ui import alignment
 
 
@@ -45,20 +44,29 @@ class ListItem(GObject.Object):
         self.library_token = library_token
 
 
-class ListBoxRow(Gtk.ListBoxRow):
+ListItemType = TypeVar('ListItemType', bound=ListItem)
+
+
+class ListBoxRow(Gtk.ListBoxRow, Generic[ListItemType]):
     """Row that represents a library entity in a ListBox.
+
+    This can be either a top-level row for a card, or a nested row for a child
+    entity within a card.
 
     Attributes:
         library_token: Which thing in the library this row shows.
+        list_item: List item associated with the top-level ancestor row.
     """
 
     def __init__(
             self,
             library_token: token.LibraryToken,
+            list_item: ListItemType,
             child: Gtk.Widget,
     ) -> None:
         super().__init__()
         self.library_token = library_token
+        self.list_item = list_item
         self.add(child)
 
 
@@ -82,8 +90,10 @@ def _medium_header(tags: tag.Tags) -> Optional[str]:
         return None
 
 
-class List:
+class List(Generic[ListItemType]):
     """List of library cards.
+
+    This list just shows the cards; see subclasses for the cards' behavior.
 
     Attributes:
         widget: Widget showing the list.
@@ -93,16 +103,15 @@ class List:
     def __init__(
             self,
             library_db: database.Database,
-            playlist_: playlist.Playlist,
+            list_item_type: Type[ListItemType] = ListItem,
     ) -> None:
         """Initializer.
 
         Args:
             library_db: Library database.
-            playlist_: Playlist.
+            list_item_type: Type of list item in the list.
         """
         self._library_db = library_db
-        self._playlist = playlist_
         self._in_list_box_row_activated = False
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
@@ -110,25 +119,33 @@ class List:
             length=-1,
         )
         self.widget: Gtk.ListBox = builder.get_object('library_card_list')
-        # TODO(dseomn): If the library is empty, show a 'Scan' button in the
-        # placeholder.
-        self.widget.set_placeholder(builder.get_object('empty_placeholder'))
-        self.store = Gio.ListStore.new(ListItem.__gtype__)
+        self.store = Gio.ListStore.new(list_item_type.__gtype__)
         self.widget.bind_model(self.store, self._card)
         self.widget.connect('row-activated', self._list_box_row_activated,
                             _SignalSource.TOP_LEVEL)
 
+    def row_activated(self, row: ListBoxRow[ListItemType]) -> None:
+        """Handler for a (possibly nested) row being activated.
+
+        This exists for subclasses to override, since the default implementation
+        is a noop.
+
+        Args:
+            row: The (possibly nested) row that was activated.
+        """
+        del row  # Unused.
+
     def _list_box_row_activated(
             self,
             list_box: Gtk.ListBox,
-            list_box_row: ListBoxRow,
+            list_box_row: ListBoxRow[ListItemType],
             signal_source: _SignalSource,
     ) -> None:
         """Handler for the row-activated signal."""
         del list_box  # Unused.
         # This signal seems to be triggered for all nested ListBoxRows, from
-        # bottom to top. We only want to append the bottom-most one to the
-        # playlist.
+        # bottom to top. We only want to call row_activated for the bottom-most
+        # one.
         already_in_list_box_row_activated = self._in_list_box_row_activated
         if signal_source is _SignalSource.TOP_LEVEL:
             self._in_list_box_row_activated = False
@@ -136,16 +153,17 @@ class List:
             self._in_list_box_row_activated = True
         if already_in_list_box_row_activated:
             return
-        self._playlist.append(list_box_row.library_token)
+        self.row_activated(list_box_row)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _track(
             self,
+            list_item: ListItemType,
             track: entity.Track,
             *,
             albumartist: str = '',
             show_discnumber: bool = True,
-    ) -> ListBoxRow:  # yapf: disable
+    ) -> ListBoxRow[ListItemType]:  # yapf: disable
         """Returns a track widget."""
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
@@ -179,14 +197,15 @@ class List:
             builder.get_object('duration'),
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
-        return ListBoxRow(track.token, builder.get_object('track'))
+        return ListBoxRow(track.token, list_item, builder.get_object('track'))
 
     def _medium(
             self,
+            list_item: ListItemType,
             medium: entity.Medium,
             *,
             albumartist: str = '',
-    ) -> ListBoxRow:
+    ) -> ListBoxRow[ListItemType]:
         """Returns a medium widget."""
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
@@ -209,13 +228,18 @@ class List:
         tracks.connect('row-activated', self._list_box_row_activated,
                        _SignalSource.NESTED)
         for track in medium.tracks:
-            tracks.insert(self._track(track,
+            tracks.insert(self._track(list_item,
+                                      track,
                                       albumartist=albumartist,
                                       show_discnumber=False),
                           position=-1)
-        return ListBoxRow(medium.token, builder.get_object('medium'))
+        return ListBoxRow(medium.token, list_item, builder.get_object('medium'))
 
-    def _album(self, album: entity.Album) -> ListBoxRow:
+    def _album(
+            self,
+            list_item: ListItemType,
+            album: entity.Album,
+    ) -> ListBoxRow[ListItemType]:
         """Returns an album widget."""
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
@@ -235,18 +259,19 @@ class List:
         mediums.connect('row-activated', self._list_box_row_activated,
                         _SignalSource.NESTED)
         for medium in album.mediums:
-            mediums.insert(self._medium(medium, albumartist=artist),
+            mediums.insert(self._medium(list_item, medium, albumartist=artist),
                            position=-1)
-        return ListBoxRow(album.token, builder.get_object('album'))
+        return ListBoxRow(album.token, list_item, builder.get_object('album'))
 
-    def _card(self, item: ListItem) -> ListBoxRow:
+    def _card(self, item: ListItemType) -> ListBoxRow[ListItemType]:
         """Returns a card widget for the given list item."""
         if isinstance(item.library_token, token.Track):
-            return self._track(self._library_db.track(item.library_token))
+            return self._track(item, self._library_db.track(item.library_token))
         elif isinstance(item.library_token, token.Medium):
-            return self._medium(self._library_db.medium(item.library_token))
+            return self._medium(item,
+                                self._library_db.medium(item.library_token))
         elif isinstance(item.library_token, token.Album):
-            return self._album(self._library_db.album(item.library_token))
+            return self._album(item, self._library_db.album(item.library_token))
         else:
             raise ValueError(
                 f'Unknown library token type: {item.library_token}')

@@ -27,6 +27,7 @@ from pepper_music_player.player import order
 from pepper_music_player.player import player
 from pepper_music_player.player import playlist
 from pepper_music_player import pubsub
+from pepper_music_player.ui import library
 from pepper_music_player.ui import library_card
 from pepper_music_player.ui import player_status
 
@@ -92,11 +93,11 @@ class Application:
                 pubsub_bus=self._pubsub,
                 player_=self._player,
             ).widget)
-        library = library_card.List(library_db, playlist_)
-        builder.get_object('library').add(library.widget)
+        library_list = library.List(library_db, playlist_)
+        builder.get_object('library').add(library_list.widget)
         # TODO(dseomn): Show a more sensible slice of the library by default,
         # and add UI controls to search the library.
-        library.store.splice(
+        library_list.store.splice(
             0, 0,
             tuple(
                 library_card.ListItem(library_token)

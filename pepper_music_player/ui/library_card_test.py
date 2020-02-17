@@ -29,9 +29,8 @@ from pepper_music_player.library import scan
 from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
-from pepper_music_player.player import playlist
-from pepper_music_player import pubsub
 from pepper_music_player.ui import library_card
+from pepper_music_player.ui import library_card_testlib
 from pepper_music_player.ui import screenshot_testlib
 
 _LONG_STR_LTR = ' '.join((
@@ -55,6 +54,22 @@ class _FakeLibraryToken(token.LibraryToken):
     pass
 
 
+class _ListSubclass(library_card.List):
+    """Subclass for testing how List calls its overridable methods.
+
+    Attributes:
+        row_activated_mock: Mock for row_activated().
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.row_activated_mock = mock.Mock(spec=())
+
+    def row_activated(self, row):
+        super().row_activated(row)
+        self.row_activated_mock(row)
+
+
 class LibraryCardTest(screenshot_testlib.TestCase):
 
     def setUp(self):
@@ -62,13 +77,7 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         self._library_db = database.Database(database_dir=tempdir.name)
-        self._playlist = playlist.Playlist(
-            library_db=self._library_db,
-            pubsub_bus=mock.create_autospec(pubsub.PubSub, instance=True),
-            database_dir=tempdir.name,
-        )
-        self._library_card_list = library_card.List(self._library_db,
-                                                    self._playlist)
+        self._library_card_list = _ListSubclass(self._library_db)
 
     def _set_tokens(self, *tokens):
         """Sets the tokens in self._library_card_list."""
@@ -83,9 +92,6 @@ class LibraryCardTest(screenshot_testlib.TestCase):
             # loop, instead of using the private _card method.
             self._library_card_list._card(  # pylint: disable=protected-access
                 library_card.ListItem(_FakeLibraryToken('foo')))
-
-    def test_empty_list(self):
-        self.register_widget_screenshot(self._library_card_list.widget)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _insert_track(
@@ -332,62 +338,50 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         )
         self.register_widget_screenshot(self._library_card_list.widget)
 
-    def _activate(self, library_token, widget=None):
-        """Simulates the activate signal.
-
-        Args:
-            library_token: Which row to activate.
-            widget: Widget for the library_token row, an ancestor container, or
-                None to use self._library_card_list.
-        """
-        if widget is None:
-            widget = self._library_card_list.widget
-        if (isinstance(widget, library_card.ListBoxRow) and
-                widget.library_token == library_token):
-            widget.activate()
-            GLib.idle_add(Gtk.main_quit)
-            Gtk.main()
-            return True
-        if isinstance(widget, Gtk.Container):
-            for child in widget.get_children():
-                if self._activate(library_token, child):
-                    if isinstance(widget, library_card.ListBoxRow):
-                        # In real usage, activating a child seems to bubble up,
-                        # but the activate() method does not seem to bubble up.
-                        # This simulates the real behavior.
-                        widget.activate()
-                        GLib.idle_add(Gtk.main_quit)
-                        Gtk.main()
-                    return True
-        return False
-
     def test_activate_top_level(self):
         library_token = self._insert_album()
         self._set_tokens(library_token)
-        self._activate(library_token)
-        self.assertSequenceEqual(
-            (library_token,),
-            tuple(entry.library_token for entry in self._playlist))
+        library_card_testlib.activate_row(self._library_card_list.widget,
+                                          library_token)
+        self._library_card_list.row_activated_mock.assert_called_once()
+        (row,), _ = self._library_card_list.row_activated_mock.call_args_list[0]
+        self.assertEqual(row.library_token, library_token)
+        self.assertEqual(row.list_item,
+                         self._library_card_list.store.get_item(0))
 
     def test_activate_nested(self):
         album_token = self._insert_album()
         self._set_tokens(album_token)
         activate_token = (
             self._library_db.album(album_token).mediums[0].tracks[0].token)
-        self._activate(activate_token)
-        self.assertSequenceEqual(
-            (activate_token,),
-            tuple(entry.library_token for entry in self._playlist))
+        library_card_testlib.activate_row(self._library_card_list.widget,
+                                          activate_token)
+        self._library_card_list.row_activated_mock.assert_called_once()
+        (row,), _ = self._library_card_list.row_activated_mock.call_args_list[0]
+        self.assertEqual(row.library_token, activate_token)
+        self.assertEqual(row.list_item,
+                         self._library_card_list.store.get_item(0))
 
     def test_activate_multiple(self):
         token1 = self._insert_track(tracknumber='1').token
         token2 = self._insert_track(tracknumber='2').token
         self._set_tokens(token1, token2)
-        self._activate(token1)
-        self._activate(token2)
-        self.assertSequenceEqual(
-            (token1, token2),
-            tuple(entry.library_token for entry in self._playlist))
+        library_card_testlib.activate_row(self._library_card_list.widget,
+                                          token1)
+        library_card_testlib.activate_row(self._library_card_list.widget,
+                                          token2)
+        self.assertEqual(
+            2, len(self._library_card_list.row_activated_mock.call_args_list))
+        (row1,), _ = (
+            self._library_card_list.row_activated_mock.call_args_list[0])
+        self.assertEqual(row1.library_token, token1)
+        self.assertEqual(row1.list_item,
+                         self._library_card_list.store.get_item(0))
+        (row2,), _ = (
+            self._library_card_list.row_activated_mock.call_args_list[1])
+        self.assertEqual(row2.library_token, token2)
+        self.assertEqual(row2.list_item,
+                         self._library_card_list.store.get_item(1))
 
 
 if __name__ == '__main__':

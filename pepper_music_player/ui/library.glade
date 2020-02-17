@@ -20,13 +20,14 @@ limitations under the License.
   <requires lib="gtk+" version="3.20"/>
   <!-- interface-license-type apache2 -->
   <!-- interface-copyright 2020 Google LLC -->
-  <object class="GtkListBox" id="library_card_list">
+  <object class="GtkImage" id="empty_placeholder">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="selection_mode">none</property>
-    <property name="activate_on_single_click">False</property>
+    <property name="pixel_size">128</property>
+    <property name="icon_name">emblem-music-symbolic</property>
     <style>
-      <class name="card-list"/>
+      <class name="placeholder"/>
+      <class name="secondary"/>
     </style>
   </object>
 </interface>
