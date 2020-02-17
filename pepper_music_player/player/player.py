@@ -168,6 +168,8 @@ class Player:
         self._lock = threading.RLock()
 
         # Mutable attributes, protected by the lock.
+        self._ignore_messages_before_seqnum = Gst.SEQNUM_INVALID
+        self._ignore_messages_before_now()
         self._state = State.STOPPED  # Target state.
         self._state_has_stabilized = True  # If the target state is current.
         self._capabilities: Union[Capabilities, _Recalculate] = _RECALCULATE
@@ -195,6 +197,18 @@ class Player:
         self._pubsub.subscribe(playlist.Update, self._handle_playlist_update)
 
         threading.Thread(target=self._poll_status, daemon=True).start()
+
+    def _ignore_messages_before_now(self) -> None:
+        """Causes messages before the present to be ignored.
+
+        When setting the state to NULL, many things are reset, but old messages
+        can still be received in Python. Those old messages do not apply to
+        anything after the state changes to NULL.
+        """
+        with self._lock:
+            self._ignore_messages_before_seqnum = Gst.util_seqnum_next()
+            logging.debug('Ignoring messages before seqnum=%r',
+                          self._ignore_messages_before_seqnum)
 
     def set_order(self, order_: order.Order) -> None:
         """Sets the play order."""
@@ -408,6 +422,7 @@ class Player:
         with self._lock:
             self._playable_units.clear()
             self._wait_for_state_change()
+            self._ignore_messages_before_now()
             logging.debug('Setting state to NULL.')
             state_change = self._playbin.set_state(Gst.State.NULL)
             logging.debug('set_state() result: %r', state_change)
@@ -537,6 +552,14 @@ class Player:
         while True:
             message = bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE,
                                              message_type_mask)
+            with self._lock:
+                if Gst.util_seqnum_compare(
+                        message.seqnum,
+                        self._ignore_messages_before_seqnum) < 0:
+                    logging.debug(
+                        'Ignoring old message of type %r with seqnum %r',
+                        message.type, message.seqnum)
+                    continue
             try:
                 handlers[message.type](message)
             except Exception:  # pylint: disable=broad-except
