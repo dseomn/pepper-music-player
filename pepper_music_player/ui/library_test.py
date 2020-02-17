@@ -14,6 +14,7 @@
 """Tests for pepper_music_player.ui.library."""
 
 import tempfile
+import unittest
 from unittest import mock
 
 import gi
@@ -70,3 +71,7 @@ class LibraryTest(screenshot_testlib.TestCase):
         self.assertSequenceEqual(
             (track.token,),
             tuple(entry.library_token for entry in self._playlist))
+
+
+if __name__ == '__main__':
+    unittest.main()
