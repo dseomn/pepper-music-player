@@ -39,7 +39,7 @@ class ListItem(GObject.Object):
         library_token: Which thing in the library to show a card for.
     """
 
-    def __init__(self, library_token: token.LibraryToken):
+    def __init__(self, library_token: token.LibraryToken) -> None:
         super().__init__()
         self.library_token = library_token
 
