@@ -375,13 +375,9 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         (row1,), _ = (
             self._library_card_list.row_activated_mock.call_args_list[0])
         self.assertEqual(row1.library_token, token1)
-        self.assertEqual(row1.list_item,
-                         self._library_card_list.store.get_item(0))
         (row2,), _ = (
             self._library_card_list.row_activated_mock.call_args_list[1])
         self.assertEqual(row2.library_token, token2)
-        self.assertEqual(row2.list_item,
-                         self._library_card_list.store.get_item(1))
 
 
 if __name__ == '__main__':
