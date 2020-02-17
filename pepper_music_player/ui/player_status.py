@@ -33,6 +33,8 @@ class Buttons:
 
     Attributes:
         widget: Widget for the buttons.
+        previous_button: Button for skipping to the previous playable unit. This
+            is public for use in tests only.
         play_pause_button: Button for playing or pausing. This is public for use
             in tests only.
         play_pause_stack: Stack with two children, 'play' and 'pause', to
@@ -70,6 +72,7 @@ class Buttons:
         # https://material.io/design/usability/bidirectionality.html#mirroring-elements
         # "Media controls for playback are always LTR."
         alignment.set_direction_recursive(self.widget, Gtk.TextDirection.LTR)
+        self.previous_button: Gtk.Button = builder.get_object('previous_button')
         self.play_pause_button: Gtk.Button = builder.get_object(
             'play_pause_button')
         self.play_pause_stack: Gtk.Stack = builder.get_object(
@@ -82,12 +85,19 @@ class Buttons:
 
     @main_thread.run_in_main_thread
     def _handle_play_status(self, status: player.PlayStatus) -> None:
+        self.previous_button.set_sensitive(
+            bool(status.capabilities & player.Capabilities.PREVIOUS))
         self.play_pause_button.set_sensitive(
             bool(status.capabilities & player.Capabilities.PLAY_OR_PAUSE))
         self.play_pause_stack.set_visible_child_name(
             self._STATE_TO_VISIBLE_BUTTON[status.state])
         self.next_button.set_sensitive(
             bool(status.capabilities & player.Capabilities.NEXT))
+
+    def on_previous(self, button: Gtk.Button) -> None:
+        """Handler for the previous button."""
+        del button  # Unused.
+        self._player.previous()
 
     def on_play_pause(self, button: Gtk.Button) -> None:
         """Handler for the play/pause button."""

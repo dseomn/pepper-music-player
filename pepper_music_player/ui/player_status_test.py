@@ -82,6 +82,7 @@ class ButtonsTest(screenshot_testlib.TestCase):
 
     def test_stopped_with_empty_playlist(self):
         self._publish_status(player.State.STOPPED, player.Capabilities.NONE)
+        self.assertFalse(self._buttons.previous_button.get_sensitive())
         self.assertFalse(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
@@ -91,7 +92,9 @@ class ButtonsTest(screenshot_testlib.TestCase):
     def test_stopped_with_nonempty_playlist(self):
         self._publish_status(
             player.State.STOPPED,
-            player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT)
+            (player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT |
+             player.Capabilities.PREVIOUS))
+        self.assertTrue(self._buttons.previous_button.get_sensitive())
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
@@ -101,7 +104,9 @@ class ButtonsTest(screenshot_testlib.TestCase):
     def test_playing(self):
         self._publish_status(
             player.State.PLAYING,
-            player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT)
+            (player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT |
+             player.Capabilities.PREVIOUS))
+        self.assertTrue(self._buttons.previous_button.get_sensitive())
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'pause', self._buttons.play_pause_stack.get_visible_child_name())
@@ -111,12 +116,18 @@ class ButtonsTest(screenshot_testlib.TestCase):
     def test_paused(self):
         self._publish_status(
             player.State.PAUSED,
-            player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT)
+            (player.Capabilities.PLAY_OR_PAUSE | player.Capabilities.NEXT |
+             player.Capabilities.PREVIOUS))
+        self.assertTrue(self._buttons.previous_button.get_sensitive())
         self.assertTrue(self._buttons.play_pause_button.get_sensitive())
         self.assertEqual(
             'play', self._buttons.play_pause_stack.get_visible_child_name())
         self.assertTrue(self._buttons.next_button.get_sensitive())
         self.register_narrow_widget_screenshot(self._buttons.widget)
+
+    def test_previous_button_goes_previous(self):
+        self._buttons.previous_button.clicked()
+        self._player.previous.assert_called_once_with()
 
     def test_play_button_plays(self):
         self._publish_status(player.State.PAUSED,
