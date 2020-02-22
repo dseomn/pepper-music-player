@@ -50,7 +50,7 @@
 }
 
 .card-list > row {
-  border: 2px @borders solid;
+  border: 1px @borders solid;
 }
 
 .card-list label {
