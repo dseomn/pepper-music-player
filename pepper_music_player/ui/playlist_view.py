@@ -68,7 +68,7 @@ class List(library_card.List[ListItem]):
                                 'playlist_view.glade'),
             length=-1,
         )
-        self.widget.set_placeholder(builder.get_object('empty_placeholder'))
+        self.list_box.set_placeholder(builder.get_object('empty_placeholder'))
         pubsub_bus.subscribe(playlist.Update,
                              self._update_contents,
                              want_last_message=True)
