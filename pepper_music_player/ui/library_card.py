@@ -68,6 +68,7 @@ class ListBoxRow(Gtk.ListBoxRow, Generic[ListItemType]):
         self.library_token = library_token
         self.list_item = list_item
         self.add(child)
+        self.show_all()
 
 
 class _SignalSource(enum.Enum):
