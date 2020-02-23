@@ -15,7 +15,7 @@
 on:
   push: {}
   schedule:
-  - cron: '47 8 * * *'
+  - cron: '47 8 * * 6'
 
 jobs:
   test:
@@ -114,7 +114,12 @@ jobs:
         path: ${{ env.TEST_ARTIFACT_DIR }}
 
   percy:
-    if: github.event_name == 'schedule'
+    if: >-
+      github.event_name == 'schedule' ||
+      (
+        github.event_name == 'push' &&
+        contains(join(github.event.commits.*.message), 'Visual-Testing: yes')
+      )
     needs: test
     runs-on: ubuntu-latest
     steps:
