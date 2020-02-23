@@ -196,54 +196,6 @@ class LibraryCardTest(screenshot_testlib.TestCase):
                 )
         return track.album_token
 
-    def test_style_class_empty_by_default(self):
-        self.assertIn(
-            library_card.List.STYLE_CLASS_EMPTY,
-            self._library_card_list.list_box.get_style_context().list_classes())
-
-    def test_style_class_empty_after_removing_items(self):
-        self._set_tokens(self._insert_track().token)
-        self._library_card_list.store.remove(0)
-        GLib.idle_add(Gtk.main_quit)
-        Gtk.main()
-        self.assertIn(
-            library_card.List.STYLE_CLASS_EMPTY,
-            self._library_card_list.list_box.get_style_context().list_classes())
-
-    def test_style_class_empty_missing(self):
-        self._set_tokens(self._insert_track().token)
-        self.assertNotIn(
-            library_card.List.STYLE_CLASS_EMPTY,
-            self._library_card_list.list_box.get_style_context().list_classes())
-
-    def _header_present_by_row_index(self):
-        """Returns a sequence of whether each row index has a header."""
-        return tuple(row.get_header() is not None
-                     for row in self._library_card_list.list_box.get_children())
-
-    def test_one_row_no_header(self):
-        self._set_tokens(self._insert_track().token)
-        self.assertSequenceEqual((False,), self._header_present_by_row_index())
-
-    def test_multiple_rows_have_headers_in_the_middle(self):
-        self._set_tokens(
-            self._insert_track(tracknumber='1').token,
-            self._insert_track(tracknumber='2').token,
-            self._insert_track(tracknumber='3').token,
-        )
-        self.assertSequenceEqual((False, True, True),
-                                 self._header_present_by_row_index())
-
-    def test_delete_row_deletes_header(self):
-        self._set_tokens(
-            self._insert_track(tracknumber='1').token,
-            self._insert_track(tracknumber='2').token,
-        )
-        self._library_card_list.store.remove(0)
-        GLib.idle_add(Gtk.main_quit)
-        Gtk.main()
-        self.assertSequenceEqual((False,), self._header_present_by_row_index())
-
     def test_track_ltr(self):
         self._set_tokens(
             self._insert_track(title='Cool Song', artist='Pop Star').token)

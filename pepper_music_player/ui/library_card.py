@@ -96,12 +96,9 @@ class List(Generic[ListItemType]):
     This list just shows the cards; see subclasses for the cards' behavior.
 
     Attributes:
-        STYLE_CLASS_EMPTY: Style class on empty lists.
         widget: Widget showing the list.
-        list_box: List widget itself.
         store: Content in the list.
     """
-    STYLE_CLASS_EMPTY = 'empty'
 
     def __init__(
             self,
@@ -121,46 +118,11 @@ class List(Generic[ListItemType]):
                                 'library_card_list.glade'),
             length=-1,
         )
-        self.widget: Gtk.Widget = builder.get_object(
-            'library_card_list_container')
-        self.list_box: Gtk.ListBox = builder.get_object('library_card_list')
-        self.list_box.get_style_context().add_class(self.STYLE_CLASS_EMPTY)
+        self.widget: Gtk.ListBox = builder.get_object('library_card_list')
         self.store = Gio.ListStore.new(list_item_type.__gtype__)
-        self.store.connect('items-changed', self._items_changed_handler)
-        self.list_box.set_header_func(self._header_func)
-        self.list_box.bind_model(self.store, self._card)
-        self.list_box.connect('row-activated', self._list_box_row_activated,
-                              _SignalSource.TOP_LEVEL)
-
-    def _header_func(
-            self,
-            row: ListBoxRow[ListItemType],
-            before: ListBoxRow[ListItemType],
-    ) -> None:
-        """See Gtk.ListBoxUpdateHeaderFunc."""
-        # TODO(dseomn): Figure out if there's a better way to get
-        # @theme_bg_color both around the list and between rows using only CSS.
-        if before and not row.get_header():
-            spacer = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 0)
-            spacer.get_style_context().add_class('card-spacer')
-            row.set_header(spacer)
-        elif not before and row.get_header():
-            row.set_header(None)
-
-    def _items_changed_handler(
-            self,
-            list_model: Gio.ListModel,
-            position: int,
-            removed: int,
-            added: int,
-    ) -> None:
-        """See Gio.ListModel.signals.items_changed."""
-        del position, removed, added  # Unused.
-        if list_model.get_n_items():
-            self.list_box.get_style_context().remove_class(
-                self.STYLE_CLASS_EMPTY)
-        else:
-            self.list_box.get_style_context().add_class(self.STYLE_CLASS_EMPTY)
+        self.widget.bind_model(self.store, self._card)
+        self.widget.connect('row-activated', self._list_box_row_activated,
+                            _SignalSource.TOP_LEVEL)
 
     def row_activated(self, row: ListBoxRow[ListItemType]) -> None:
         """Handler for a (possibly nested) row being activated.

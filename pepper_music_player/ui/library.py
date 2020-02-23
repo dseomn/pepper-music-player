@@ -46,7 +46,7 @@ class List(library_card.List[library_card.ListItem]):
         )
         # TODO(dseomn): If the library is empty, show a 'Scan' button in the
         # placeholder.
-        self.list_box.set_placeholder(builder.get_object('empty_placeholder'))
+        self.widget.set_placeholder(builder.get_object('empty_placeholder'))
 
     def row_activated(
             self,

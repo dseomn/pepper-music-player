@@ -22,35 +22,20 @@
   margin: 18px;
 }
 
-.card-list-container {
-  padding: 12px;
-}
-
-.card-spacer {
-  min-height: 12px;
-}
-
 .card-list {
-  min-width: calc(480px - 2 * 12px);
+  min-width: 480px;
 }
 
-.card-spacer,
-.card-list.empty {
-  background: @theme_bg_color;
-}
-
-.card-spacer:disabled,
-.card-list.empty:disabled {
-  background: @insensitive_bg_color;
-}
-
-.card-spacer:backdrop,
-.card-list.empty:backdrop {
-  background: @theme_unfocused_bg_color;
-}
+/* TODO(dseomn): Use a different background color between the card list and the
+ * cards. */
 
 .card-list > row {
   border: 1px @borders solid;
+  margin: 12px 12px 0 12px;
+}
+
+.card-list {
+  padding-bottom: 12px;
 }
 
 .card-list label {
