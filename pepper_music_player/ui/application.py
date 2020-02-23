@@ -22,7 +22,6 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 from pepper_music_player.library import database
-from pepper_music_player.metadata import token
 from pepper_music_player.player import order
 from pepper_music_player.player import player
 from pepper_music_player.player import playlist
@@ -106,8 +105,7 @@ class Application:
             0, 0,
             tuple(
                 library_card.ListItem(library_token)
-                for library_token in library_db.search(limit=100)
-                if isinstance(library_token, token.Track)))
+                for library_token in library_db.search(limit=100)))
         builder.get_object('playlist').add(
             playlist_view.List(
                 library_db=library_db,
