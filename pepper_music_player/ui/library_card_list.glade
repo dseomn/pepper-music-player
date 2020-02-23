@@ -27,7 +27,6 @@ limitations under the License.
       <object class="GtkListBox" id="library_card_list">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="valign">start</property>
         <property name="hexpand">True</property>
         <property name="selection_mode">none</property>
         <property name="activate_on_single_click">False</property>
