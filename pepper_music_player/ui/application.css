@@ -40,13 +40,18 @@
 }
 
 .card-list > row {
-  border: 1px @borders solid;
+  border: 1px solid;
+  border-color: @borders;
   border-radius: 3px;
   margin: 12px;
 }
 
 .card-list > row ~ row {
   margin: 0 12px 12px 12px;
+}
+
+.card-list > row:backdrop {
+  border-color: @unfocused_borders;
 }
 
 .card-list > row:not(.activatable),
