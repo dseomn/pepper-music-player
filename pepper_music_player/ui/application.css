@@ -23,7 +23,7 @@
 }
 
 .card-list {
-  min-width: 480px;
+  min-width: 360px;
   background: @theme_bg_color;
 }
 
