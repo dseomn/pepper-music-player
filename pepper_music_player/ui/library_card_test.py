@@ -329,8 +329,8 @@ class LibraryCardTest(screenshot_testlib.TestCase):
                 duration_seconds='3',
             ).token,
             self._insert_track(
-                discnumber='123',
-                tracknumber='456',
+                discnumber='123456789',
+                tracknumber='987654321',
                 duration_seconds='1234',
             ).token,
             self._insert_medium(album='Standalone Medium'),
