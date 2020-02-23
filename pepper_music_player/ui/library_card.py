@@ -13,9 +13,8 @@
 # limitations under the License.
 """Cards for things in the library, and lists of those cards."""
 
-import enum
 from importlib import resources
-from typing import Generic, Optional, Type, TypeVar
+from typing import Generic, Iterable, Optional, Type, TypeVar
 
 import gi
 gi.require_version('GObject', '2.0')
@@ -50,8 +49,8 @@ ListItemType = TypeVar('ListItemType', bound=ListItem)
 class ListBoxRow(Gtk.ListBoxRow, Generic[ListItemType]):
     """Row that represents a library entity in a ListBox.
 
-    This can be either a top-level row for a card, or a nested row for a child
-    entity within a card.
+    These are inner rows within the list within each card, not the outer rows
+    that represent entire cards.
 
     Attributes:
         library_token: Which thing in the library this row shows.
@@ -68,12 +67,13 @@ class ListBoxRow(Gtk.ListBoxRow, Generic[ListItemType]):
         self.library_token = library_token
         self.list_item = list_item
         self.add(child)
-        self.show_all()
-
-
-class _SignalSource(enum.Enum):
-    TOP_LEVEL = enum.auto()
-    NESTED = enum.auto()
+        self.get_style_context().add_class('card-inner-row')
+        if isinstance(self.library_token, token.Track):
+            self.get_style_context().add_class('card-inner-row-track')
+        elif isinstance(self.library_token, token.Medium):
+            self.get_style_context().add_class('card-inner-row-medium')
+        elif isinstance(self.library_token, token.Album):
+            self.get_style_context().add_class('card-inner-row-album')
 
 
 def _medium_header(tags: tag.Tags) -> Optional[str]:
@@ -113,48 +113,25 @@ class List(Generic[ListItemType]):
             list_item_type: Type of list item in the list.
         """
         self._library_db = library_db
-        self._in_list_box_row_activated = False
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
-                                'library_card_list.glade'),
+                                'library_card_outer_list.glade'),
             length=-1,
         )
-        self.widget: Gtk.ListBox = builder.get_object('library_card_list')
+        self.widget: Gtk.ListBox = builder.get_object('list')
         self.store = Gio.ListStore.new(list_item_type.__gtype__)
         self.widget.bind_model(self.store, self._card)
-        self.widget.connect('row-activated', self._list_box_row_activated,
-                            _SignalSource.TOP_LEVEL)
 
     def row_activated(self, row: ListBoxRow[ListItemType]) -> None:
-        """Handler for a (possibly nested) row being activated.
+        """Handler for an inner row being activated.
 
         This exists for subclasses to override, since the default implementation
         is a noop.
 
         Args:
-            row: The (possibly nested) row that was activated.
+            row: The inner row that was activated.
         """
         del row  # Unused.
-
-    def _list_box_row_activated(
-            self,
-            list_box: Gtk.ListBox,
-            list_box_row: ListBoxRow[ListItemType],
-            signal_source: _SignalSource,
-    ) -> None:
-        """Handler for the row-activated signal."""
-        del list_box  # Unused.
-        # This signal seems to be triggered for all nested ListBoxRows, from
-        # bottom to top. We only want to call row_activated for the bottom-most
-        # one.
-        already_in_list_box_row_activated = self._in_list_box_row_activated
-        if signal_source is _SignalSource.TOP_LEVEL:
-            self._in_list_box_row_activated = False
-        else:
-            self._in_list_box_row_activated = True
-        if already_in_list_box_row_activated:
-            return
-        self.row_activated(list_box_row)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _track(
@@ -164,22 +141,18 @@ class List(Generic[ListItemType]):
             *,
             albumartist: str = '',
             show_discnumber: bool = True,
-    ) -> ListBoxRow[ListItemType]:  # yapf: disable
-        """Returns a track widget."""
+    ) -> Iterable[ListBoxRow[ListItemType]]:  # yapf: disable
+        """Yields the inner row for a track."""
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
                                 'library_card_track.glade'),
             length=-1,
         )
-        discnumber_widget = builder.get_object('discnumber')
         if show_discnumber:
             alignment.fill_aligned_numerical_label(
-                discnumber_widget,
+                builder.get_object('discnumber'),
                 track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
             )
-        else:
-            discnumber_widget.set_no_show_all(True)
-            discnumber_widget.hide()
         alignment.fill_aligned_numerical_label(
             builder.get_object('tracknumber'),
             track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '',
@@ -198,7 +171,7 @@ class List(Generic[ListItemType]):
             builder.get_object('duration'),
             track.tags.one_or_none(tag.DURATION_HUMAN) or '',
         )
-        return ListBoxRow(track.token, list_item, builder.get_object('track'))
+        yield ListBoxRow(track.token, list_item, builder.get_object('track'))
 
     def _medium(
             self,
@@ -206,42 +179,35 @@ class List(Generic[ListItemType]):
             medium: entity.Medium,
             *,
             albumartist: str = '',
-    ) -> ListBoxRow[ListItemType]:
-        """Returns a medium widget."""
-        builder = Gtk.Builder.new_from_string(
-            resources.read_text('pepper_music_player.ui',
-                                'library_card_medium.glade'),
-            length=-1,
-        )
+    ) -> Iterable[ListBoxRow[ListItemType]]:
+        """Yields inner rows for a medium."""
         # TODO(dseomn): Add album information if this is not part of an album
         # card.
         header = _medium_header(medium.tags)
-        header_widget = builder.get_object('header')
         if header:
+            builder = Gtk.Builder.new_from_string(
+                resources.read_text('pepper_music_player.ui',
+                                    'library_card_medium.glade'),
+                length=-1,
+            )
+            header_widget = builder.get_object('header')
             header_widget.set_text(header)
             # TODO(dseomn): Should the alignment come from the discsubtitle
             # only?
             alignment.set_label_direction_from_text(header_widget)
-        else:
-            header_widget.set_no_show_all(True)
-            header_widget.hide()
-        tracks = builder.get_object('tracks')
-        tracks.connect('row-activated', self._list_box_row_activated,
-                       _SignalSource.NESTED)
+            yield ListBoxRow(medium.token, list_item, header_widget)
         for track in medium.tracks:
-            tracks.insert(self._track(list_item,
-                                      track,
-                                      albumartist=albumartist,
-                                      show_discnumber=False),
-                          position=-1)
-        return ListBoxRow(medium.token, list_item, builder.get_object('medium'))
+            yield from self._track(list_item,
+                                   track,
+                                   albumartist=albumartist,
+                                   show_discnumber=False)
 
     def _album(
             self,
             list_item: ListItemType,
             album: entity.Album,
-    ) -> ListBoxRow[ListItemType]:
-        """Returns an album widget."""
+    ) -> Iterable[ListBoxRow[ListItemType]]:
+        """Yields inner rows for an album."""
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
                                 'library_card_album.glade'),
@@ -256,23 +222,35 @@ class List(Generic[ListItemType]):
             builder.get_object('date'),
             album.tags.singular(tag.DATE, default=''),
         )
-        mediums = builder.get_object('mediums')
-        mediums.connect('row-activated', self._list_box_row_activated,
-                        _SignalSource.NESTED)
+        yield ListBoxRow(album.token, list_item, builder.get_object('header'))
         for medium in album.mediums:
-            mediums.insert(self._medium(list_item, medium, albumartist=artist),
-                           position=-1)
-        return ListBoxRow(album.token, list_item, builder.get_object('album'))
+            yield from self._medium(list_item, medium, albumartist=artist)
 
-    def _card(self, item: ListItemType) -> ListBoxRow[ListItemType]:
-        """Returns a card widget for the given list item."""
+    def _card(self, item: ListItemType) -> Gtk.ListBoxRow:
+        """Returns a card outer row for the given list item."""
         if isinstance(item.library_token, token.Track):
-            return self._track(item, self._library_db.track(item.library_token))
+            inner_rows = self._track(item,
+                                     self._library_db.track(item.library_token))
         elif isinstance(item.library_token, token.Medium):
-            return self._medium(item,
-                                self._library_db.medium(item.library_token))
+            inner_rows = self._medium(
+                item, self._library_db.medium(item.library_token))
         elif isinstance(item.library_token, token.Album):
-            return self._album(item, self._library_db.album(item.library_token))
+            inner_rows = self._album(item,
+                                     self._library_db.album(item.library_token))
         else:
             raise ValueError(
                 f'Unknown library token type: {item.library_token}')
+        inner_list = Gtk.Builder.new_from_string(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_inner_list.glade'),
+            length=-1,
+        ).get_object('list')
+        inner_list.connect('row-activated',
+                           lambda list_box, row: self.row_activated(row))
+        for inner_row in inner_rows:
+            inner_list.insert(inner_row, position=-1)
+        row = Gtk.ListBoxRow()
+        row.add(inner_list)
+        row.show_all()
+        row.set_activatable(False)
+        return row

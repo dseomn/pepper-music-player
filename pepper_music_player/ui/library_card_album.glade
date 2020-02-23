@@ -20,7 +20,7 @@ limitations under the License.
   <requires lib="gtk+" version="3.20"/>
   <!-- interface-license-type apache2 -->
   <!-- interface-copyright 2020 Google LLC -->
-  <object class="GtkGrid" id="album">
+  <object class="GtkGrid" id="header">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
@@ -74,21 +74,5 @@ limitations under the License.
         <property name="height">2</property>
       </packing>
     </child>
-    <child>
-      <object class="GtkListBox" id="mediums">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="selection_mode">none</property>
-        <property name="activate_on_single_click">False</property>
-      </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">2</property>
-        <property name="width">2</property>
-      </packing>
-    </child>
-    <style>
-      <class name="album"/>
-    </style>
   </object>
 </interface>

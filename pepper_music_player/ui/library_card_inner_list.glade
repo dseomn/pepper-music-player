@@ -20,15 +20,13 @@ limitations under the License.
   <requires lib="gtk+" version="3.20"/>
   <!-- interface-license-type apache2 -->
   <!-- interface-copyright 2020 Google LLC -->
-  <object class="GtkLabel" id="header">
+  <object class="GtkListBox" id="list">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="hexpand">True</property>
-    <property name="wrap">True</property>
-    <property name="wrap_mode">word-char</property>
-    <property name="xalign">0</property>
-    <attributes>
-      <attribute name="weight" value="bold"/>
-    </attributes>
+    <property name="selection_mode">none</property>
+    <property name="activate_on_single_click">False</property>
+    <style>
+      <class name="card-inner-list"/>
+    </style>
   </object>
 </interface>

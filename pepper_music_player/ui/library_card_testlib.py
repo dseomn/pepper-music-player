@@ -32,26 +32,13 @@ def activate_row(
     Args:
         parent: External callers should pass library_card.List.widget;
             internally this is used for recursing into the widget.
-        library_token: Which (nested) row to activate.
-
-    Returns:
-        True iff a row was activated.
+        library_token: Which inner row to activate.
     """
     if (isinstance(parent, library_card.ListBoxRow) and
             parent.library_token == library_token):
         parent.activate()
         GLib.idle_add(Gtk.main_quit)
         Gtk.main()
-        return True
     if isinstance(parent, Gtk.Container):
         for child in parent.get_children():
-            if activate_row(child, library_token):
-                if isinstance(parent, library_card.ListBoxRow):
-                    # In real usage, activating a child seems to bubble up,
-                    # but the activate() method does not seem to bubble up.
-                    # This simulates the real behavior.
-                    parent.activate()
-                    GLib.idle_add(Gtk.main_quit)
-                    Gtk.main()
-                return True
-    return False
+            activate_row(child, library_token)

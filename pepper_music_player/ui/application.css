@@ -80,23 +80,27 @@
   background: @unfocused_insensitive_color;
 }
 
-.card-list label {
+.card-inner-list {
+  padding: 0;
+  margin: 0;
+}
+
+.card-inner-list label {
   margin: 0 6px;
 }
 
-/* Keep columns in nested lists aligned with columns in their parent lists. */
-.card-list list,
-.card-list list row {
+.card-inner-row {
   padding-left: 0;
   padding-right: 0;
   margin-left: 0;
   margin-right: 0;
 }
 
-.album > label {
+.card-inner-row-album {
   font-size: larger;
 }
 
-.album .medium {
+.card-inner-row-album + .card-inner-row,
+.card-inner-row + .card-inner-row-medium {
   margin-top: 18px;
 }
