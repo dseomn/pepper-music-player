@@ -41,6 +41,7 @@
 
 .card-list > row {
   border: 1px @borders solid;
+  border-radius: 3px;
   margin: 12px;
 }
 
