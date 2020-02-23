@@ -24,18 +24,54 @@
 
 .card-list {
   min-width: 480px;
+  background: @theme_bg_color;
 }
 
-/* TODO(dseomn): Use a different background color between the card list and the
- * cards. */
+.card-list:disabled {
+  background: @insensitive_bg_color;
+}
+
+.card-list:backdrop {
+  background: @theme_unfocused_bg_color;
+}
+
+.card-list:disabled:backdrop {
+  background: @unfocused_insensitive_color;
+}
 
 .card-list > row {
   border: 1px @borders solid;
-  margin: 12px 12px 0 12px;
+  margin: 12px;
 }
 
-.card-list {
-  padding-bottom: 12px;
+.card-list > row ~ row {
+  margin: 0 12px 12px 12px;
+}
+
+.card-list > row:not(.activatable),
+.card-list > row.activatable:not(.has-open-popup):not(:hover),
+.card-list > row.activatable:backdrop:hover {
+  background: @theme_base_color;
+}
+
+.card-list > row:selected:not(.has-open-popup):not(:hover) {
+  background: @theme_selected_bg_color;
+}
+
+.card-list > row:disabled {
+  background: @insensitive_base_color;
+}
+
+.card-list > row:backdrop {
+  background: @theme_unfocused_base_color;
+}
+
+.card-list > row:selected:backdrop {
+  background: @theme_unfocused_selected_bg_color;
+}
+
+.card-list > row:disabled:backdrop {
+  background: @unfocused_insensitive_color;
 }
 
 .card-list label {
