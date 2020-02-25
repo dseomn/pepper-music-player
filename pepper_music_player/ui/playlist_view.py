@@ -69,6 +69,10 @@ class List(library_card.List[ListItem]):
             length=-1,
         )
         self.widget.set_placeholder(builder.get_object('empty_placeholder'))
+        self._playable_unit = None
+        pubsub_bus.subscribe(player.PlayStatus,
+                             self._handle_play_status,
+                             want_last_message=True)
         pubsub_bus.subscribe(playlist.Update,
                              self._update_contents,
                              want_last_message=True)
@@ -78,8 +82,23 @@ class List(library_card.List[ListItem]):
         """Updates the view based on what's in the playlist."""
         del update_message  # Unused.
         # TODO(dseomn): Only update items that have changed.
-        self.store.splice(0, self.store.get_n_items(),
-                          tuple(map(ListItem, self._playlist)))
+        items = tuple(map(ListItem, self._playlist))
+        if self._playable_unit:
+            for item in items:
+                if item.playlist_entry != self._playable_unit.playlist_entry:
+                    continue
+                item.row_classes = {
+                    self._playable_unit.track.token: ('current',),
+                }
+        self.store.splice(0, self.store.get_n_items(), items)
+
+    @main_thread.run_in_main_thread
+    def _handle_play_status(self, status: player.PlayStatus) -> None:
+        """Handles player.PlayStatus."""
+        do_update = self._playable_unit != status.playable_unit
+        self._playable_unit = status.playable_unit
+        if do_update:
+            self._update_contents(playlist.Update())
 
     def row_activated(
             self,

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pepper_music_player.ui.playlist_view."""
 
+import datetime
 import tempfile
 import unittest
 from unittest import mock
@@ -60,22 +61,22 @@ class PlaylistViewTest(screenshot_testlib.TestCase):
         GLib.idle_add(Gtk.main_quit)
         Gtk.main()
 
-    def _insert_album(self):
+    def _insert_album(self, *, directory='/a'):
         """Returns a new album and its playlist entry."""
         for discnumber in ('1', '2'):
             for tracknumber in ('1', '2'):
                 basename = f'{discnumber}-{tracknumber}'
-                filename = f'/a/{basename}'
+                filename = f'{directory}/{basename}'
                 track = entity.Track(tags=tag.Tags({
                     '~filename': (filename,),
-                    '~dirname': ('/a',),
+                    '~dirname': (directory,),
                     '~basename': (basename,),
                     'discnumber': (discnumber,),
                     'tracknumber': (tracknumber,),
                 }).derive())
                 self._library_db.insert_files((scan.AudioFile(
                     filename=filename,
-                    dirname='/a',
+                    dirname=directory,
                     basename=basename,
                     track=track,
                 ),))
@@ -86,6 +87,36 @@ class PlaylistViewTest(screenshot_testlib.TestCase):
         return self._library_db.album(track.album_token), entry
 
     def test_empty_list(self):
+        self._pubsub.publish(
+            player.PlayStatus(
+                state=player.State.STOPPED,
+                capabilities=player.Capabilities.NONE,
+                playable_unit=None,
+                duration=datetime.timedelta(0),
+                position=datetime.timedelta(0),
+            ))
+        self._pubsub.join()
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        self.register_widget_screenshot(self._playlist_view.widget)
+
+    def test_current_track(self):
+        album, entry = self._insert_album(directory='/a')
+        self._insert_album(directory='/b')
+        self._pubsub.publish(
+            player.PlayStatus(
+                state=player.State.PAUSED,
+                capabilities=player.Capabilities.NONE,
+                playable_unit=entity.PlayableUnit(
+                    playlist_entry=entry,
+                    track=album.mediums[0].tracks[0],
+                ),
+                duration=datetime.timedelta(0),
+                position=datetime.timedelta(0),
+            ))
+        self._pubsub.join()
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
         self.register_widget_screenshot(self._playlist_view.widget)
 
     def test_activate_track(self):

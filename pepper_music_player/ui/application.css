@@ -104,3 +104,19 @@
 .card-inner-row + .card-inner-row-medium {
   margin-top: 18px;
 }
+
+.card-inner-row-track .status-indicator {
+  min-width: 3px;
+}
+
+.card-inner-row-track.current .status-indicator {
+  background-color: @theme_selected_bg_color;
+}
+
+.card-inner-row-track.current:selected .status-indicator {
+  background-color: @theme_selected_fg_color;
+}
+
+.card-inner-row-track.current .status-indicator:backdrop {
+  background-color: @theme_unfocused_selected_bg_color;
+}
