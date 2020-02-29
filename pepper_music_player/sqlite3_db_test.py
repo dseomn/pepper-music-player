@@ -109,5 +109,18 @@ class DatabaseTest(unittest.TestCase):
         self.assertSequenceEqual(normal_order, tuple(reversed(reverse_order)))
 
 
+class QueryBuilderTest(unittest.TestCase):
+
+    def test_builder(self):
+        builder = sqlite3_db.QueryBuilder()
+        builder.append('SELECT * FROM Foo')
+        builder.append('WHERE a = ?', (1,))
+        builder.append('AND b = ?', (2,))
+        self.assertEqual(
+            ('SELECT * FROM Foo WHERE a = ? AND b = ?', (1, 2)),
+            builder.build(),
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -19,7 +19,7 @@ import os
 import sqlite3
 import threading
 import typing
-from typing import ContextManager, Generator, NewType, Optional, Tuple, Type, TypeVar
+from typing import Any, ContextManager, Generator, Iterable, List, NewType, Optional, Tuple, Type, TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -193,3 +193,31 @@ class Database:
             return self._transaction('EXCLUSIVE', Transaction)
         else:
             return contextlib.nullcontext(transaction)
+
+
+class QueryBuilder:
+    """Builder for SQL queries."""
+
+    def __init__(self) -> None:
+        self._sql: List[str] = []
+        self._parameters: List[Any] = []
+
+    def append(self, sql: str, parameters: Iterable[Any] = ()) -> None:
+        """Appends to the query being built.
+
+        Args:
+            sql: SQL to append to the query.
+            parameters: Parameters for sql.
+        """
+        self._sql.append(sql)
+        self._parameters.extend(parameters)
+
+    def build(self) -> Tuple[str, Tuple[Any, ...]]:
+        """Returns the built query and its parameters.
+
+        Typical usage:
+            outer_builder.append(*inner_builder.build())
+
+            transaction.execute(*builder.build())
+        """
+        return ' '.join(self._sql), tuple(self._parameters)
