@@ -109,7 +109,6 @@ class Database:
                                                      isolation_level=None)
             self._local.connection.execute('PRAGMA journal_mode=WAL')
             self._local.connection.execute('PRAGMA foreign_keys=ON')
-            self._local.connection.execute('PRAGMA case_sensitive_like=ON')
             if self._reverse_unordered_selects:
                 self._local.connection.execute(
                     'PRAGMA reverse_unordered_selects=ON')
