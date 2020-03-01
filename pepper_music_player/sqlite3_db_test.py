@@ -94,6 +94,19 @@ class DatabaseTest(unittest.TestCase):
             with self._db.transaction(transaction) as reused:
                 self.assertIs(transaction, reused)
 
+    def test_case_sensitive_like(self):
+        with self._db.snapshot() as snapshot:
+            self.assertSequenceEqual(
+                (True, False, True, False),
+                snapshot.execute("""
+                    SELECT
+                        'a' LIKE 'a',
+                        'a' LIKE 'A',
+                        'б' LIKE 'б',
+                        'б' LIKE 'Б'
+                """).fetchone(),
+            )
+
     def test_reverse_unordered_select(self):
         with self._db.transaction() as transaction:
             transaction.execute("""
