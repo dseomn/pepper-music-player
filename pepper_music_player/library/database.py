@@ -76,24 +76,23 @@ _SCHEMA = sqlite3_db.Schema(
         #       correspond directly to a single file.
         #   parent_token: Token of the entity that contains this entity, or NULL
         #       if this is a top-level entity.
-        #   order_in_parent: Order of this entity within the parent, e.g., a
-        #       tracknumber or discnumber. Or NULL if this doesn't have a
-        #       defined order or doesn't have a parent. Note that this is not
-        #       guaranteed to be unique within the parent.
+        #   sort_key: Natural sort order of this entity, compared to other
+        #       entities that share a common ancestor (i.e., are on the same
+        #       album).
         sqlite3_db.SchemaItem("""
             CREATE TABLE Entity (
                 token TEXT NOT NULL,
                 type TEXT NOT NULL,
                 filename TEXT REFERENCES File (filename) ON DELETE CASCADE,
                 parent_token TEXT REFERENCES Entity (token) ON DELETE CASCADE,
-                order_in_parent INTEGER,
+                sort_key BLOB NOT NULL,
                 PRIMARY KEY (token),
                 UNIQUE (filename)
             )
         """),
         sqlite3_db.SchemaItem("""
             CREATE INDEX Entity_ParentIndex
-            ON Entity (parent_token, order_in_parent)
+            ON Entity (parent_token, sort_key)
         """),
 
         # Tags for entities in the library.
@@ -200,8 +199,8 @@ class Database:
         transaction.executemany(
             """
             INSERT OR IGNORE INTO Entity
-                (token, type, filename, parent_token, order_in_parent)
-            VALUES (:token, :type, :filename, :parent_token, :order_in_parent)
+                (token, type, filename, parent_token, sort_key)
+            VALUES (:token, :type, :filename, :parent_token, :sort_key)
             """,
             (
                 {
@@ -209,40 +208,21 @@ class Database:
                     'type': _EntityType.ALBUM.value,
                     'filename': None,
                     'parent_token': None,
-                    'order_in_parent': None,
+                    'sort_key': b'',
                 },
                 {
-                    'token':
-                        medium_token,
-                    'type':
-                        _EntityType.MEDIUM.value,
-                    'filename':
-                        None,
-                    'parent_token':
-                        album_token,
-                    # Note that this relies on all tracks in a medium having the
-                    # same PARSED_DISCNUMBER. That's currently enforced by the
-                    # medium token including the PARSED_DISCNUMBER; if it ever
-                    # changes, this will become buggy since the order_in_parent
-                    # will depend on the order the tracks are inserted into the
-                    # database.
-                    'order_in_parent':
-                        file_info.track.tags.int_or_none(tag.PARSED_DISCNUMBER),
+                    'token': medium_token,
+                    'type': _EntityType.MEDIUM.value,
+                    'filename': None,
+                    'parent_token': album_token,
+                    'sort_key': file_info.track.medium_sort_key,
                 },
                 {
-                    'token':
-                        track_token,
-                    'type':
-                        _EntityType.TRACK.value,
-                    'filename':
-                        file_info.filename,
-                    'parent_token':
-                        medium_token,
-                    'order_in_parent':
-                        file_info.track.tags.int_or_none(
-                            # TODO(https://github.com/google/yapf/issues/797):
-                            # Remove this TODO comment.
-                            tag.PARSED_TRACKNUMBER),
+                    'token': track_token,
+                    'type': _EntityType.TRACK.value,
+                    'filename': file_info.filename,
+                    'parent_token': medium_token,
+                    'sort_key': file_info.track.sort_key,
                 },
             ),
         )
@@ -381,7 +361,7 @@ class Database:
                 SELECT token
                 FROM Entity
                 WHERE parent_token = ? AND type = ?
-                ORDER BY order_in_parent, token
+                ORDER BY sort_key, token
                 """,
                 (token_, child_type.value),
         ):  # yapf: disable

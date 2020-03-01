@@ -174,6 +174,67 @@ class LibraryEntityTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'exactly one token'):
             entity.Album(tags=tag.Tags({}), mediums=(medium1, medium2))
 
+    def test_track_sort_key(self):
+        track = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+            tag.DISCNUMBER: ('1',),
+            tag.TRACKNUMBER: ('2',),
+        }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 7 + b'\x01',
+                b'\x00' * 7 + b'\x02',
+            )),
+            track.sort_key,
+        )
+
+    def test_track_sort_key_default(self):
+        track = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+        }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+                b'\x00' * 8,
+            )),
+            track.sort_key,
+        )
+
+    def test_medium_sort_key(self):
+        track = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+            tag.DISCNUMBER: ('1',),
+        }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 7 + b'\x01',
+            )),
+            track.medium_sort_key,
+        )
+
+    def test_medium_sort_key_default(self):
+        track = entity.Track(tags=tag.Tags({
+            tag.BASENAME: ('b',),
+            tag.DIRNAME: ('/a',),
+            tag.FILENAME: ('/a/b',),
+        }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+            )),
+            track.medium_sort_key,
+        )
+
 
 class PlaylistEntryTest(unittest.TestCase):
 

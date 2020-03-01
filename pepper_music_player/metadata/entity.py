@@ -69,6 +69,19 @@ def _tag_token_str(
     )
 
 
+def _sort_key(version: int, *values: int) -> bytes:
+    """Returns a sort key from integer values.
+
+    Args:
+        version: Version of the sort key.
+        values: Values in the sort key. Earlier values are more significant.
+    """
+    components = [version.to_bytes(1, 'big')]
+    for value in values:
+        components.append(value.to_bytes(8, 'big'))
+    return b''.join(components)
+
+
 @dataclasses.dataclass(frozen=True)
 class Track:
     """A track.
@@ -78,6 +91,10 @@ class Track:
         token: Opaque token that identifies this track.
         medium_token: Opaque token that identifies the medium for this track.
         album_token: Opaque token that identifies the album for this track.
+        sort_key: Key for sorting this track within its album. Note that this is
+            not guaranteed to be unique.
+        medium_sort_key: Key for sorting this track's medium within its album.
+            This is also not guaranteed to be unique.
     """
     tags: tag.Tags = dataclasses.field(repr=False)
     token: metadata_token.Track = dataclasses.field(init=False)
@@ -85,6 +102,8 @@ class Track:
                                                             repr=False)
     album_token: metadata_token.Album = dataclasses.field(init=False,
                                                           repr=False)
+    sort_key: bytes = dataclasses.field(init=False)
+    medium_sort_key: bytes = dataclasses.field(init=False)
 
     def __post_init__(self) -> None:
         # TODO(#20): Change versions to v1.
@@ -108,6 +127,23 @@ class Track:
             metadata_token.Album(
                 _tag_token_str('album', 'v1alpha', self.tags,
                                *album_token_tags)))
+        object.__setattr__(
+            self,
+            'sort_key',
+            _sort_key(
+                0,
+                self.tags.int_or_none(tag.PARSED_DISCNUMBER) or 0,
+                self.tags.int_or_none(tag.PARSED_TRACKNUMBER) or 0,
+            ),
+        )
+        object.__setattr__(
+            self,
+            'medium_sort_key',
+            _sort_key(
+                0,
+                self.tags.int_or_none(tag.PARSED_DISCNUMBER) or 0,
+            ),
+        )
 
 
 # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
