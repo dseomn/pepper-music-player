@@ -30,4 +30,20 @@ limitations under the License.
       <class name="secondary"/>
     </style>
   </object>
+  <object class="GtkSearchBar" id="search_bar">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="search_mode_enabled">True</property>
+    <child>
+      <object class="GtkSearchEntry">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="primary_icon_name">edit-find-symbolic</property>
+        <property name="primary_icon_activatable">False</property>
+        <property name="primary_icon_sensitive">False</property>
+        <property name="input_hints">GTK_INPUT_HINT_SPELLCHECK | GTK_INPUT_HINT_NONE</property>
+        <signal name="search-changed" handler="on_search_changed" swapped="no"/>
+      </object>
+    </child>
+  </object>
 </interface>

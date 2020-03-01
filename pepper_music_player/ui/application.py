@@ -98,14 +98,8 @@ class Application:
         # TODO(dseomn): Make the position of the main Gtk.Paned persist across
         # application restarts, probably using gsettings.
         library_list = library.List(library_db, playlist_)
+        builder.get_object('library_search').add(library_list.search_bar)
         builder.get_object('library').add(library_list.widget)
-        # TODO(dseomn): Show a more sensible slice of the library by default,
-        # and add UI controls to search the library.
-        library_list.store.splice(
-            0, 0,
-            tuple(
-                library_card.ListItem(library_token)
-                for library_token in library_db.search(limit=100)))
         builder.get_object('playlist').add(
             playlist_view.List(
                 library_db=library_db,
