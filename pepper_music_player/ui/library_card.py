@@ -97,6 +97,7 @@ class List(Generic[ListItemType]):
     This list just shows the cards; see subclasses for the cards' behavior.
 
     Attributes:
+        library_db: Library database.
         widget: Widget showing the list.
         store: Content in the list.
     """
@@ -112,7 +113,7 @@ class List(Generic[ListItemType]):
             library_db: Library database.
             list_item_type: Type of list item in the list.
         """
-        self._library_db = library_db
+        self.library_db = library_db
         builder = Gtk.Builder.new_from_string(
             resources.read_text('pepper_music_player.ui',
                                 'library_card_outer_list.glade'),
@@ -230,13 +231,13 @@ class List(Generic[ListItemType]):
         """Returns a card outer row for the given list item."""
         if isinstance(item.library_token, token.Track):
             inner_rows = self._track(item,
-                                     self._library_db.track(item.library_token))
+                                     self.library_db.track(item.library_token))
         elif isinstance(item.library_token, token.Medium):
             inner_rows = self._medium(
-                item, self._library_db.medium(item.library_token))
+                item, self.library_db.medium(item.library_token))
         elif isinstance(item.library_token, token.Album):
             inner_rows = self._album(item,
-                                     self._library_db.album(item.library_token))
+                                     self.library_db.album(item.library_token))
         else:
             raise ValueError(
                 f'Unknown library token type: {item.library_token}')

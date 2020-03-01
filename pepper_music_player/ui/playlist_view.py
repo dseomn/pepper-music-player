@@ -87,11 +87,11 @@ class List(library_card.List[ListItem]):
     ) -> None:
         """Plays the given row."""
         if isinstance(row.library_token, token.Track):
-            track = self._library_db.track(row.library_token)
+            track = self.library_db.track(row.library_token)
         elif isinstance(row.library_token, token.Medium):
-            track = self._library_db.medium(row.library_token).tracks[0]
+            track = self.library_db.medium(row.library_token).tracks[0]
         elif isinstance(row.library_token, token.Album):
-            track = (self._library_db.album(
+            track = (self.library_db.album(
                 row.library_token).mediums[0].tracks[0])
         else:
             raise TypeError(f'Unknown library token type: {row.library_token}')
