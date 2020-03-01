@@ -301,6 +301,63 @@ class Database:
             self._compose_tags(transaction, child_type=_EntityType.TRACK)
             self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
+    def _search_unstructured(
+            self,
+            query_string: str,
+    ) -> sqlite3_db.QueryBuilder:
+        """Simple unstructured search.
+
+        Args:
+            query_string: What to search for. This is completely unstructured.
+
+        Returns:
+            A query with columns:
+                rank: How well the result matches the query, lower is better.
+                token: What matched the query.
+                type: Type of token.
+        """
+        # TODO(dseomn): Add support for unicode normalization, removing
+        # diacritics, casefolding, or anything else that could make matching
+        # fuzzier.
+        # TODO(dseomn): Add (custom) indexes to make this function's queries
+        # faster.
+        builder = sqlite3_db.QueryBuilder()
+        builder.append(
+            """
+            SELECT DISTINCT 0 AS rank, Entity.token, Entity.type
+            FROM Entity
+            JOIN Tag USING (token)
+            WHERE Tag.tag_value = ?
+            """,
+            (query_string,),
+        )
+        builder.append('UNION ALL')
+        builder.append(
+            """
+            SELECT DISTINCT 1 AS rank, Entity.token, Entity.type
+            FROM Entity
+            JOIN Tag USING (token)
+            WHERE Tag.tag_value LIKE ('%' || ? || '%')
+            """,
+            (query_string,),
+        )
+        builder.append('UNION ALL')
+        builder.append("""
+            SELECT DISTINCT 2 AS rank, Entity.token, Entity.type
+            FROM Entity
+            WHERE TRUE
+        """)
+        for word in query_string.split():
+            builder.append(
+                """
+                AND Entity.token IN (
+                    SELECT token FROM Tag WHERE tag_value LIKE ('%' || ? || '%')
+                )
+                """,
+                (word,),
+            )
+        return builder
+
     def search(
             self,
             *,
