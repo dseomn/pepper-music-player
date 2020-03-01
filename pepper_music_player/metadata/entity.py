@@ -14,6 +14,7 @@
 """Entities with metadata, e.g., tracks and albums."""
 
 import dataclasses
+import logging
 from typing import Iterable, Tuple
 import uuid
 
@@ -69,16 +70,24 @@ def _tag_token_str(
     )
 
 
-def _sort_key(version: int, *values: int) -> bytes:
+def _sort_key(version: int, tag_data: tag.Tags, *int_tags: tag.Tag) -> bytes:
     """Returns a sort key from integer values.
 
     Args:
         version: Version of the sort key.
-        values: Values in the sort key. Earlier values are more significant.
+        tag_data: Tags to get data from for the sort key.
+        int_tags: Single-valued tags with integer values to use in the sort key.
+            Earlier tags are more significant.
     """
     components = [version.to_bytes(1, 'big')]
-    for value in values:
-        components.append(value.to_bytes(8, 'big'))
+    for int_tag in int_tags:
+        try:
+            tag_bytes = (tag_data.int_or_none(int_tag) or 0).to_bytes(8, 'big')
+        except OverflowError:
+            logging.exception('Invalid tag for sort key: %s=%r', int_tag.name,
+                              tag_data[int_tag])
+            tag_bytes = (0).to_bytes(8, 'big')
+        components.append(tag_bytes)
     return b''.join(components)
 
 
@@ -130,19 +139,13 @@ class Track:
         object.__setattr__(
             self,
             'sort_key',
-            _sort_key(
-                0,
-                self.tags.int_or_none(tag.PARSED_DISCNUMBER) or 0,
-                self.tags.int_or_none(tag.PARSED_TRACKNUMBER) or 0,
-            ),
+            _sort_key(0, self.tags, tag.PARSED_DISCNUMBER,
+                      tag.PARSED_TRACKNUMBER),
         )
         object.__setattr__(
             self,
             'medium_sort_key',
-            _sort_key(
-                0,
-                self.tags.int_or_none(tag.PARSED_DISCNUMBER) or 0,
-            ),
+            _sort_key(0, self.tags, tag.PARSED_DISCNUMBER),
         )
 
 

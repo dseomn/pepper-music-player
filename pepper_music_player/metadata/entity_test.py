@@ -206,6 +206,48 @@ class LibraryEntityTest(unittest.TestCase):
             track.sort_key,
         )
 
+    def test_track_sort_key_underflow(self):
+        with self.assertLogs() as logs:
+            track = entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                tag.DISCNUMBER: ('-1',),
+                tag.TRACKNUMBER: ('-2',),
+            }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+                b'\x00' * 8,
+            )),
+            track.sort_key,
+        )
+        self.assertRegex('\n'.join(logs.output), r'Invalid.*discnumber.*-1')
+        self.assertRegex('\n'.join(logs.output), r'Invalid.*tracknumber.*-2')
+
+    def test_track_sort_key_overflow(self):
+        with self.assertLogs() as logs:
+            track = entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                tag.DISCNUMBER: ('36893488147419103232',),
+                tag.TRACKNUMBER: ('73786976294838206464',),
+            }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+                b'\x00' * 8,
+            )),
+            track.sort_key,
+        )
+        self.assertRegex('\n'.join(logs.output),
+                         r'Invalid.*discnumber.*36893488147419103232')
+        self.assertRegex('\n'.join(logs.output),
+                         r'Invalid.*tracknumber.*73786976294838206464')
+
     def test_medium_sort_key(self):
         track = entity.Track(tags=tag.Tags({
             tag.BASENAME: ('b',),
@@ -234,6 +276,41 @@ class LibraryEntityTest(unittest.TestCase):
             )),
             track.medium_sort_key,
         )
+
+    def test_medium_sort_key_underflow(self):
+        with self.assertLogs() as logs:
+            track = entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                tag.DISCNUMBER: ('-1',),
+            }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+            )),
+            track.medium_sort_key,
+        )
+        self.assertRegex('\n'.join(logs.output), r'Invalid.*discnumber.*-1')
+
+    def test_medium_sort_key_overflow(self):
+        with self.assertLogs() as logs:
+            track = entity.Track(tags=tag.Tags({
+                tag.BASENAME: ('b',),
+                tag.DIRNAME: ('/a',),
+                tag.FILENAME: ('/a/b',),
+                tag.DISCNUMBER: ('36893488147419103232',),
+            }).derive())
+        self.assertEqual(
+            b''.join((
+                b'\x00',
+                b'\x00' * 8,
+            )),
+            track.medium_sort_key,
+        )
+        self.assertRegex('\n'.join(logs.output),
+                         r'Invalid.*discnumber.*36893488147419103232')
 
 
 class PlaylistEntryTest(unittest.TestCase):
