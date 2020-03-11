@@ -20,6 +20,8 @@ import frozendict
 import gi
 gi.require_version('GObject', '2.0')
 from gi.repository import GObject
+gi.require_version('Gdk', '3.0')
+from gi.repository import Gdk
 gi.require_version('Gio', '2.0')
 from gi.repository import Gio
 gi.require_version('Gtk', '3.0')
@@ -104,6 +106,45 @@ def _medium_header(tags: tag.Tags) -> Optional[str]:
         return None
 
 
+def _bind_property_with_delta_bidirectional(
+        object1: GObject.Object,
+        object2: GObject.Object,
+        property_name: str,
+        delta: float,
+) -> None:
+    """Binds a property with a simple addition transformation.
+
+    Args:
+        object1: One of the objects to bind a property on.
+        object2: The other object to bind.
+        property_name: Property to bind between the two objects.
+        delta: Amount to add to the value from object1 before setting it on
+            object2, or to subtract in the other direction.
+    """
+
+    # TODO(https://gitlab.gnome.org/GNOME/glib/issues/646): Delete this function
+    # and switch to binding with closures.
+
+    def _notify_handler(
+            source: GObject.Object,
+            pspec: GObject.ParamSpec,
+    ) -> None:
+        del pspec  # Unused.
+        value = source.get_property(property_name)
+        if source is object1:
+            target = object2
+            value += delta
+        else:
+            target = object1
+            value -= delta
+        # Check for equality, to avoid infinite loops of the notify signal.
+        if target.get_property(property_name) != value:
+            target.set_property(property_name, value)
+
+    object1.connect(f'notify::{property_name}', _notify_handler)
+    object2.connect(f'notify::{property_name}', _notify_handler)
+
+
 class List(Generic[ListItemType]):
     """List of library cards.
 
@@ -152,6 +193,36 @@ class List(Generic[ListItemType]):
             row: The inner row that was activated.
         """
         del row  # Unused.
+
+    def _inner_list_size_allocated(
+            self,
+            inner_list: Gtk.ListBox,
+            allocation: Gdk.Rectangle,
+    ) -> None:
+        """Handler for size-allocate on inner list boxes."""
+        # TODO(https://gitlab.gnome.org/GNOME/gtk/-/issues/2465): Delete this
+        # function.
+        outer_adjustment = self.widget.get_adjustment()
+        inner_adjustment = Gtk.Adjustment()
+        _bind_property_with_delta_bidirectional(outer_adjustment,
+                                                inner_adjustment, 'lower',
+                                                -allocation.y)
+        _bind_property_with_delta_bidirectional(outer_adjustment,
+                                                inner_adjustment, 'upper',
+                                                -allocation.y)
+        _bind_property_with_delta_bidirectional(outer_adjustment,
+                                                inner_adjustment, 'value',
+                                                -allocation.y)
+        outer_adjustment.bind_property('page_increment', inner_adjustment,
+                                       'page_increment',
+                                       GObject.BindingFlags.DEFAULT)
+        outer_adjustment.bind_property('page_size', inner_adjustment,
+                                       'page_size',
+                                       GObject.BindingFlags.DEFAULT)
+        outer_adjustment.bind_property('step_increment', inner_adjustment,
+                                       'step_increment',
+                                       GObject.BindingFlags.DEFAULT)
+        inner_list.set_adjustment(inner_adjustment)
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     def _track(
@@ -235,6 +306,7 @@ class List(Generic[ListItemType]):
                                 'library_card_inner_list.glade'),
             length=-1,
         ).get_object('list')
+        inner_list.connect('size-allocate', self._inner_list_size_allocated)
         inner_list.connect('row-activated',
                            lambda list_box, row: self.row_activated(row))
         for inner_row in inner_rows:

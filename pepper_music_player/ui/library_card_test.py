@@ -415,6 +415,54 @@ class LibraryCardTest(screenshot_testlib.TestCase):
             self._library_card_list.row_activated_mock.call_args_list[1])
         self.assertEqual(row2.library_token, token2)
 
+    def _get_outer_and_inner_adjustments(self):
+        """Returns (outer, inner) adjustments for a non-top inner list."""
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.add(self._library_card_list.widget)
+        window = Gtk.OffscreenWindow()
+        window.add(scrolled_window)
+        window.show_all()
+        self._set_tokens(
+            self._insert_track(tracknumber='1').token,
+            self._insert_track(tracknumber='2').token,
+        )
+        inner_lists = []
+        for outer_row in self._library_card_list.widget.get_children():
+            if not isinstance(outer_row, Gtk.ListBoxRow):
+                continue
+            inner_lists.append(outer_row.get_child())
+        return (self._library_card_list.widget.get_adjustment(),
+                inner_lists[-1].get_adjustment())
+
+    def test_adjustment_changes_propagate_inwards(self):
+        outer, inner = self._get_outer_and_inner_adjustments()
+        outer.set_lower(1.0)
+        outer.set_upper(11.0)
+        outer.set_value(6.0)
+        outer.set_page_increment(3.0)
+        outer.set_page_size(10.0)
+        outer.set_step_increment(2.0)
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        self.assertLess(inner.get_lower(), 1.0)
+        self.assertLess(inner.get_upper(), 11.0)
+        self.assertLess(inner.get_value(), 6.0)
+        self.assertEqual(inner.get_page_increment(), 3.0)
+        self.assertEqual(inner.get_page_size(), 10.0)
+        self.assertEqual(inner.get_step_increment(), 2.0)
+
+    def test_adjust_changes_propagate_outwards(self):
+        outer, inner = self._get_outer_and_inner_adjustments()
+        inner.set_lower(1.0)
+        inner.set_upper(11.0)
+        inner.set_value(6.0)
+        outer.set_page_size(10.0)
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        self.assertGreater(outer.get_lower(), 1.0)
+        self.assertGreater(outer.get_upper(), 11.0)
+        self.assertGreater(outer.get_value(), 6.0)
+
 
 if __name__ == '__main__':
     unittest.main()
