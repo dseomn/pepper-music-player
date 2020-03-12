@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.1 
+<!-- Generated with glade 3.22.2 
 
 Copyright 2020 Google LLC
 
@@ -28,6 +28,7 @@ limitations under the License.
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="hexpand">True</property>
+        <property name="label">{{ tags.singular(tag.ALBUM) }}</property>
         <property name="wrap">True</property>
         <property name="wrap_mode">word-char</property>
         <property name="xalign">0</property>
@@ -48,6 +49,7 @@ limitations under the License.
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="hexpand">True</property>
+        <property name="label">{{ artist }}</property>
         <property name="wrap">True</property>
         <property name="wrap_mode">word-char</property>
         <property name="xalign">0</property>
@@ -66,6 +68,7 @@ limitations under the License.
         <property name="can_focus">False</property>
         <property name="halign">end</property>
         <property name="valign">start</property>
+        <property name="label">{{ tags.singular(tag.DATE, default='') }}</property>
         <property name="justify">right</property>
         <property name="wrap">True</property>
         <property name="width_chars">4</property>

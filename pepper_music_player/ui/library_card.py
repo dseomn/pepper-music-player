@@ -29,6 +29,7 @@ from pepper_music_player.metadata import entity
 from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 from pepper_music_player.ui import alignment
+from pepper_music_player.ui import gtk_builder_template
 
 
 class ListItem(GObject.Object):
@@ -122,6 +123,12 @@ class List(Generic[ListItemType]):
         self.widget: Gtk.ListBox = builder.get_object('list')
         self.store = Gio.ListStore.new(list_item_type.__gtype__)
         self.widget.bind_model(self.store, self._card)
+        self._track_builder_template = gtk_builder_template.Template(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_track.glade'))
+        self._album_builder_template = gtk_builder_template.Template(
+            resources.read_text('pepper_music_player.ui',
+                                'library_card_album.glade'))
 
     def row_activated(self, row: ListBoxRow[ListItemType]) -> None:
         """Handler for an inner row being activated.
@@ -144,27 +151,12 @@ class List(Generic[ListItemType]):
             show_discnumber: bool = True,
     ) -> Iterable[ListBoxRow[ListItemType]]:  # yapf: disable
         """Yields the inner row for a track."""
-        builder = Gtk.Builder.new_from_string(
-            resources.read_text('pepper_music_player.ui',
-                                'library_card_track.glade'),
-            length=-1,
+        builder = self._track_builder_template.render(
+            tag=tag,
+            tags=track.tags,
+            albumartist=albumartist,
+            show_discnumber=show_discnumber,
         )
-        if show_discnumber:
-            builder.get_object('discnumber').set_text(
-                track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '')
-
-        builder.get_object('tracknumber').set_text(
-            track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '')
-        builder.get_object('title').set_text(track.tags.singular(tag.TITLE))
-        artist = track.tags.singular(tag.ARTIST)
-        artist_widget = builder.get_object('artist')
-        if artist != albumartist:
-            artist_widget.set_text(artist)
-        else:
-            artist_widget.set_no_show_all(True)
-            artist_widget.hide()
-        builder.get_object('duration').set_text(
-            track.tags.one_or_none(tag.DURATION_HUMAN) or '')
         yield ListBoxRow(track.token, list_item,
                          alignment.auto_align(builder.get_object('track')))
 
@@ -201,16 +193,12 @@ class List(Generic[ListItemType]):
             album: entity.Album,
     ) -> Iterable[ListBoxRow[ListItemType]]:
         """Yields inner rows for an album."""
-        builder = Gtk.Builder.new_from_string(
-            resources.read_text('pepper_music_player.ui',
-                                'library_card_album.glade'),
-            length=-1,
-        )
-        builder.get_object('title').set_text(album.tags.singular(tag.ALBUM))
         artist = album.tags.singular(tag.ALBUMARTIST, tag.ARTIST)
-        builder.get_object('artist').set_text(artist)
-        builder.get_object('date').set_text(
-            album.tags.singular(tag.DATE, default=''))
+        builder = self._album_builder_template.render(
+            tag=tag,
+            tags=album.tags,
+            artist=artist,
+        )
         yield ListBoxRow(album.token, list_item,
                          alignment.auto_align(builder.get_object('header')))
         for medium in album.mediums:
