@@ -109,6 +109,16 @@ class AutoAlignTest(unittest.TestCase):
                     _pango_attr_list_types(label.get_attributes()))
                 self.assertIs(Gtk.TextDirection.LTR, label.get_direction())
 
+    def test_hide_if_empty(self):
+        for expected_visible, text in ((False, ''), (True, 'not_empty')):
+            with self.subTest(text):
+                label = Gtk.Label.new(text)
+                label.get_style_context().add_class('hide-if-empty')
+                label.show_all()
+                alignment.auto_align(label)
+                label.show_all()
+                self.assertEqual(expected_visible, label.get_visible())
+
     def test_recurses(self):
         container = Gtk.Button()
         container.get_style_context().add_class('direction-rtl')

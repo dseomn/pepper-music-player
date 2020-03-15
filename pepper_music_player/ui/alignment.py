@@ -69,6 +69,12 @@ def _set_numerical_label_alignment(label: Gtk.Label) -> None:
     label.set_direction(Gtk.TextDirection.LTR)
 
 
+def _hide_label_if_empty(label: Gtk.Label) -> None:
+    if not label.get_text():
+        label.set_no_show_all(True)
+        label.hide()
+
+
 def auto_align(widget: WidgetType) -> WidgetType:
     """Recursively, automatically aligns the given widget and its children.
 
@@ -84,6 +90,7 @@ def auto_align(widget: WidgetType) -> WidgetType:
         direction-auto: (Gtk.Label) Sets the direction based on the text.
         numerical: (Gtk.Label) Sets the direction and alignment appropriately
             for a numerical label.
+        hide-if-empty: (Gtk.Label) Hides the label if it's empty.
 
     Args:
         widget: Widget to automatically align.
@@ -100,6 +107,8 @@ def auto_align(widget: WidgetType) -> WidgetType:
             _set_label_direction_from_text(widget)
         elif style_class == 'numerical' and isinstance(widget, Gtk.Label):
             _set_numerical_label_alignment(widget)
+        elif style_class == 'hide-if-empty' and isinstance(widget, Gtk.Label):
+            _hide_label_if_empty(widget)
     if isinstance(widget, Gtk.Container):
         widget.foreach(auto_align)
     return widget
