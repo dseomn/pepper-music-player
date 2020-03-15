@@ -38,6 +38,9 @@ limitations under the License.
         <property name="justify">right</property>
         <property name="width_chars">7</property>
         <property name="xalign">1</property>
+        <style>
+          <class name="numerical"/>
+        </style>
       </object>
       <packing>
         <property name="expand">False</property>
@@ -67,6 +70,9 @@ limitations under the License.
         <property name="halign">start</property>
         <property name="width_chars">7</property>
         <property name="xalign">0</property>
+        <style>
+          <class name="numerical"/>
+        </style>
       </object>
       <packing>
         <property name="expand">False</property>
@@ -74,5 +80,8 @@ limitations under the License.
         <property name="position">2</property>
       </packing>
     </child>
+    <style>
+      <class name="direction-ltr"/>
+    </style>
   </object>
 </interface>

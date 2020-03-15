@@ -150,29 +150,23 @@ class List(Generic[ListItemType]):
             length=-1,
         )
         if show_discnumber:
-            alignment.fill_aligned_numerical_label(
-                builder.get_object('discnumber'),
-                track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '',
-            )
-        alignment.fill_aligned_numerical_label(
-            builder.get_object('tracknumber'),
-            track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '',
-        )
+            builder.get_object('discnumber').set_text(
+                track.tags.one_or_none(tag.PARSED_DISCNUMBER) or '')
+
+        builder.get_object('tracknumber').set_text(
+            track.tags.one_or_none(tag.PARSED_TRACKNUMBER) or '')
         builder.get_object('title').set_text(track.tags.singular(tag.TITLE))
-        alignment.set_label_direction_from_text(builder.get_object('title'))
         artist = track.tags.singular(tag.ARTIST)
         artist_widget = builder.get_object('artist')
         if artist != albumartist:
             artist_widget.set_text(artist)
-            alignment.set_label_direction_from_text(artist_widget)
         else:
             artist_widget.set_no_show_all(True)
             artist_widget.hide()
-        alignment.fill_aligned_numerical_label(
-            builder.get_object('duration'),
-            track.tags.one_or_none(tag.DURATION_HUMAN) or '',
-        )
-        yield ListBoxRow(track.token, list_item, builder.get_object('track'))
+        builder.get_object('duration').set_text(
+            track.tags.one_or_none(tag.DURATION_HUMAN) or '')
+        yield ListBoxRow(track.token, list_item,
+                         alignment.auto_align(builder.get_object('track')))
 
     def _medium(
             self,
@@ -193,10 +187,8 @@ class List(Generic[ListItemType]):
             )
             header_widget = builder.get_object('header')
             header_widget.set_text(header)
-            # TODO(dseomn): Should the alignment come from the discsubtitle
-            # only?
-            alignment.set_label_direction_from_text(header_widget)
-            yield ListBoxRow(medium.token, list_item, header_widget)
+            yield ListBoxRow(medium.token, list_item,
+                             alignment.auto_align(header_widget))
         for track in medium.tracks:
             yield from self._track(list_item,
                                    track,
@@ -215,15 +207,12 @@ class List(Generic[ListItemType]):
             length=-1,
         )
         builder.get_object('title').set_text(album.tags.singular(tag.ALBUM))
-        alignment.set_label_direction_from_text(builder.get_object('title'))
         artist = album.tags.singular(tag.ALBUMARTIST, tag.ARTIST)
         builder.get_object('artist').set_text(artist)
-        alignment.set_label_direction_from_text(builder.get_object('artist'))
-        alignment.fill_aligned_numerical_label(
-            builder.get_object('date'),
-            album.tags.singular(tag.DATE, default=''),
-        )
-        yield ListBoxRow(album.token, list_item, builder.get_object('header'))
+        builder.get_object('date').set_text(
+            album.tags.singular(tag.DATE, default=''))
+        yield ListBoxRow(album.token, list_item,
+                         alignment.auto_align(builder.get_object('header')))
         for medium in album.mediums:
             yield from self._medium(list_item, medium, albumartist=artist)
 

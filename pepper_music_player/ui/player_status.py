@@ -69,9 +69,7 @@ class Buttons:
             length=-1,
         )
         self.widget = builder.get_object('buttons')
-        # https://material.io/design/usability/bidirectionality.html#mirroring-elements
-        # "Media controls for playback are always LTR."
-        alignment.set_direction_recursive(self.widget, Gtk.TextDirection.LTR)
+        alignment.auto_align(self.widget)
         self.previous_button: Gtk.Button = builder.get_object('previous_button')
         self.play_pause_button: Gtk.Button = builder.get_object(
             'play_pause_button')
@@ -143,9 +141,7 @@ class PositionSlider:
             length=-1,
         )
         self.widget = builder.get_object('container')
-        # https://material.io/design/usability/bidirectionality.html#mirroring-elements
-        # "Media controls for playback are always LTR."
-        alignment.set_direction_recursive(self.widget, Gtk.TextDirection.LTR)
+        alignment.auto_align(self.widget)
         self._position: Gtk.Label = builder.get_object('position')
         self._duration: Gtk.Label = builder.get_object('duration')
         self.slider: Gtk.Scale = builder.get_object('slider')
@@ -159,13 +155,11 @@ class PositionSlider:
         """Handler for PlayStatus updates."""
         # TODO(https://github.com/google/yapf/issues/805): Remove line break
         # comments.
-        alignment.fill_aligned_numerical_label(
-            self._position,
+        self._position.set_text(
             formatting.format_timedelta(  # Force a line break.
                 None
                 if status.state is player.State.STOPPED else status.position))
-        alignment.fill_aligned_numerical_label(
-            self._duration,
+        self._duration.set_text(
             formatting.format_timedelta(  # Force a line break.
                 None
                 if status.state is player.State.STOPPED else status.duration))

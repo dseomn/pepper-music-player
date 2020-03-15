@@ -13,37 +13,27 @@
 # limitations under the License.
 """Helpers for text alignment."""
 
+from typing import TypeVar
+
 import gi
-gi.require_version('GLib', '2.0')
-from gi.repository import GLib
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 gi.require_version('Pango', '1.0')
 from gi.repository import Pango
 
+WidgetType = TypeVar('WidgetType', bound=Gtk.Widget)
 
-def set_direction_recursive(
+
+def _set_direction_recursive(
         widget: Gtk.Widget,
         direction: Gtk.TextDirection,
 ) -> None:
-    """Recursively sets the direction on the given widget and its children.
-
-    This should be used with care, since it's generally not a good idea to
-    override the user's chosen direction. However, it's needed sometimes for UI
-    elements that explicitly do not follow text direction. E.g.,
-    https://material.io/design/usability/bidirectionality.html#mirroring-elements
-    says that "media controls for playback are always LTR."
-
-    Args:
-        widget: Widget to set the direction on.
-        direction: Direction to set.
-    """
     widget.set_direction(direction)
     if isinstance(widget, Gtk.Container):
-        widget.foreach(set_direction_recursive, direction)
+        widget.foreach(_set_direction_recursive, direction)
 
 
-def set_label_direction_from_text(label: Gtk.Label) -> None:
+def _set_label_direction_from_text(label: Gtk.Label) -> None:
     """Sets the widget direction to match its text contents."""
     direction = Pango.find_base_dir(label.get_text(), length=-1)
     if direction is Pango.Direction.LTR:
@@ -52,15 +42,64 @@ def set_label_direction_from_text(label: Gtk.Label) -> None:
         label.set_direction(Gtk.TextDirection.RTL)
 
 
-def fill_aligned_numerical_label(label: Gtk.Label, text: str) -> None:
-    """Fills in a numerical label that's aligned with others of its type.
+def _font_feature_tnum_attr_list() -> Pango.AttrList:
+    """Returns an AttrList with font-features set to "tnum"."""
+    # TODO(https://gitlab.gnome.org/GNOME/pygobject/issues/312): Delete this
+    # hack once Pango 1.44.0 is available.
+    return Gtk.Builder.new_from_string(
+        """
+            <interface>
+                <object class="GtkLabel" id="label">
+                    <attributes>
+                        <attribute name="font-features" value="tnum" />
+                    </attributes>
+                </object>
+            </interface>
+        """,
+        length=-1,
+    ).get_object('label').get_attributes()
 
-    Args:
-        label: Label to fill in.
-        text: Text to put in the label.
-    """
-    label.set_markup(
-        f'<span font_features="tnum">{GLib.markup_escape_text(text)}</span>')
+
+def _set_numerical_label_alignment(label: Gtk.Label) -> None:
+    attributes = label.get_attributes() or Pango.AttrList()
+    attributes.splice(_font_feature_tnum_attr_list(), 0, 0)
+    label.set_attributes(attributes)
     # https://material.io/design/usability/bidirectionality.html says that
     # numbers should be LTR.
     label.set_direction(Gtk.TextDirection.LTR)
+
+
+def auto_align(widget: WidgetType) -> WidgetType:
+    """Recursively, automatically aligns the given widget and its children.
+
+    This makes it possible to specify alignment in Gtk.Builder xml, instead of
+    in code. The following style classes are supported:
+        direction-ltr: Recursively sets the direction to LTR. This should be
+            used with care, since it's generally not a good idea to override the
+            user's chosen direction. However, it's needed sometimes for UI
+            elements that explicitly do not follow text direction. E.g.,
+            https://material.io/design/usability/bidirectionality.html#mirroring-elements
+            says that "media controls for playback are always LTR."
+        direction-rtl: See direction-ltr.
+        direction-auto: (Gtk.Label) Sets the direction based on the text.
+        numerical: (Gtk.Label) Sets the direction and alignment appropriately
+            for a numerical label.
+
+    Args:
+        widget: Widget to automatically align.
+
+    Returns:
+        The widget.
+    """
+    for style_class in widget.get_style_context().list_classes():
+        if style_class == 'direction-ltr':
+            _set_direction_recursive(widget, Gtk.TextDirection.LTR)
+        elif style_class == 'direction-rtl':
+            _set_direction_recursive(widget, Gtk.TextDirection.RTL)
+        elif style_class == 'direction-auto' and isinstance(widget, Gtk.Label):
+            _set_label_direction_from_text(widget)
+        elif style_class == 'numerical' and isinstance(widget, Gtk.Label):
+            _set_numerical_label_alignment(widget)
+    if isinstance(widget, Gtk.Container):
+        widget.foreach(auto_align)
+    return widget

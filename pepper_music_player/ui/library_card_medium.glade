@@ -30,5 +30,8 @@ limitations under the License.
     <attributes>
       <attribute name="weight" value="bold"/>
     </attributes>
+    <style>
+      <class name="direction-auto"/>
+    </style>
   </object>
 </interface>

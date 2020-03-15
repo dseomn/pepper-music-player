@@ -104,5 +104,8 @@ limitations under the License.
         <property name="position">2</property>
       </packing>
     </child>
+    <style>
+      <class name="direction-ltr"/>
+    </style>
   </object>
 </interface>
