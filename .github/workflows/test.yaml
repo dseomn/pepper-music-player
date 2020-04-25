@@ -78,7 +78,9 @@ jobs:
         pylint pepper_music_player
     - name: Check formatting
       run: |
-        pip install yapf
+        # TODO(https://github.com/google/yapf/issues/793): Don't pin the
+        # version.
+        pip install yapf==0.29.0
         yapf --parallel --diff --recursive .
     - name: Cache pytype analysis
       uses: actions/cache@v1
