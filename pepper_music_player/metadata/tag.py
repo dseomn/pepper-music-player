@@ -61,9 +61,7 @@ class PseudoTag(Tag):
 
     def __post_init__(self) -> None:
         """See base class."""
-        # TODO(https://github.com/google/pytype/issues/492): Remove pytype
-        # disable.
-        if not self.name.startswith(self.PREFIX):  # pytype: disable=wrong-arg-types
+        if not self.name.startswith(self.PREFIX):
             raise ValueError(f'Tag name must start with {self.PREFIX!r}.')
 
 
@@ -138,9 +136,7 @@ class IndexOrTotalTag(DerivedTag):
         composite_value = tags.one_or_none(self.composite_tag)
         if composite_value is None:
             return None
-        # TODO(https://github.com/google/pytype/issues/492): Remove pytype
-        # disable.
-        composite_match = self._COMPOSITE_REGEX.fullmatch(composite_value)  # pytype: disable=attribute-error
+        composite_match = self._COMPOSITE_REGEX.fullmatch(composite_value)
         if composite_match is None:
             return (composite_value,) if self.is_index else None
         matched_value = composite_match.group(
