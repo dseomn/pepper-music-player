@@ -280,7 +280,9 @@ class PlayerTest(unittest.TestCase):
         self._order.playable_units = (self._playable_unit(
             'zeroes', _AUDIO_ZEROES),)
         self._player.pause()
-        self._player.next()
+        # TODO(https://github.com/PyCQA/pylint/issues/3595): Remove pylint
+        # disable.
+        self._player.next()  # pylint: disable=not-callable
         self.assertEqual(b'', self._all_audio())
 
     def test_next_while_playing(self):
@@ -289,7 +291,9 @@ class PlayerTest(unittest.TestCase):
             self._playable_unit('ones', _AUDIO_ONES),
         )
         self._player.play()
-        self._player.next()
+        # TODO(https://github.com/PyCQA/pylint/issues/3595): Remove pylint
+        # disable.
+        self._player.next()  # pylint: disable=not-callable
         self.assertEqual(_AUDIO_ONES, self._all_audio()[-len(_AUDIO_ONES):])
 
     def test_next_while_paused(self):
@@ -298,7 +302,9 @@ class PlayerTest(unittest.TestCase):
             self._playable_unit('ones', _AUDIO_ONES),
         )
         self._player.pause()
-        self._player.next()
+        # TODO(https://github.com/PyCQA/pylint/issues/3595): Remove pylint
+        # disable.
+        self._player.next()  # pylint: disable=not-callable
         self._player.play()
         self.assertEqual(_AUDIO_ONES, self._all_audio())
 
@@ -350,7 +356,7 @@ class PlayerTest(unittest.TestCase):
     def test_logs_and_stops_on_error(self):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
-        filename = os.path.join(tempdir.name, f'error.wav')
+        filename = os.path.join(tempdir.name, 'error.wav')
         with open(filename, 'wb') as fh:
             fh.write(b'This is probably not a valid wav file.')
         self._order.playable_units = (entity.PlayableUnit(
