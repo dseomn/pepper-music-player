@@ -153,8 +153,7 @@ class Null(Order):
         return None
 
 
-# TODO(https://github.com/PyCQA/pylint/issues/179): Remove pylint disable.
-class Base(Order):  # pylint: disable=abstract-method
+class Base(Order):
     """Base class for most Order implementations.
 
     Attributes:

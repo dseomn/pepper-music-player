@@ -146,15 +146,13 @@ class Database:
         else:
             self._connection.commit()
 
-    # TODO(https://github.com/PyCQA/pylint/issues/3350): Remove pylint disable.
     @typing.overload
-    def snapshot(self, snapshot: None = None) -> ContextManager[Snapshot]:  # pylint: disable=missing-function-docstring
+    def snapshot(self, snapshot: None = None) -> ContextManager[Snapshot]:
         pass
 
-    # TODO(https://github.com/PyCQA/pylint/issues/3350): Remove pylint disable.
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     @typing.overload
-    def snapshot(  # pylint: disable=missing-function-docstring
+    def snapshot(
             self,
             snapshot: AbstractSnapshot,
     ) -> ContextManager[AbstractSnapshot]:  # yapf: disable
