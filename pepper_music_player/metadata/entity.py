@@ -15,7 +15,7 @@
 
 import dataclasses
 import logging
-from typing import Iterable, Tuple
+from typing import Iterable, Sequence
 import uuid
 
 from pepper_music_player.metadata import tag
@@ -174,7 +174,7 @@ class Medium:
     token: metadata_token.Medium = dataclasses.field(init=False)
     album_token: metadata_token.Album = dataclasses.field(init=False,
                                                           repr=False)
-    tracks: Tuple[Track, ...] = dataclasses.field(repr=False)
+    tracks: Sequence[Track] = dataclasses.field(repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -196,7 +196,7 @@ class Album:
     """
     tags: tag.Tags = dataclasses.field(repr=False)
     token: metadata_token.Album = dataclasses.field(init=False)
-    mediums: Tuple[Medium, ...] = dataclasses.field(repr=False)
+    mediums: Sequence[Medium] = dataclasses.field(repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(

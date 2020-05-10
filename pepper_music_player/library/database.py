@@ -256,8 +256,9 @@ class Database:
                 transaction,
                 parent_token,
                 tag.compose(
-                    self._get_tags(transaction, child_token)
-                    for _, child_token in rows),
+                    tuple(
+                        self._get_tags(transaction, child_token)
+                        for _, child_token in rows)),
             )
 
     def insert_files(self, files: Iterable[scan.File]) -> None:

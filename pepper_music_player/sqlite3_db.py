@@ -19,7 +19,7 @@ import os
 import sqlite3
 import threading
 import typing
-from typing import Any, ContextManager, Generator, Iterable, List, NewType, Optional, Tuple, Type, TypeVar
+from typing import Any, ContextManager, Generator, List, NewType, Optional, Sequence, Tuple, Type, TypeVar
 
 
 @dataclasses.dataclass(frozen=True)
@@ -44,7 +44,7 @@ class Schema:
     """
     name: str
     version: str
-    items: Tuple[SchemaItem, ...]
+    items: Sequence[SchemaItem]
 
 
 # Any type of transaction that supports reading.
@@ -200,7 +200,7 @@ class QueryBuilder:
         self._sql: List[str] = []
         self._parameters: List[Any] = []
 
-    def append(self, sql: str, parameters: Iterable[Any] = ()) -> None:
+    def append(self, sql: str, parameters: Sequence[Any] = ()) -> None:
         """Appends to the query being built.
 
         Args:
@@ -210,7 +210,7 @@ class QueryBuilder:
         self._sql.append(sql)
         self._parameters.extend(parameters)
 
-    def build(self) -> Tuple[str, Tuple[Any, ...]]:
+    def build(self) -> Tuple[str, Sequence[Any]]:
         """Returns the built query and its parameters.
 
         Typical usage:

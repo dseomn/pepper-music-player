@@ -17,7 +17,7 @@ import dataclasses
 import mimetypes
 import os
 import pathlib
-from typing import Generator
+from typing import Iterable
 
 import mutagen
 
@@ -61,7 +61,7 @@ def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
     }).derive()
 
 
-def scan(root_dirname: str) -> Generator[File, None, None]:
+def scan(root_dirname: str) -> Iterable[File]:
     """Scans a directory."""
     # TODO: Keep track of errors with os.walk(onerror=...)
     # TODO: Catch and handle per-file errors.

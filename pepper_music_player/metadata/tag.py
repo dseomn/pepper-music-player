@@ -21,7 +21,7 @@ import functools
 import math
 import operator
 import re
-from typing import ClassVar, Dict, Iterable, Mapping, Optional, Pattern, Tuple, Union
+from typing import ClassVar, Collection, Mapping, Optional, Pattern, Sequence, Union
 
 import frozendict
 
@@ -70,7 +70,7 @@ class DerivedTag(PseudoTag, abc.ABC):
     """Pseudo-tag that is derived from other tags."""
 
     @abc.abstractmethod
-    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+    def derive(self, tags: 'Tags') -> Optional[Sequence[str]]:
         """Derives the values for this tag.
 
         Args:
@@ -91,7 +91,7 @@ class DurationHumanTag(DerivedTag):
     """
     seconds_tag: Tag
 
-    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+    def derive(self, tags: 'Tags') -> Optional[Sequence[str]]:
         """See base class."""
         seconds_str = tags.one_or_none(self.seconds_tag)
         if seconds_str is None:
@@ -126,9 +126,9 @@ class IndexOrTotalTag(DerivedTag):
         r'(?P<index>\d+)(?:/(?P<total>\d+))?')
     is_index: bool
     composite_tag: Tag
-    plain_tags: Tuple[Tag, ...] = ()
+    plain_tags: Sequence[Tag] = ()
 
-    def derive(self, tags: 'Tags') -> Optional[Tuple[str, ...]]:
+    def derive(self, tags: 'Tags') -> Optional[Sequence[str]]:
         """See base class."""
         for tag in self.plain_tags:
             if tag in tags:
@@ -198,14 +198,14 @@ def _tag_name_str(tag: ArbitraryTag) -> str:
         return tag
 
 
-class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
+class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Sequence[str]]):
     """Tags, e.g., from a file/track or album.
 
     Note that tags can have multiple values, potentially even multiple identical
     values. E.g., this is a valid set of tags: {'a': ('b', 'b')}
     """
 
-    def __init__(self, tags: Mapping[ArbitraryTag, Iterable[str]]) -> None:
+    def __init__(self, tags: Mapping[ArbitraryTag, Sequence[str]]) -> None:
         """Initializer.
 
         Args:
@@ -223,7 +223,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
             _tag_name_str(name): tuple(values) for name, values in tags.items()
         })
 
-    def __getitem__(self, key: ArbitraryTag) -> Tuple[str, ...]:
+    def __getitem__(self, key: ArbitraryTag) -> Sequence[str]:
         return super().__getitem__(_tag_name_str(key))
 
     def __contains__(self, key: ArbitraryTag) -> bool:
@@ -231,7 +231,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
 
     def derive(
             self,
-            derived_tags: Iterable[DerivedTag] = _DERIVED_TAGS,
+            derived_tags: Collection[DerivedTag] = _DERIVED_TAGS,
     ) -> 'Tags':
         """Returns a copy of self, with all specified derived tags set."""
         derived_tag_names = frozenset(tag.name for tag in derived_tags)
@@ -294,7 +294,7 @@ class Tags(frozendict.frozendict, Mapping[ArbitraryTag, Tuple[str, ...]]):
 
 
 def _compose_intersection(
-        components_tags: Iterable[Tags]) -> Dict[str, Iterable[str]]:
+        components_tags: Collection[Tags]) -> Mapping[str, Sequence[str]]:
     """Returns intersected tags."""
     if not components_tags:
         return {}
@@ -320,7 +320,7 @@ def _compose_intersection(
 
 
 def _compose_duration(
-        components_tags: Iterable[Tags]) -> Dict[str, Iterable[str]]:
+        components_tags: Collection[Tags]) -> Mapping[str, Sequence[str]]:
     """Returns summed duration tags."""
     duration_seconds_values = [
         component_tags.one_or_none(DURATION_SECONDS)
@@ -337,7 +337,7 @@ def _compose_duration(
     return {}
 
 
-def compose(components_tags: Iterable[Tags]) -> Tags:
+def compose(components_tags: Collection[Tags]) -> Tags:
     """Returns the tags for an entity composed of tagged sub-entities.
 
     E.g., this can get the tags for an album composed of tracks. In general, the
