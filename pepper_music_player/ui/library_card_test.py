@@ -338,6 +338,42 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         )
         self.register_widget_screenshot(self._library_card_list.widget)
 
+    def _inner_rows(self, list_item, *, parent=None):
+        """Returns all ListBoxRows for the given list item."""
+        if parent is None:
+            return self._inner_rows(list_item,
+                                    parent=self._library_card_list.widget)
+        rows = []
+        for child in parent.get_children():
+            if isinstance(child, library_card.ListBoxRow):
+                if child.list_item is list_item:
+                    rows.append(child)
+            elif isinstance(child, Gtk.Container):
+                rows.extend(self._inner_rows(list_item, parent=child))
+        return rows
+
+    def test_inner_row_classes(self):
+        medium_token = self._insert_medium(track_count=2)
+        medium = self._library_db.medium(medium_token)
+        list_item = library_card.ListItem(
+            medium_token,
+            row_classes={medium.tracks[0].token: ('foo',)},
+        )
+        self._library_card_list.store.append(list_item)
+        GLib.idle_add(Gtk.main_quit)
+        Gtk.main()
+        inner_rows_with_class_foo = tuple(
+            row.get_style_context().has_class('foo')
+            for row in self._inner_rows(list_item))
+        self.assertSequenceEqual(
+            inner_rows_with_class_foo,
+            (
+                False,  # medium header
+                True,
+                False,
+            ),
+        )
+
     def test_activate_top_level(self):
         library_token = self._insert_album()
         self._set_tokens(library_token)

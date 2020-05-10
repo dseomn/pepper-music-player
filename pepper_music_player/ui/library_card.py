@@ -14,8 +14,9 @@
 """Cards for things in the library, and lists of those cards."""
 
 from importlib import resources
-from typing import Generic, Iterable, Optional, Type, TypeVar
+from typing import Collection, Generic, Iterable, Mapping, Optional, Type, TypeVar
 
+import frozendict
 import gi
 gi.require_version('GObject', '2.0')
 from gi.repository import GObject
@@ -31,17 +32,28 @@ from pepper_music_player.metadata import token
 from pepper_music_player.ui import alignment
 from pepper_music_player.ui import gtk_builder_template
 
+# Map from library token to style classes that should be applied to the row for
+# that library token.
+RowClasses = Mapping[token.LibraryToken, Collection[str]]
+
 
 class ListItem(GObject.Object):
     """Data for use in a Gio.ListStore that represents library cards.
 
     Attributes:
         library_token: Which thing in the library to show a card for.
+        row_classes: Extra style classes for rows in the card.
     """
 
-    def __init__(self, library_token: token.LibraryToken) -> None:
+    def __init__(
+            self,
+            library_token: token.LibraryToken,
+            *,
+            row_classes: RowClasses = frozendict.frozendict(),
+    ) -> None:
         super().__init__()
         self.library_token = library_token
+        self.row_classes = row_classes
 
 
 ListItemType = TypeVar('ListItemType', bound=ListItem)
@@ -226,6 +238,9 @@ class List(Generic[ListItemType]):
         inner_list.connect('row-activated',
                            lambda list_box, row: self.row_activated(row))
         for inner_row in inner_rows:
+            for style_class in item.row_classes.get(inner_row.library_token,
+                                                    ()):
+                inner_row.get_style_context().add_class(style_class)
             inner_list.insert(inner_row, position=-1)
         row = Gtk.ListBoxRow()
         row.add(inner_list)
