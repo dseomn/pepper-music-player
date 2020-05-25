@@ -451,7 +451,7 @@ class LibraryCardTest(screenshot_testlib.TestCase):
         self.assertEqual(inner.get_page_size(), 10.0)
         self.assertEqual(inner.get_step_increment(), 2.0)
 
-    def test_adjust_changes_propagate_outwards(self):
+    def test_adjustment_changes_propagate_outwards(self):
         outer, inner = self._get_outer_and_inner_adjustments()
         inner.set_lower(1.0)
         inner.set_upper(11.0)
