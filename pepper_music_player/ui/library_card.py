@@ -203,6 +203,8 @@ class List(Generic[ListItemType]):
         # TODO(https://gitlab.gnome.org/GNOME/gtk/-/issues/2465): Delete this
         # function.
         outer_adjustment = self.widget.get_adjustment()
+        if outer_adjustment is None:
+            return
         inner_adjustment = Gtk.Adjustment()
         _bind_property_with_delta_bidirectional(outer_adjustment,
                                                 inner_adjustment, 'lower',
