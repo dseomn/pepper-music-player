@@ -125,11 +125,17 @@ def _bind_property_with_delta_bidirectional(
     # TODO(https://gitlab.gnome.org/GNOME/glib/issues/646): Delete this function
     # and switch to binding with closures.
 
+    in_notify_handler = False
+
     def _notify_handler(
             source: GObject.Object,
             pspec: GObject.ParamSpec,
     ) -> None:
         del pspec  # Unused.
+        nonlocal in_notify_handler
+        if in_notify_handler:
+            # Prevent infinite recursion.
+            return
         value = source.get_property(property_name)
         if source is object1:
             target = object2
@@ -137,9 +143,11 @@ def _bind_property_with_delta_bidirectional(
         else:
             target = object1
             value -= delta
-        # Check for equality, to avoid infinite loops of the notify signal.
-        if target.get_property(property_name) != value:
+        in_notify_handler = True
+        try:
             target.set_property(property_name, value)
+        finally:
+            in_notify_handler = False
 
     object1.connect(f'notify::{property_name}', _notify_handler)
     object2.connect(f'notify::{property_name}', _notify_handler)
