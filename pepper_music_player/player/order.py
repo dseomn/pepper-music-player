@@ -191,8 +191,8 @@ class LinearEntry(Base):
             return None
         try:
             units = self.playlist.playable_units(current.playlist_entry)
-        except KeyError:
-            raise StopError('Current playlist entry not found.')
+        except KeyError as e:
+            raise StopError('Current playlist entry not found.') from e
         try:
             index = {
                 unit.track.token: index for index, unit in enumerate(units)
@@ -200,7 +200,8 @@ class LinearEntry(Base):
         except KeyError:
             raise StopError(
                 f'Current track {current.track} does not exist in current '
-                f'library entity {current.playlist_entry.library_token}.')
+                f'library entity {current.playlist_entry.library_token}.'
+            ) from None
         # This uses an if-condition instead of `try ... except IndexError`
         # because index=0 and offset=-1 would return the last unit instead of
         # raising IndexError.
@@ -264,10 +265,10 @@ class Linear(LinearEntry):
             return None
         try:
             return self.playlist.playable_units(entry)[index]
-        except LookupError:
+        except LookupError as e:
             raise StopError(
                 f'{entry} does not exist, or does not have a playable unit at '
-                f'index {index}.')
+                f'index {index}.') from e
 
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
     @handle_stop_error
