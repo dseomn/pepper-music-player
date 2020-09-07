@@ -49,6 +49,16 @@ class AudioFile(File):
     track: entity.Track
 
 
+@dataclasses.dataclass(frozen=True)
+class ImageFile(File):
+    """An image file.
+
+    Attributes:
+        image: The image in the file.
+    """
+    image: entity.Image
+
+
 def _read_audio_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
     """Returns tags read from an audio file."""
     file_info = mutagen.File(filename, easy=True)
@@ -58,6 +68,17 @@ def _read_audio_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
         tag.DIRNAME: (dirname,),
         tag.FILENAME: (filename,),
         tag.DURATION_SECONDS: (str(file_info.info.length),),
+    }).derive()
+
+
+def _read_image_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
+    """Returns tags read from an image file."""
+    # TODO(#61): Actually read more tags (e.g., width and height) from the file
+    # itself.
+    return tag.Tags({
+        tag.BASENAME: (basename,),
+        tag.DIRNAME: (dirname,),
+        tag.FILENAME: (filename,),
     }).derive()
 
 
@@ -80,6 +101,17 @@ def scan(root_dirname: str) -> Iterable[File]:
                         tags=_read_audio_tags(dirname=dirname,
                                               basename=basename,
                                               filename=str(filepath))),
+                )
+            elif mime_major == 'image':
+                yield ImageFile(
+                    filename=str(filepath),
+                    dirname=dirname,
+                    basename=basename,
+                    image=entity.Image(tags=_read_image_tags(
+                        dirname=dirname,
+                        basename=basename,
+                        filename=str(filepath),
+                    )),
                 )
             else:
                 yield File(filename=str(filepath),

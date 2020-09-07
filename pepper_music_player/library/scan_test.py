@@ -109,6 +109,24 @@ class ScanTest(unittest.TestCase):
             scan.scan(str(self._root_dirpath)),
         )
 
+    def test_parses_image(self):
+        # TODO(#61): Write a real image, and test tags parsed from that.
+        self._root_dirpath.joinpath('foo.png').write_bytes(b'')
+        self.assertCountEqual(
+            (scan.ImageFile(
+                filename=str(self._root_dirpath.joinpath('foo.png')),
+                dirname=str(self._root_dirpath),
+                basename='foo.png',
+                image=entity.Image(tags=tag.Tags({
+                    tag.BASENAME: ('foo.png',),
+                    tag.DIRNAME: (str(self._root_dirpath),),
+                    tag.FILENAME:
+                        (str(self._root_dirpath.joinpath('foo.png')),),
+                }).derive()),
+            ),),
+            scan.scan(str(self._root_dirpath)),
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
