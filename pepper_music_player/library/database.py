@@ -32,12 +32,14 @@ from pepper_music_player import sqlite3_db
 # to the allowed types? Or can the code be adapted to tolerate type changes
 # without version changes?
 class _EntityType(enum.Enum):
+    IMAGE = 'image'
     TRACK = 'track'
     MEDIUM = 'medium'
     ALBUM = 'album'
 
 
 _TYPE_NAME_TO_TOKEN_TYPE = frozendict.frozendict({
+    _EntityType.IMAGE.value: token.Image,
     _EntityType.TRACK.value: token.Track,
     _EntityType.MEDIUM.value: token.Medium,
     _EntityType.ALBUM.value: token.Album,
@@ -228,6 +230,36 @@ class Database:
         )
         self._set_tags(transaction, track_token, file_info.track.tags)
 
+    def _insert_image_file(
+            self,
+            transaction: sqlite3_db.Transaction,
+            file_info: scan.ImageFile,
+    ) -> None:
+        """Inserts information about the given image file.
+
+        Args:
+            transaction: Transaction to use.
+            file_info: File to insert.
+        """
+        transaction.execute(
+            """
+            INSERT INTO Entity (token, type, filename, parent_token, sort_key)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                str(file_info.image.token),
+                _EntityType.IMAGE.value,
+                file_info.filename,
+                None,
+                b'',
+            ),
+        )
+        self._set_tags(
+            transaction,
+            str(file_info.image.token),
+            file_info.image.tags,
+        )
+
     def _compose_tags(
             self,
             transaction: sqlite3_db.Transaction,
@@ -279,6 +311,8 @@ class Database:
                                     (file_info.filename,))
                 if isinstance(file_info, scan.AudioFile):
                     self._insert_audio_file(transaction, file_info)
+                elif isinstance(file_info, scan.ImageFile):
+                    self._insert_image_file(transaction, file_info)
             self._compose_tags(transaction, child_type=_EntityType.TRACK)
             self._compose_tags(transaction, child_type=_EntityType.MEDIUM)
 
