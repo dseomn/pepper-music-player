@@ -49,8 +49,8 @@ class AudioFile(File):
     track: entity.Track
 
 
-def _read_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
-    """Returns tags read from a file."""
+def _read_audio_tags(dirname: str, basename: str, filename: str) -> tag.Tags:
+    """Returns tags read from an audio file."""
     file_info = mutagen.File(filename, easy=True)
     return tag.Tags({
         **(file_info.tags or {}),
@@ -76,9 +76,10 @@ def scan(root_dirname: str) -> Iterable[File]:
                     filename=str(filepath),
                     dirname=dirname,
                     basename=basename,
-                    track=entity.Track(tags=_read_tags(dirname=dirname,
-                                                       basename=basename,
-                                                       filename=str(filepath))),
+                    track=entity.Track(
+                        tags=_read_audio_tags(dirname=dirname,
+                                              basename=basename,
+                                              filename=str(filepath))),
                 )
             else:
                 yield File(filename=str(filepath),
