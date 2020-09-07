@@ -28,6 +28,11 @@ class Token:
 
 
 @dataclasses.dataclass(frozen=True)
+class Image(Token):
+    """Opaque token for an image, e.g., cover art."""
+
+
+@dataclasses.dataclass(frozen=True)
 class LibraryToken(Token):
     """Base class for tokens of music in the library."""
 

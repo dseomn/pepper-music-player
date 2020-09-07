@@ -20,6 +20,15 @@ from pepper_music_player.metadata import tag
 from pepper_music_player.metadata import token
 
 
+class ImageTest(unittest.TestCase):
+
+    def test_image_token_format(self):
+        self.assertEqual(
+            "image/v1alpha:(('~filename', '/a/b'),)",
+            str(entity.Image(tags=tag.Tags({tag.FILENAME: ('/a/b',)})).token),
+        )
+
+
 class LibraryEntityTest(unittest.TestCase):
 
     def test_track_token_format(self):

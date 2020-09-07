@@ -92,6 +92,31 @@ def _sort_key(version: int, tag_data: tag.Tags, *int_tags: tag.Tag) -> bytes:
 
 
 @dataclasses.dataclass(frozen=True)
+class Image:
+    """An image, e.g., album cover art, a photo of a disc, or track art.
+
+    Currently these are from image files; later, the images embedded in audio
+    files will also be included in this entity type.
+
+    Attributes:
+        tags: Tags of the image. For now this is just file-related tags; later
+            it will include image-specific information (e.g., width and height).
+        token: Opaque token that identifies this image.
+    """
+    tags: tag.Tags = dataclasses.field(repr=False)
+    token: metadata_token.Image = dataclasses.field(init=False)
+
+    def __post_init__(self) -> None:
+        # TODO(#20): Change versions to v1.
+        object.__setattr__(
+            self,
+            'token',
+            metadata_token.Image(
+                _tag_token_str('image', 'v1alpha', self.tags, tag.FILENAME)),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
 class Track:
     """A track.
 
