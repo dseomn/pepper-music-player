@@ -51,7 +51,7 @@ def _tag_token_str(
     change, by allowing as many code changes as possible without affecting
     existing tokens. E.g., it includes the tag names so that a track token based
     on the filename can stay valid if we later add track tokens based on
-    streaming URLs in additon.
+    streaming URLs in addition.
 
     Args:
         token_type: See _token_str().
