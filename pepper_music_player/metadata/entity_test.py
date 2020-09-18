@@ -24,7 +24,7 @@ class ImageTest(unittest.TestCase):
 
     def test_image_token_format(self):
         self.assertEqual(
-            "image/v1alpha:(('~filename', '/a/b'),)",
+            'image/v1alpha:[["~filename","/a/b"]]',
             str(entity.Image(tags=tag.Tags({tag.FILENAME: ('/a/b',)})).token),
         )
 
@@ -33,13 +33,13 @@ class LibraryEntityTest(unittest.TestCase):
 
     def test_track_token_format(self):
         self.assertEqual(
-            "track/v1alpha:(('~filename', '/a/b'),)",
+            'track/v1alpha:[["~filename","/a/b"]]',
             str(entity.Track(tags=tag.Tags({tag.FILENAME: ('/a/b',)})).token),
         )
 
     def test_medium_token_format_minimal(self):
         self.assertEqual(
-            "medium/v1alpha:(('~dirname', '/a'),)",
+            'medium/v1alpha:[["~dirname","/a"]]',
             str(
                 entity.Track(
                     tags=tag.Tags({tag.DIRNAME: ('/a',)})).medium_token),
@@ -47,12 +47,12 @@ class LibraryEntityTest(unittest.TestCase):
 
     def test_medium_token_format_full(self):
         self.assertEqual(
-            'medium/v1alpha:('
-            "('~dirname', '/a'), "
-            "('album', 'an album'), "
-            "('albumartist', 'an album artist'), "
-            "('musicbrainz_albumid', 'ef83d7bf-10c3-448b-810d-16c3d1f0ce88'), "
-            "('~parsed_discnumber', '1'))",
+            'medium/v1alpha:['
+            '["~dirname","/a"],'
+            '["album","an album"],'
+            '["albumartist","an album artist"],'
+            '["musicbrainz_albumid","ef83d7bf-10c3-448b-810d-16c3d1f0ce88"],'
+            '["~parsed_discnumber","1"]]',
             str(
                 entity.Track(tags=tag.Tags({
                     tag.DIRNAME: ('/a',),
@@ -66,7 +66,7 @@ class LibraryEntityTest(unittest.TestCase):
 
     def test_album_token_format_minimal(self):
         self.assertEqual(
-            "album/v1alpha:(('~dirname', '/a'),)",
+            'album/v1alpha:[["~dirname","/a"]]',
             str(
                 entity.Track(
                     tags=tag.Tags({tag.DIRNAME: ('/a',)})).album_token),
@@ -74,11 +74,11 @@ class LibraryEntityTest(unittest.TestCase):
 
     def test_album_token_format_full(self):
         self.assertEqual(
-            'album/v1alpha:('
-            "('~dirname', '/a'), "
-            "('album', 'an album'), "
-            "('albumartist', 'an album artist'), "
-            "('musicbrainz_albumid', 'ef83d7bf-10c3-448b-810d-16c3d1f0ce88'))",
+            'album/v1alpha:['
+            '["~dirname","/a"],'
+            '["album","an album"],'
+            '["albumartist","an album artist"],'
+            '["musicbrainz_albumid","ef83d7bf-10c3-448b-810d-16c3d1f0ce88"]]',
             str(
                 entity.Track(tags=tag.Tags({
                     tag.DIRNAME: ('/a',),

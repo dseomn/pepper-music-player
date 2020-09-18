@@ -14,6 +14,7 @@
 """Entities with metadata, e.g., tracks and albums."""
 
 import dataclasses
+import json
 import logging
 from typing import Iterable, Sequence
 import uuid
@@ -66,7 +67,15 @@ def _tag_token_str(
     return _token_str(
         token_type=token_type,
         token_version=token_version,
-        data=repr(tuple(token_tag_pairs)),
+        data=json.dumps(
+            token_tag_pairs,
+            # Explicitly specify every parameter that could affect formatting,
+            # even if the specified value is the same as the default. That way
+            # if the default changes in the future, tokens won't change.
+            ensure_ascii=True,
+            indent=None,
+            separators=(',', ':'),
+        ),
     )
 
 
