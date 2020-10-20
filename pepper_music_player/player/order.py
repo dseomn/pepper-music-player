@@ -56,12 +56,14 @@ def handle_stop_error(function: Callable[..., T]) -> Callable[..., Optional[T]]:
 
     # TODO(https://github.com/google/pytype/issues/511): Remove pytype disable.
     # TODO(https://github.com/google/yapf/issues/793): Remove yapf disable.
+    # pytype: disable=invalid-annotation
     @functools.wraps(function)
     def _wrapper(
             *args: Any,
             error_policy: ErrorPolicy = ErrorPolicy.DEFAULT,
             **kwargs: Any,
-    ) -> Optional[T]:  # pytype: disable=invalid-annotation  # yapf: disable
+    ) -> Optional[T]:  # yapf: disable
+        # pytype: enable=invalid-annotation
         try:
             return function(*args,
                             error_policy=ErrorPolicy.RAISE_STOP_ERROR,

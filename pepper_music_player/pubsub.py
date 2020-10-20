@@ -35,9 +35,11 @@ AnyMessage = TypeVar('AnyMessage', bound=Message)
 @dataclasses.dataclass(frozen=True)
 class _Subscriber(Generic[AnyMessage]):
     # TODO(dseomn): Remove pytype disable.
-    message_type: Type[AnyMessage]  # pytype: disable=not-supported-yet
+    # pytype: disable=not-supported-yet
+    message_type: Type[AnyMessage]
     queue: 'queue.Queue[AnyMessage]' = dataclasses.field(
-        default_factory=queue.Queue)  # pytype: disable=not-supported-yet
+        default_factory=queue.Queue)
+    # pytype: enable=not-supported-yet
 
 
 class PubSub:
