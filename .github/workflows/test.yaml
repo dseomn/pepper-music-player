@@ -90,9 +90,6 @@ jobs:
         restore-keys: |
           pytype-${{ runner.os }}-${{ matrix.python-version }}-
     - name: Run pytype
-      # TODO(https://github.com/google/pytype/issues/440): Remove this
-      # condition.
-      if: matrix.python-version != '3.8'
       run: |
         pip install pytype
         pytype
