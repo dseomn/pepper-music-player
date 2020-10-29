@@ -16,7 +16,6 @@
 import datetime
 import operator
 import os
-import sys
 import tempfile
 import time
 import unittest
@@ -354,12 +353,6 @@ class PlayerTest(unittest.TestCase):
         self._player.previous()
         self.assertEqual(_AUDIO_ZEROES, self._all_audio()[-len(_AUDIO_ZEROES):])
 
-    # TODO(https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/616):
-    # Don't skip this test.
-    @unittest.skipIf(
-        sys.platform.startswith('darwin'),
-        'https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/616',
-    )
     def test_logs_and_stops_on_error(self):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
