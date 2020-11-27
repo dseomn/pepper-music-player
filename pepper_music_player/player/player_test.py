@@ -143,7 +143,16 @@ class PlayerTest(unittest.TestCase):
             sample = GstApp.AppSink.pull_sample(self._audio_sink)
             if sample is None:
                 return b''.join(data)
-            data.append(sample.get_buffer().map(Gst.MapFlags.READ)[1].data)
+            # Some, but not all, versions of
+            # https://gitlab.freedesktop.org/gstreamer/gst-python seem to change
+            # the Gst.Buffer.map() API to return Gst.MapInfo instead of
+            # Tuple[bool, Gst.MapInfo].
+            map_result = sample.get_buffer().map(Gst.MapFlags.READ)
+            if isinstance(map_result, Gst.MapInfo):
+                map_info = map_result
+            else:
+                _, map_info = map_result
+            data.append(map_info.data)
 
     def _deduplicated_status_updates(self):
         """Returns deduplicated PlayStatus messages from pubsub.
